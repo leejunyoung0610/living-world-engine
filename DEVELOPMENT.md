@@ -9,7 +9,7 @@
 
 | 주차 | 목표 | 상태 | 테스트 |
 |------|------|------|--------|
-| **Week 1** (2/15~2/21) | 핵심 엔진 + LLM 통합 | 🔴 진행중 | 53/53 pass |
+| **Week 1** (2/15~2/21) | 핵심 엔진 + LLM 통합 | 🔴 진행중 | 63/63 pass |
 | **Week 2** (2/22~2/28) | 이벤트 + 루프 방지 | ⬜ 예정 | - |
 | **Week 3** (3/1~3/7) | 세계관 + API | ⬜ 예정 | - |
 | **Week 4** (3/8~3/14) | UI + 문서 + 데모 | ⬜ 예정 | - |
@@ -65,13 +65,77 @@
 
 ---
 
-### Day 2 (2/16 일) ⬜
+### Day 2 (2/16 일) ✅
 
-**예정:**
-- [ ] WorldState.load_from_file로 세계관 JSON 실제 로딩 테스트
-- [ ] GameEngine.process_turn 통합 테스트 (실제 Claude API 1턴 플레이)
-- [ ] 시스템 프롬프트 튜닝 (NPC 성격 반영)
-- [ ] 대화 히스토리 관리 개선
+**목표:** 세계관 로딩 + 통합 테스트 + 프롬프트 튜닝
+
+**완료:**
+- [x] WorldState.load_from_file() 클래스 메서드 구현
+  - world.json, characters.json 두 파일 분리 로딩
+  - 3단계 에러 처리: FileNotFoundError, JSONDecodeError, ValueError(필수 필드 누락)
+  - GameEngine.initialize() 연동 수정
+  - 유닛 테스트 5개 추가 (정상 로딩, 파일 없음, 잘못된 JSON, 필수 필드 누락, 다수 NPC)
+
+- [x] GameEngine 통합 테스트 (실제 Claude API 호출)
+  - `backend/tests/integration/test_game_engine.py` 생성
+  - pytest.mark.integration 마커 분리
+  - 단일 턴 테스트 4개: 응답 존재, Tool Use 발생, 상태 업데이트, 한국어 응답
+  - 멀티 턴 테스트 1개: 2턴 대화에서 이름 기억 확인
+  - 5/5 전부 통과
+
+- [x] 빈 응답 버그 수정 (llm.py)
+  - 문제: Claude 2차 호출에서 빈 텍스트 반환되는 케이스
+  - 원인: tool_result 메시지에 대사 생성 유도 힌트 없음
+  - 해결: tool_result에 "이제 NPC의 대사로 응답하세요" 추가 + 1차 텍스트 fallback
+
+- [x] 시스템 프롬프트 1차 튜닝 (game_loop.py)
+  - `_build_system_prompt()` 전면 개선
+  - `_format_npc_profiles()` 신규 — 전체 NPC 데이터(persona, speech_style, skills) 반영
+  - `_format_memories()` 신규 — 감정 + 중요도 표시
+
+**프롬프트 튜닝 Before → After:**
+
+| 항목 | Before | After |
+|------|--------|-------|
+| 응답 형식 | RPG 소설체, 3인칭 서술 | 대화 중심, 괄호 행동, 2~4문장 |
+| 캐릭터성 | NPC 이름+역할만 전달 | persona + speech_style + skills + 관계 수치 전부 전달 |
+| 장면 설정 | `**[장소명]**` 헤더 + 풍경 묘사 | 장면 헤더 금지, 바로 대사로 시작 |
+| Tool Use | "관계 변화 -10~+10" | 세분화: 인사 ±1~2, 호의 +3~5, 중요도 기준 명시 |
+| 기억 | "새 기억 최소 1개" | 중요도 가이드: 인사=2~3, 대화=4~6, 감정 사건=7~9 |
+
+**실제 응답 비교:**
+
+Before:
+```
+**[아케인 아카데미 결투장]**
+따뜻한 봄 햇살이 결투장을 비추고 있었다. 엘레나는 우아하게 앉아
+노트를 보고 있었는데, 은발이 바람에 흔들리며...
+```
+
+After:
+```
+(결투장 벤치에서 책을 덮으며 고개를 든다) "어머, 신입생이군요.
+준영이라... 기억해 두죠." (차가운 눈빛으로 훑어본다)
+```
+
+**테스트:**
+- 유닛: 53 → 58개 (+5 load_from_file)
+- 통합: 0 → 5개 (+5 GameEngine 실제 API)
+- 총: **63개** (100% 통과)
+
+**커밋:**
+```
+f4b7b16 feat: Add WorldState.load_from_file() with comprehensive validation
++ feat: Add GameEngine integration tests with real Claude API
++ feat: System prompt tuning for natural dialogue + empty response fix
+```
+
+**API 비용:** ~$0.50 (통합 테스트 약 10회 실행)
+
+**다음 (Day 3):**
+- [ ] EventManager 기본 구현 (조건 평가 로직)
+- [ ] 조건 기반 이벤트 트리거
+- [ ] 이벤트-상태 연동 테스트
 
 ---
 
@@ -288,14 +352,14 @@
 
 | 지표 | 값 |
 |------|-----|
-| 총 커밋 | 1 |
-| 총 테스트 | 53 |
+| 총 커밋 | 6 |
+| 총 테스트 | 63 (유닛 58 + 통합 5) |
 | 테스트 통과율 | 100% |
-| Python 파일 | ~20개 |
+| Python 파일 | ~22개 |
 | JSON 데이터 | 3개 (world, characters, events) |
 | NPC 수 | 6명 |
 | 이벤트 수 | 10개 |
-| API 비용 (누적) | ~$0.02 |
+| API 비용 (누적) | ~$0.52 |
 
 ---
 

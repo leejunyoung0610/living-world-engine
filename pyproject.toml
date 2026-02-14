@@ -35,6 +35,9 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --cov=backend/src --cov-report=html --cov-report=term"
+markers = [
+    "integration: 통합 테스트 - 실제 API 호출 필요 (deselect with '-m \"not integration\"')",
+]
 
 [tool.black]
 line-length = 100

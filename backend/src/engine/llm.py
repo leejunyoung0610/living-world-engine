@@ -168,12 +168,18 @@ class ClaudeClient:
         logger.debug(f"Tool Use 감지: {tool_use_block.name}")
         logger.debug(f"State Changes: {json.dumps(state_changes, ensure_ascii=False)}")
 
-        # Tool Result 생성 (상태 변경 확인)
+        # 1차 응답에 텍스트가 있으면 fallback으로 보관
+        first_text = self._extract_text(response)
+
+        # Tool Result 생성 — 대사 생성을 유도하는 메시지 포함
         tool_result = {
             "type": "tool_result",
             "tool_use_id": tool_use_block.id,
             "content": json.dumps(
-                {"success": True, "message": "상태가 업데이트되었습니다."},
+                {
+                    "success": True,
+                    "message": "상태가 업데이트되었습니다. 이제 NPC의 대사로 응답하세요.",
+                },
                 ensure_ascii=False,
             ),
         }
@@ -193,6 +199,11 @@ class ClaudeClient:
         )
 
         final_text = self._extract_text(final_response)
+
+        # 2차 응답이 비었으면 1차 텍스트를 fallback으로 사용
+        if not final_text and first_text:
+            logger.debug("2차 응답 비어있음 → 1차 텍스트를 fallback으로 사용")
+            final_text = first_text
 
         return {
             "response": final_text,

@@ -31,13 +31,17 @@ class GameEngine:
         self.event_manager = EventManager()
         self.conversation_history: list[dict[str, Any]] = []
 
-    def initialize(self, world_path: str) -> None:
-        """게임 초기화 - 세계관 로드"""
+    def initialize(self, world_dir: str) -> None:
+        """게임 초기화 - 세계관 디렉토리에서 world.json + characters.json 로드"""
         from pathlib import Path
 
-        self.state.load_from_file(Path(world_path))
+        world_dir_path = Path(world_dir)
+        self.state = WorldState.load_from_file(
+            world_path=world_dir_path / "world.json",
+            characters_path=world_dir_path / "characters.json",
+        )
         self.validator.set_valid_characters(self.state.get_all_character_names())
-        logger.info(f"게임 초기화 완료: {world_path}")
+        logger.info(f"게임 초기화 완료: {world_dir}")
 
     def process_turn(self, user_input: str) -> dict[str, Any]:
         """
@@ -118,53 +122,153 @@ class GameEngine:
         return result
 
     def _build_system_prompt(self, relevant_memories: list[dict[str, Any]]) -> str:
-        """시스템 프롬프트 구성"""
+        """시스템 프롬프트 구성 — NPC 페르소나 + 응답 스타일 가이드 포함"""
         snapshot = self.state.snapshot()
+        world = self.state.world
+        player = self.state.player
 
-        # 기억 포맷팅
-        memory_text = ""
-        if relevant_memories:
-            memory_lines = []
-            for mem in relevant_memories:
-                memory_lines.append(f"- [{mem.get('emotion', 'neutral')}] {mem['content']}")
-            memory_text = "\n".join(memory_lines)
+        # ── NPC 프로필 (전체 데이터에서 구성) ──
+        npc_profiles = self._format_npc_profiles(snapshot)
 
-        # NPC 정보 포맷팅
-        npc_text = ""
-        for npc in snapshot["npcs"]:
-            rel = snapshot["player"]["relationships"].get(npc["id"], {})
-            npc_text += (
-                f"- {npc['name']} ({npc['role']}): "
-                f"호감 {rel.get('affection', 50)}, "
-                f"신뢰 {rel.get('trust', 50)}\n"
-            )
+        # ── 기억 포맷팅 ──
+        memory_text = self._format_memories(relevant_memories)
 
-        prompt = f"""너는 판타지 RPG 세계 "{snapshot['world'].get('id', 'unknown')}"의 NPC들을 연기하는 게임 마스터야.
+        # ── 플레이어 스탯 포맷팅 ──
+        stats = player.get("stats", {})
+        stats_text = f"HP {stats.get('hp', '?')}/{stats.get('max_hp', '?')}, 마나 {stats.get('mana', '?')}/{stats.get('max_mana', '?')}, 집중 {stats.get('focus', '?')}"
 
-## 세계 정보
-- 시간: {snapshot['world'].get('time', '알 수 없음')}
-- 현재 턴: {snapshot['turn']}, 일차: {snapshot['day']}
+        prompt = f"""너는 "{world.get('name', '알 수 없는 세계')}"의 NPC들을 연기하는 게임 마스터(GM)다.
+플레이어가 말을 걸거나 행동하면, 해당 장면의 NPC로서 반응한다.
+
+## 응답 형식 (반드시 지켜라)
+- **대화 중심**: NPC의 대사가 응답의 핵심. 긴 서술이나 풍경 묘사 금지.
+- **행동은 괄호로 간결하게**: (미소를 짓는다), (고개를 돌린다), (한숨)
+- **분량**: 2~4문장. 절대 소설처럼 길게 쓰지 마라.
+- **RPG 소설체 금지**: "~했다", "~였다" 같은 3인칭 서술 금지. NPC 시점으로 직접 말해라.
+- **한국어로 응답**
+- **장면 설정 금지**: "**[장소명]**" 같은 장면 헤더를 쓰지 마라. 바로 NPC 대사로 시작해라.
+
+좋은 예:
+(결투장 벤치에 앉아 노트를 넘기다 고개를 든다) "어머, 신입생? 결투장까지 찾아오다니 대단하네요." (살짝 미소) "혹시 마법 전투에 관심 있어요?"
+
+나쁜 예:
+**[아케인 아카데미 결투장]** 따뜻한 햇살이 결투장을 비추고 있었다. 엘레나는 우아하게 앉아 노트를 보고 있었는데, 신입생이 다가오자 은발이 바람에 흔들리며...
+
+## 현재 상황
+- 세계: {world.get('name', '?')} — {world.get('description', '')}
+- 시간: {world.get('time', '알 수 없음')}
+- 턴: {snapshot['turn']}, 일차: {snapshot['day']}
+- 배경: {', '.join(world.get('facts', [])[:2])}
 
 ## 플레이어 정보
-- 이름: {snapshot['player']['name']}
-- 직업: {snapshot['player']['class']}
-- 스탯: {snapshot['player'].get('stats', {})}
+- 이름: {player.get('name', 'Unknown')}
+- 클래스: {player.get('class', 'Unknown')}
+- 스탯: {stats_text}
 
-## NPC 관계
-{npc_text}
+## NPC 프로필
+{npc_profiles}
 
 ## 관련 기억
-{memory_text if memory_text else '(아직 기억 없음)'}
+{memory_text if memory_text else '(아직 공유된 기억 없음 — 첫 만남)'}
 
-## 규칙
-1. 플레이어의 행동에 자연스럽게 반응해라
-2. 반드시 update_game_state 도구를 사용하여 상태 변경을 제안해라
-3. 관계 변화는 한 턴에 -10 ~ +10 범위로 제한해라
-4. 새로운 기억을 최소 1개 이상 생성해라
-5. 한국어로 응답해라
-6. 대사와 행동 묘사를 자연스럽게 섞어라
+## Tool Use 규칙 (매 턴 반드시 실행)
+1. **반드시** update_game_state 도구를 호출해라. 예외 없음.
+2. relationship_changes:
+   - 변화량은 **-5 ~ +5** 범위로 자연스럽게
+   - 사소한 인사 = ±1~2, 호의적 행동 = +3~5, 적대 행동 = -3~-5
+3. new_memories:
+   - 최소 1개 생성
+   - 사소한 인사 = importance 2~3
+   - 의미 있는 대화 = importance 4~6
+   - 감정적 사건(갈등, 고백, 결투) = importance 7~9
+4. 기억 content는 1문장으로 사실만 적어라 (감상 금지)
 """
         return prompt
+
+    def _format_npc_profiles(self, snapshot: dict[str, Any]) -> str:
+        """전체 NPC 데이터에서 상세 프로필 텍스트 생성"""
+        profiles: list[str] = []
+        relationships = self.state.player.get("relationships", {})
+
+        for npc in self.state.npcs:
+            npc_id = npc["id"]
+            name = npc["name"]
+            role = npc.get("role", "")
+            location = npc.get("location", "")
+
+            # 페르소나
+            persona = npc.get("persona", {})
+            traits = ", ".join(persona.get("traits", []))
+            drive = persona.get("drive", "")
+            taboos = persona.get("taboos", [])
+            taboo_text = ", ".join(taboos) if taboos else "없음"
+
+            # 스킬
+            skills = npc.get("skills", [])
+            skills_text = ", ".join(skills) if skills else "없음"
+
+            # 말투
+            style = npc.get("speech_style", {})
+            formality_map = {
+                "polite": "존댓말",
+                "casual": "반말",
+                "stiff": "딱딱한 공식체",
+            }
+            formality = formality_map.get(style.get("formality", ""), style.get("formality", ""))
+            length_map = {
+                "short": "짧은 문장",
+                "medium": "보통 문장",
+                "long": "긴 문장",
+            }
+            sentence_len = length_map.get(
+                style.get("sentence_length", ""), style.get("sentence_length", "")
+            )
+            mood_map = {
+                "mentor": "멘토처럼 차분",
+                "tsundere": "츤데레 (까칠하지만 속은 따뜻)",
+                "playful": "장난스럽고 여유",
+                "shy": "소심하고 수줍음",
+                "stern": "엄격하고 단호",
+                "arrogant": "거만하고 비웃는 듯",
+            }
+            default_mood = mood_map.get(
+                style.get("default_mood", ""), style.get("default_mood", "")
+            )
+            sig_phrases = style.get("signature_phrases", [])
+            sig_text = ", ".join(f'"{p}"' for p in sig_phrases) if sig_phrases else ""
+
+            # 관계 수치
+            rel = relationships.get(npc_id, {})
+            aff = rel.get("affection", 50)
+            trust = rel.get("trust", 50)
+
+            profile = f"""### {name} ({role})
+- 위치: {location}
+- 성격: {traits}
+- 동기: {drive} | 금기: {taboo_text}
+- 스킬: {skills_text}
+- 말투: {formality}, {sentence_len}, {default_mood}
+  - 특징적 대사: {sig_text}
+  - 화나면: {style.get('when_angry', '?')}
+  - 호감 높으면: {style.get('when_warm', '?')}
+- 플레이어 관계: 호감 {aff}/100, 신뢰 {trust}/100"""
+
+            profiles.append(profile)
+
+        return "\n\n".join(profiles)
+
+    def _format_memories(self, relevant_memories: list[dict[str, Any]]) -> str:
+        """기억 목록을 포맷팅"""
+        if not relevant_memories:
+            return ""
+
+        lines: list[str] = []
+        for mem in relevant_memories:
+            emotion = mem.get("emotion", "neutral")
+            importance = mem.get("importance", 5)
+            content = mem["content"]
+            lines.append(f"- [{emotion}, 중요도 {importance}] {content}")
+        return "\n".join(lines)
 
     def get_state(self) -> dict[str, Any]:
         """현재 게임 상태 반환"""
