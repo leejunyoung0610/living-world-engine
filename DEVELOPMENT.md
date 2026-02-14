@@ -9,7 +9,7 @@
 
 | 주차 | 목표 | 상태 | 테스트 |
 |------|------|------|--------|
-| **Week 1** (2/15~2/21) | 핵심 엔진 + LLM 통합 | 🔴 진행중 | 63/63 pass |
+| **Week 1** (2/15~2/21) | 핵심 엔진 + LLM 통합 | 🔴 진행중 | 85/85 pass |
 | **Week 2** (2/22~2/28) | 이벤트 + 루프 방지 | ⬜ 예정 | - |
 | **Week 3** (3/1~3/7) | 세계관 + API | ⬜ 예정 | - |
 | **Week 4** (3/8~3/14) | UI + 문서 + 데모 | ⬜ 예정 | - |
@@ -139,37 +139,59 @@ f4b7b16 feat: Add WorldState.load_from_file() with comprehensive validation
 
 ---
 
-### Day 3-4 ⬜
+### Day 3 (2/17 월) ✅
 
-**예정:**
-- [ ] WorldState 고도화 (퀘스트 시스템, 인벤토리)
-- [ ] KeywordMemorySearch 고도화 (NPC별 기억 분리)
-- [ ] 유닛 테스트 추가
+**목표:** EventManager 완성 + GameEngine 연동
+
+**완료:**
+- [x] EventManager 전체 구현 (events.py)
+  - `load_events_from_file()` — JSON 로딩 + 에러 처리
+  - `check_events()` — 3가지 조건 평가 (turn_range, variable_threshold, relationship_threshold)
+  - `trigger_event()` — 쿨다운 설정 + 히스토리 기록
+  - 연산자 6종 지원: >=, >, <=, <, ==, !=
+  - 유닛 테스트 15개
+- [x] GameEngine ↔ EventManager 연동 (game_loop.py)
+  - `initialize()` — events.json 자동 로딩
+  - `process_turn()` — 이벤트 체크 → 발동 → 쿨다운 → `events_triggered` 반환
+  - Mock LLM 기반 연동 테스트 7개
+
+**테스트:** 63 → **85개** (+15 EventManager, +7 연동)
+
+**다음 (Day 4):**
+- [ ] LoopDetector → EventManager 강제 이벤트 주입
+- [ ] 이벤트 effects 적용 (world_variable, player_stat 변경)
+- [ ] 10턴 E2E 테스트
 
 ---
 
-### Day 5-7 ⬜
+### Day 4-5 ⬜
 
 **예정:**
-- [ ] ClaudeClient 고도화 (에러 재시도, 토큰 관리)
-- [ ] 통합 테스트 (LLM + 상태 변경 + 메모리)
-- [ ] 10턴 연속 플레이 테스트
+- [ ] 이벤트 effects 적용 로직
+- [ ] LoopDetector 고도화 (루프 감지 시 이벤트 주입)
+- [ ] ClaudeClient 에러 재시도
+
+### Day 6-7 ⬜
+
+**예정:**
+- [ ] 10턴 E2E 테스트
+- [ ] Week 1 마무리 + 버그 수정
 
 ---
 
-## Week 2: 이벤트 & 루프 방지
+## Week 2: 고도화 & API
 
 ### Day 8-10 ⬜
-- [ ] EventManager 완성 (조건 평가, 이벤트 트리거)
-- [ ] 이벤트 시스템 테스트
+- [ ] FastAPI 엔드포인트 구현
+- [ ] API 테스트
 
 ### Day 11-12 ⬜
-- [ ] LoopDetector 고도화 (강제 이벤트 주입)
-- [ ] 루프 방지 테스트
+- [ ] CLI 또는 간단한 웹 클라이언트
+- [ ] 수동 플레이 테스트
 
 ### Day 13-14 ⬜
-- [ ] GameEngine 전체 통합
-- [ ] E2E 테스트 (10턴 플레이)
+- [ ] 버그 수정 + 성능 최적화
+- [ ] Week 2 마무리
 
 ---
 
@@ -352,10 +374,10 @@ f4b7b16 feat: Add WorldState.load_from_file() with comprehensive validation
 
 | 지표 | 값 |
 |------|-----|
-| 총 커밋 | 6 |
-| 총 테스트 | 63 (유닛 58 + 통합 5) |
+| 총 커밋 | 9 |
+| 총 테스트 | 85 (유닛 80 + 통합 5) |
 | 테스트 통과율 | 100% |
-| Python 파일 | ~22개 |
+| Python 파일 | ~24개 |
 | JSON 데이터 | 3개 (world, characters, events) |
 | NPC 수 | 6명 |
 | 이벤트 수 | 10개 |
