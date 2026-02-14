@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+
+# Poetry
+poetry.lock
+
+# Test / Coverage
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# Saves (게임 세이브 파일)
+saves/*.json
+!saves/.gitkeep
+
+# Logs
+logs/
+*.log
+
+# Node (프론트엔드)
+node_modules/
+frontend/build/
+frontend/dist/
+
+# OS
+Thumbs.db
+.DS_Store

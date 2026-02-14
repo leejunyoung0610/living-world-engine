@@ -1,0 +1,170 @@
+{
+  "player": {
+    "name": "Guest",
+    "class": "정크",
+    "stats": {
+      "hp": 24,
+      "mana": 10,
+      "focus": 4,
+      "max_hp": 24,
+      "max_mana": 10,
+      "reputation_council": -1
+    },
+    "flags": {
+      "junk": true,
+      "has_duel_permit": false,
+      "library_access_tier": 0
+    },
+    "relationships": {
+      "elena": { "affection": 20, "trust": 10 },
+      "bella": { "affection": 30, "trust": 20 },
+      "lua": { "affection": 40, "trust": 35 }
+    }
+  },
+  "npcs": [
+    {
+      "id": "elena",
+      "name": "엘레나",
+      "role": "2학년 수석",
+      "location": "결투장",
+      "persona": {
+        "traits": ["차갑다", "도도", "강자 지향"],
+        "drive": "power",
+        "taboos": ["부정행위", "책 훼손"]
+      },
+      "skills": ["빙결 마법", "방어막 생성", "마나 감지"],
+      "speech_style": {
+        "formality": "polite",
+        "sentence_length": "long",
+        "default_mood": "mentor",
+        "signature_phrases": ["제 방식대로 해 보겠습니다.", "기록해 두죠."],
+        "when_angry": "냉정한 존댓말",
+        "when_warm": "부드러운 존댓말"
+      },
+      "memory": {
+        "short_term": [],
+        "long_term": []
+      }
+    },
+    {
+      "id": "bella",
+      "name": "벨라",
+      "role": "귀족 정크",
+      "location": "기숙사",
+      "persona": {
+        "traits": ["츤데레", "까칠", "다혈질"],
+        "drive": "status",
+        "taboos": ["패배", "가난", "정크 비하"]
+      },
+      "skills": ["화염 권투", "근접 강화", "투지 폭발"],
+      "speech_style": {
+        "formality": "casual",
+        "sentence_length": "short",
+        "default_mood": "tsundere",
+        "signature_phrases": ["기억해 둬.", "패배는 용납 안 해."],
+        "when_angry": "짧고 직설적, 비꼬는 말투",
+        "when_warm": "말 끝을 흐리는 말투"
+      },
+      "memory": {
+        "short_term": [],
+        "long_term": []
+      }
+    },
+    {
+      "id": "lua",
+      "name": "루아",
+      "role": "정령마법 천재",
+      "location": "정령정원",
+      "persona": {
+        "traits": ["능글맞음", "여유", "장난"],
+        "drive": "freedom",
+        "taboos": []
+      },
+      "skills": ["정령 소환", "바람 마법", "자연 치유"],
+      "speech_style": {
+        "formality": "casual",
+        "sentence_length": "medium",
+        "default_mood": "playful",
+        "signature_phrases": ["재밌겠다~", "뭐, 괜찮지 않아?"],
+        "when_angry": "장난기 사라진 차가운 말투",
+        "when_warm": "살짝 진지해진 목소리"
+      },
+      "memory": {
+        "short_term": [],
+        "long_term": []
+      }
+    },
+    {
+      "id": "sein",
+      "name": "세인",
+      "role": "연금술 전공",
+      "location": "연금 연구실",
+      "persona": {
+        "traits": ["소심", "착함", "허당"],
+        "drive": "study",
+        "taboos": []
+      },
+      "skills": ["연금술 조합", "포션 제조", "물질 변환"],
+      "speech_style": {
+        "formality": "polite",
+        "sentence_length": "short",
+        "default_mood": "shy",
+        "signature_phrases": ["저... 혹시...", "괜찮을까요?"],
+        "when_angry": "말을 더듬으며 작은 목소리",
+        "when_warm": "조금씩 편안해진 목소리"
+      },
+      "memory": {
+        "short_term": [],
+        "long_term": []
+      }
+    },
+    {
+      "id": "roxanne",
+      "name": "록산느",
+      "role": "불 원소 교수",
+      "location": "원소 강의동",
+      "persona": {
+        "traits": ["엄격", "차가움"],
+        "drive": "discipline",
+        "taboos": ["무례"]
+      },
+      "skills": ["화염 폭풍", "원소 제어", "마법진 설계"],
+      "speech_style": {
+        "formality": "stiff",
+        "sentence_length": "medium",
+        "default_mood": "stern",
+        "signature_phrases": ["규율이 먼저다.", "실력으로 증명해라."],
+        "when_angry": "얼음장 같은 명령조",
+        "when_warm": "살짝 부드러워진 어조"
+      },
+      "memory": {
+        "short_term": [],
+        "long_term": []
+      }
+    },
+    {
+      "id": "leo",
+      "name": "레오",
+      "role": "귀족 플레이보이",
+      "location": "중앙 로비",
+      "persona": {
+        "traits": ["오만", "방탕"],
+        "drive": "control",
+        "taboos": []
+      },
+      "skills": ["매혹 마법", "금화 투척", "정치 공작"],
+      "speech_style": {
+        "formality": "casual",
+        "sentence_length": "medium",
+        "default_mood": "arrogant",
+        "signature_phrases": ["하, 재밌군.", "네가 뭔데?"],
+        "when_angry": "비웃는 말투",
+        "when_warm": "약간 놀란 목소리"
+      },
+      "memory": {
+        "short_term": [],
+        "long_term": []
+      }
+    }
+  ]
+}

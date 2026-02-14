@@ -1,0 +1,157 @@
+[
+  {
+    "id": "midterm_coming",
+    "description": "중간고사가 다가오며 캠퍼스 공기가 무거워진다",
+    "narrative_hint": "중간고사가 사흘 앞으로 다가왔다. 모두가 긴장하는 분위기다.",
+    "condition": {
+      "type": "turn_range",
+      "min_turn": 15,
+      "max_turn": 25
+    },
+    "effects": [
+      {"type": "world_variable", "key": "chaos_level", "change": -0.1},
+      {"type": "world_variable", "key": "prefect_alertness", "change": 0.15}
+    ],
+    "cooldown": 10,
+    "tags": ["exam", "stability"]
+  },
+  {
+    "id": "rivalry_clash",
+    "description": "강자의 출현으로 정크와 상위생의 갈등이 격화된다",
+    "narrative_hint": "결투장 근처에서 고성이 오간다. 누군가가 도전장을 던진 모양이다.",
+    "condition": {
+      "type": "variable_threshold",
+      "variable": "rivalry_index",
+      "op": ">=",
+      "value": 0.5
+    },
+    "effects": [
+      {"type": "world_variable", "key": "chaos_level", "change": 0.1},
+      {"type": "world_variable", "key": "rivalry_index", "change": -0.1}
+    ],
+    "cooldown": 5,
+    "tags": ["rivalry", "conflict"]
+  },
+  {
+    "id": "club_meeting",
+    "description": "동아리방에 사람이 모여 소소한 준비가 시작된다",
+    "narrative_hint": "동아리방에서 누군가 불을 켜고 정리를 시작한다.",
+    "condition": {
+      "type": "variable_threshold",
+      "variable": "chaos_level",
+      "op": "<",
+      "value": 0.4
+    },
+    "effects": [],
+    "cooldown": 8,
+    "tags": ["social", "peace"]
+  },
+  {
+    "id": "secret_rumor",
+    "description": "소문이 살짝 번지며 미묘한 긴장감이 흐른다",
+    "narrative_hint": "누군가가 퍼뜨린 속삭임이 복도에 퍼지고 있다.",
+    "condition": {
+      "type": "variable_threshold",
+      "variable": "rivalry_index",
+      "op": ">=",
+      "value": 0.3
+    },
+    "effects": [
+      {"type": "world_variable", "key": "chaos_level", "change": 0.05}
+    ],
+    "cooldown": 6,
+    "tags": ["rumor", "tension"]
+  },
+  {
+    "id": "small_confession",
+    "description": "가까워진 누군가가 속마음을 살짝 털어놓는다",
+    "narrative_hint": "그는 무언가 말하려다 멈칫한다. 공기가 살짝 달라졌다.",
+    "condition": {
+      "type": "relationship_threshold",
+      "stat": "affection",
+      "op": ">=",
+      "value": 70
+    },
+    "effects": [],
+    "cooldown": 15,
+    "tags": ["romance", "emotional"]
+  },
+  {
+    "id": "junk_awakening",
+    "description": "정크의 잠재력이 조금씩 깨어난다",
+    "narrative_hint": "손끝에서 희미한 마나의 떨림이 느껴진다. 각성의 조짐일까?",
+    "condition": {
+      "type": "turn_range",
+      "min_turn": 10,
+      "max_turn": 999
+    },
+    "effects": [
+      {"type": "player_stat", "key": "mana", "change": 2}
+    ],
+    "cooldown": 20,
+    "tags": ["awakening", "growth"]
+  },
+  {
+    "id": "festival_mini",
+    "description": "혼돈이 잠잠해지면 작은 축제가 열린다",
+    "narrative_hint": "중앙 캠퍼스에 색색의 깃발이 걸리기 시작한다. 작은 축제가 열리는 모양이다.",
+    "condition": {
+      "type": "variable_threshold",
+      "variable": "chaos_level",
+      "op": "<",
+      "value": 0.25
+    },
+    "effects": [
+      {"type": "world_variable", "key": "faction_balance", "change": 0.05}
+    ],
+    "cooldown": 20,
+    "tags": ["festival", "social"]
+  },
+  {
+    "id": "duel_summons",
+    "description": "관계가 험악해지면 공식 결투가 소집된다",
+    "narrative_hint": "결투장의 종이 울린다. 공식 결투가 선포되었다.",
+    "condition": {
+      "type": "variable_threshold",
+      "variable": "rivalry_index",
+      "op": ">=",
+      "value": 0.6
+    },
+    "effects": [
+      {"type": "world_variable", "key": "prefect_alertness", "change": 0.2}
+    ],
+    "cooldown": 10,
+    "tags": ["duel", "conflict"]
+  },
+  {
+    "id": "prefect_patrol",
+    "description": "질서를 되찾기 위한 순찰이 강화된다",
+    "narrative_hint": "순찰대가 복도를 돌기 시작한다. 긴장감이 높아진다.",
+    "condition": {
+      "type": "variable_threshold",
+      "variable": "prefect_alertness",
+      "op": ">=",
+      "value": 0.7
+    },
+    "effects": [
+      {"type": "world_variable", "key": "chaos_level", "change": -0.15}
+    ],
+    "cooldown": 8,
+    "tags": ["order", "patrol"]
+  },
+  {
+    "id": "mysterious_omen",
+    "description": "이상한 징조가 학원에 나타난다",
+    "narrative_hint": "밤하늘에 이상한 빛이 스쳐 지나간다. 누군가가 속삭인다 — 전조라고.",
+    "condition": {
+      "type": "turn_range",
+      "min_turn": 20,
+      "max_turn": 999
+    },
+    "effects": [
+      {"type": "world_variable", "key": "chaos_level", "change": 0.08}
+    ],
+    "cooldown": 15,
+    "tags": ["mystery", "omen"]
+  }
+]
