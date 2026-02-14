@@ -32,7 +32,7 @@ class GameEngine:
         self.conversation_history: list[dict[str, Any]] = []
 
     def initialize(self, world_dir: str) -> None:
-        """게임 초기화 - 세계관 디렉토리에서 world.json + characters.json 로드"""
+        """게임 초기화 - 세계관 디렉토리에서 world.json + characters.json + events.json 로드"""
         from pathlib import Path
 
         world_dir_path = Path(world_dir)
@@ -41,6 +41,13 @@ class GameEngine:
             characters_path=world_dir_path / "characters.json",
         )
         self.validator.set_valid_characters(self.state.get_all_character_names())
+
+        # 이벤트 로딩 (파일 있으면)
+        events_path = world_dir_path / "events.json"
+        if events_path.exists():
+            self.event_manager.load_events_from_file(events_path)
+            logger.info(f"이벤트 {len(self.event_manager.event_templates)}개 로딩 완료")
+
         logger.info(f"게임 초기화 완료: {world_dir}")
 
     def process_turn(self, user_input: str) -> dict[str, Any]:
@@ -94,8 +101,17 @@ class GameEngine:
         response_text = llm_result.get("response", "")
         is_loop = self.loop_detector.is_loop_detected(snapshot, response_text)
 
-        # 7. 이벤트 체크
-        events = self.event_manager.check_events(snapshot)
+        # 7. 이벤트 체크 + 발동
+        triggered_events = self.event_manager.check_events(snapshot)
+        events_triggered: list[dict[str, Any]] = []
+        for event in triggered_events:
+            self.event_manager.trigger_event(event["id"])
+            events_triggered.append({
+                "event_id": event["id"],
+                "description": event.get("description", ""),
+                "narrative_hint": event.get("narrative_hint", ""),
+            })
+            logger.info(f"🎲 이벤트 발생: {event.get('description', event['id'])}")
         self.event_manager.tick_cooldowns()
 
         # 8. 대화 히스토리 업데이트
@@ -113,7 +129,7 @@ class GameEngine:
             "state_changes": applied,
             "tool_used": llm_result.get("tool_used", False),
             "loop_detected": is_loop,
-            "events": events,
+            "events_triggered": events_triggered,
         }
 
         logger.info(f"NPC: {response_text[:100]}...")
