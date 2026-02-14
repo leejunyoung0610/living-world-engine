@@ -27,15 +27,59 @@ class WorldState:
         self.day: int = 1
         self.memories: list[dict[str, Any]] = []
 
-    def load_from_file(self, path: Path) -> None:
-        """JSON 파일에서 초기 상태 로드"""
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+    @classmethod
+    def load_from_file(cls, world_path: Path, characters_path: Path) -> WorldState:
+        """두 JSON 파일에서 WorldState를 생성하여 반환
 
-        self.world = data.get("world", {})
-        self.player = data.get("player", {})
-        self.npcs = data.get("npcs", [])
-        self.quests = data.get("quests", [])
+        Args:
+            world_path: world.json 경로 (세계관 설정)
+            characters_path: characters.json 경로 (플레이어 + NPC)
+
+        Returns:
+            초기화된 WorldState 인스턴스
+
+        Raises:
+            FileNotFoundError: 파일이 존재하지 않을 때 (파일명 포함 메시지)
+            json.JSONDecodeError: JSON 파싱 실패 시
+            ValueError: 필수 필드 누락 시 (누락 필드명 포함 메시지)
+        """
+        world_path = Path(world_path)
+        characters_path = Path(characters_path)
+
+        # ── 파일 존재 확인 ──
+        if not world_path.exists():
+            raise FileNotFoundError(f"세계관 파일을 찾을 수 없습니다: {world_path}")
+        if not characters_path.exists():
+            raise FileNotFoundError(f"캐릭터 파일을 찾을 수 없습니다: {characters_path}")
+
+        # ── JSON 로드 ──
+        with open(world_path, "r", encoding="utf-8") as f:
+            world_data = json.load(f)
+
+        with open(characters_path, "r", encoding="utf-8") as f:
+            characters_data = json.load(f)
+
+        # ── 필수 필드 검증 ──
+        for field in ("id", "name"):
+            if field not in world_data:
+                raise ValueError(
+                    f"world.json에 필수 필드 '{field}'가 누락되었습니다: {world_path}"
+                )
+
+        for field in ("player", "npcs"):
+            if field not in characters_data:
+                raise ValueError(
+                    f"characters.json에 필수 필드 '{field}'가 누락되었습니다: {characters_path}"
+                )
+
+        # ── WorldState 생성 ──
+        state = cls()
+        state.world = world_data
+        state.player = characters_data["player"]
+        state.npcs = characters_data["npcs"]
+        state.quests = characters_data.get("quests", [])
+
+        return state
 
     def get_npc(self, npc_id: str) -> dict[str, Any] | None:
         """NPC ID로 NPC 데이터 조회"""
