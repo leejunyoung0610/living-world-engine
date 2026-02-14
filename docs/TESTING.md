@@ -11,13 +11,13 @@
        ╱─────────╲          
       ╱ Integration╲        ← GameEngine + 실제 Claude API (5개) ✅
      ╱───────────────╲      
-    ╱   Unit Tests    ╲     ← 각 모듈 독립 검증 (58개) ✅
+    ╱   Unit Tests    ╲     ← 각 모듈 독립 검증 (80개) ✅
    ╱───────────────────╲    
 ```
 
 | 레벨 | 파일 수 | 테스트 수 | API 필요 | 실행 시간 | 상태 |
 |------|---------|-----------|----------|-----------|------|
-| **Unit** | 5개 | 58개 | ❌ (Mock) | ~0.17초 | ✅ 완료 |
+| **Unit** | 7개 | 80개 | ❌ (Mock) | ~0.2초 | ✅ 완료 |
 | **Integration** | 1개 | 5개 | ✅ (~$0.05/회) | ~60초 | ✅ 완료 |
 | **E2E** | 예정 | 예정 | ✅ | ~2분 | ⬜ Week 2 |
 
@@ -36,7 +36,7 @@ poetry run pytest --no-cov
 
 ---
 
-## 2. 유닛 테스트 상세 (58개)
+## 2. 유닛 테스트 상세 (80개)
 
 ### test_state.py (19개) — WorldState
 
@@ -127,6 +127,38 @@ poetry run pytest --no-cov
 | | `test_conversation_history_passed_correctly` | 히스토리 전달 검증 |
 | | `test_game_state_tool_definition_correct` | Tool 스키마 구조 |
 | | `test_tool_input_contains_relationship_and_memory` | 복수 변경 추출 |
+
+### test_events.py (15개) — EventManager — Day 3 추가
+
+| 카테고리 | 테스트 | 검증 내용 |
+|----------|--------|-----------|
+| **로딩** | `test_load_events_from_data` | dict 리스트에서 이벤트 로딩 |
+| | `test_load_events_from_file` | JSON 파일에서 이벤트 로딩 |
+| | `test_load_events_file_not_found` | 없는 파일 → FileNotFoundError |
+| **조건** | `test_check_no_match` | 조건 불일치 시 빈 리스트 반환 |
+| | `test_check_variable_threshold` | variable_threshold 조건 매칭 |
+| | `test_check_turn_range` | turn_range 조건 매칭 |
+| | `test_check_relationship_threshold` | relationship_threshold 조건 매칭 |
+| | `test_cooldown_blocks_check` | 쿨다운 중인 이벤트 스킵 |
+| | `test_multiple_events_trigger` | 여러 이벤트 동시 트리거 |
+| **발동** | `test_trigger_sets_cooldown` | trigger 시 쿨다운 설정 |
+| | `test_trigger_records_history` | trigger 히스토리 기록 |
+| | `test_trigger_unknown_event` | 없는 이벤트 → None |
+| **쿨다운** | `test_tick_cooldowns` | 매 턴 쿨다운 -1 감소 |
+| | `test_tick_removes_zero_cooldown` | 0 이하 쿨다운 제거 |
+| **연산자** | `test_compare_operators` | >=, >, <=, <, ==, != 6종 |
+
+### test_game_engine_events.py (7개) — GameEngine↔EventManager 연동 — Day 3 추가
+
+| 테스트 | 검증 내용 |
+|--------|-----------|
+| `test_no_events_when_conditions_not_met` | 조건 불충족 → events_triggered 빈 리스트 |
+| `test_event_triggered_by_variable` | variable_threshold 조건 충족 → 이벤트 발동 |
+| `test_event_triggered_by_relationship` | relationship_threshold 조건 충족 → 이벤트 발동 |
+| `test_event_cooldown_prevents_retrigger` | 한번 발동 후 쿨다운으로 재발동 방지 |
+| `test_multiple_events_trigger` | 여러 조건 동시 충족 → 다수 이벤트 발동 |
+| `test_event_narrative_hint_in_prompt` | 이벤트 narrative_hint가 시스템 프롬프트에 포함 |
+| `test_initialize_loads_events` | GameEngine.initialize()에서 events.json 자동 로딩 |
 
 ---
 
