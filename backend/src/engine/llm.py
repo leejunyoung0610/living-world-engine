@@ -141,7 +141,7 @@ class ClaudeClient:
 
         # Tool Use 체크
         if response.stop_reason == "tool_use":
-            return self._handle_tool_use(response, messages, system_prompt)
+            return self._handle_tool_use(response, messages, system_prompt, tools)
         else:
             # Tool Use 없이 텍스트만 온 경우
             text = self._extract_text(response)
@@ -159,6 +159,7 @@ class ClaudeClient:
         response: Any,
         messages: list[dict[str, Any]],
         system_prompt: str,
+        tools: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """Tool Use 응답을 처리하고 2차 호출 수행"""
         # Tool Use 블록 추출
