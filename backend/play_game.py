@@ -26,10 +26,12 @@ def print_game_state(engine: GameEngine):
     
     # 관계도 표시
     print("\n💫 Relationships:")
+    relationships = state.player.get("relationships", {})
     for npc in state.npcs:
-        npc_name = npc.get('name')
-        npc_stats = npc.get('stats', {})
-        active_stats = [f"{stat}:{value}" for stat, value in npc_stats.items() if value]
+        npc_id = npc.get("id")
+        npc_name = npc.get("name")
+        stats = relationships.get(npc_id, {})
+        active_stats = [f"{stat}:{value}" for stat, value in stats.items() if value]
         if active_stats:
             print(f"  {npc_name}: {' '.join(active_stats)}")
 
