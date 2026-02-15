@@ -18,6 +18,15 @@ from typing import Any
 class WorldState:
     """게임 세계의 전체 상태를 관리하는 클래스"""
 
+    STANDARD_STATS = {
+        "affection": 0,
+        "trust": 0,
+        "respect": 0,
+        "fear": 0,
+        "loyalty": 0,
+        "romance": 0,
+    }
+
     def __init__(self) -> None:
         self.world: dict[str, Any] = {}
         self.player: dict[str, Any] = {}
@@ -76,6 +85,9 @@ class WorldState:
         state = cls()
         state.world = world_data
         state.player = characters_data["player"]
+        stats = state.player.setdefault("stats", {})
+        for stat, default in cls.STANDARD_STATS.items():
+            stats.setdefault(stat, default)
         state.npcs = characters_data["npcs"]
         state.quests = characters_data.get("quests", [])
 
