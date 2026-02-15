@@ -189,21 +189,21 @@ class ClaudeClient:
         # 1차 응답에 텍스트가 있으면 fallback으로 보관
         first_text = self._extract_text(response)
 
-        # Tool Result 생성 — 대사 생성을 유도하는 메시지 포함
+        # Tool Result 생성 (간소하게)
         tool_result = {
             "type": "tool_result",
             "tool_use_id": tool_use_block.id,
-            "content": json.dumps(
-                {
-                    "success": True,
-                    "message": "상태가 업데이트되었습니다. 이제 NPC의 대사로 응답하세요.",
-                },
-                ensure_ascii=False,
-            ),
+            "content": "Success",
         }
 
-        # 2차 호출 (Tool Result 포함)
-        messages.append({"role": "assistant", "content": response.content})
+        # 2차 호출 (tool_use 블록만 포함)
+        tool_use_payload = {
+            "type": "tool_use",
+            "id": tool_use_block.id,
+            "name": tool_use_block.name,
+            "input": tool_use_block.input,
+        }
+        messages.append({"role": "assistant", "content": [tool_use_payload]})
         messages.append({"role": "user", "content": [tool_result]})
 
         logger.debug("LLM 2차 호출 (Tool Result 포함)...")
