@@ -30,5 +30,10 @@ def setup_logger(name: str = "living_world", level: int = logging.DEBUG) -> logg
     return logger
 
 
+def get_logger(name: str = "living_world", level: int = logging.DEBUG) -> logging.Logger:
+    """설정된 로거를 반환하는 편의 함수"""
+    return setup_logger(name=name, level=level)
+
+
 # 기본 로거
 logger = setup_logger()
