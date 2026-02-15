@@ -121,6 +121,13 @@ class ClaudeClient:
         messages = conversation_history or []
         messages.append({"role": "user", "content": user_input})
 
+        tools = self._get_tools()
+        tools_str = json.dumps(tools, ensure_ascii=False)
+        logger.debug(f"Tools definition: {len(tools_str)} chars (~{len(tools_str)//4} tokens)")
+
+        logger.debug(f"System prompt: {len(system_prompt)} chars (~{len(system_prompt)//4} tokens)")
+        logger.debug(f"User input: {len(user_input)} chars (~{len(user_input)//4} tokens)")
+        logger.debug(f"History messages: {len(messages)}")
         logger.debug(f"LLM 1차 호출: {user_input[:50]}...")
 
         # 1차 호출

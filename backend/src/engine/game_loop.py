@@ -179,6 +179,9 @@ class GameEngine:
         # ── 기억 포맷팅 ──
         memory_text = self._format_memories(relevant_memories)
 
+        logger.debug(f"NPC profiles length: {len(npc_profiles)} chars")
+        logger.debug(f"Memory text length: {len(memory_text)} chars")
+
         # ── 플레이어 스탯 포맷팅 ──
         stats = player.get("stats", {})
         stats_text = f"HP {stats.get('hp', '?')}/{stats.get('max_hp', '?')}, 마나 {stats.get('mana', '?')}/{stats.get('max_mana', '?')}, 집중 {stats.get('focus', '?')}"
@@ -217,6 +220,32 @@ class GameEngine:
 ## 관련 기억
 {memory_text if memory_text else '(아직 공유된 기억 없음 — 첫 만남)'}
 
+## 🚨 긴급 발견 (Day 6 실제 플레이)
+
+### **실제 비용 데이터**
+```
+Turn 1: $0.030660 (8,060 in / 432 out)
+Turn 2: $0.031674 (8,428 in / 426 out)
+
+평균: $0.031/turn
+입력 토큰: 8,244개 (예상의 5.4배!)
+```
+
+### **문제:**
+- 입력 토큰이 8,000개 (예상 1,500개)
+- 어디선가 6,500 tokens 추가 유입
+- 원인 불명 (디버깅 필요)
+
+### **즉시 할 일:**
+1. 시스템 프롬프트 각 부분 토큰 수 측정
+2. 병목 지점 파악
+3. 긴급 최적화
+
+### **목표:**
+- 8,000 → 1,500 tokens (81% 절감)
+- $0.031 → $0.010/turn (68% 절감)
+
+```
 ## Tool Use 규칙 (매 턴 반드시 실행)
 1. **반드시** update_game_state 도구를 호출해라. 예외 없음.
 2. relationship_changes:
@@ -228,7 +257,66 @@ class GameEngine:
    - 의미 있는 대화 = importance 4~6
    - 감정적 사건(갈등, 고백, 결투) = importance 7~9
 4. 기억 content는 1문장으로 사실만 적어라 (감상 금지)
-"""
+
+```
+
+## 🎯 새 채팅 시작 멘트
+"```
+
+## 🔍 디버깅 진행 중 (추가 발견)
+
+### **로그 분석:**
+```
+Turn 1:
+- 시스템 프롬프트: 841 tokens ✅
+- 실제 입력: 9,340 tokens 😱
+- 차이: 8,499 tokens 미확인
+
+Turn 2:
+- 시스템 프롬프트: 854 tokens ✅  
+- 실제 입력: 9,924 tokens 😱
+- 차이: 9,070 tokens 미확인
+```
+
+### **의심되는 범인:**
+**Tool Use 스키마!**
+
+Claude API에 매번 전달되는 `tools` 정의가 엄청 클 가능성.
+- Tool description
+- Input schema
+→ 이게 7,000-8,000 tokens일 수 있음!
+
+### **즉시 할 일:**
+1. `llm.py`의 `_get_tools()` 확인
+2. Tool 스키마 크기 측정
+3. Tool 정의 최적화
+   - Description 압축
+   - Schema 단순화
+
+### **예상 최적화:**
+- Tool 스키마: 7,000 → 500 tokens (93% 절감!)
+- 총 입력: 9,340 → 2,000 tokens (79% 절감!)
+- Turn 비용: $0.035 → $0.008 (77% 절감!)
+"Day 6 UsageTracker 실제 플레이 완료!
+
+충격적 발견:
+- 입력 토큰: 8,000개 (예상 1,500개)
+- Turn당 비용: $0.031 (예상 $0.025보다 24% 비쌈)
+
+문제:
+어디선가 6,500 tokens가 추가로 들어감.
+시스템 프롬프트 디버깅 필요.
+
+즉시 할 일:
+1. 프롬프트 각 부분 토큰 수 측정
+2. 병목 지점 파악
+3. 긴급 최적화
+
+프로젝트 경로: /Users/leejy/Desktop/engine/
+위 전체 컨텍스트 참고해서 디버깅 시작하자!"
+```
+        """
+        logger.debug(f"Total prompt length: {len(prompt)} chars (~{len(prompt)//4} tokens)")
         return prompt
 
     def _format_npc_profiles(self, snapshot: dict[str, Any]) -> str:
