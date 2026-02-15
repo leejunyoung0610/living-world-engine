@@ -27,6 +27,7 @@ def print_game_state(engine: GameEngine):
     
     # 관계도 표시
     print("\n💫 Relationships:")
+    shown = False
     for npc in state.npcs:
         name = npc.get("name")
         stats = npc.get("stats", {})
@@ -45,7 +46,11 @@ def print_game_state(engine: GameEngine):
             active_stats.append(f"💕{stats['romance']}")
 
         if active_stats:
+            shown = True
             print(f"  {name}: {' '.join(active_stats)}")
+
+    if not shown:
+        print("  (아직 관계 정보 없음)")
     
     # 루프 경고
  #   if hasattr(engine, 'loop_detector'):
