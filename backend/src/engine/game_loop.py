@@ -12,7 +12,6 @@ from typing import Any
 
 from .state import WorldState
 from .llm import ClaudeClient
-from .memory import KeywordMemorySearch
 from .validator import StateChangeValidator
 from .loop_detector import LoopDetector
 from .events import EventManager
@@ -20,6 +19,7 @@ from .prompt_optimizer import SystemPromptOptimizer
 from ..utils.logger import get_logger
 from ..utils.usage_tracker import UsageTracker
 from ..utils.performance import PerformanceMonitor
+from .long_term_memory import LongTermMemory
 
 logger = get_logger(__name__)
 
@@ -28,7 +28,7 @@ class GameEngine:
 
     def __init__(self) -> None:
         self.state = WorldState()
-        self.memory = KeywordMemorySearch()
+        self.memory = LongTermMemory(storage_path="data/memories.json")
         self.llm = ClaudeClient()
         self.validator = StateChangeValidator()
         self.loop_detector = LoopDetector()
@@ -63,7 +63,12 @@ class GameEngine:
 
         with self.performance.measure("total_turn"):
             with self.performance.measure("memory_search"):
-                relevant_memories = self.memory.search(user_input, top_k=5)
+                relevant_memories = self.memory.search(
+                    query=user_input,
+                    player_id=self.state.player.get("id", "default"),
+                    min_importance=5,
+                    limit=5,
+                )
 
             with self.performance.measure("prompt_building"):
                 system_prompt = self._build_system_prompt(relevant_memories)
@@ -97,6 +102,7 @@ class GameEngine:
                         content=mem["content"],
                         emotion=mem.get("emotion", "neutral"),
                         importance=mem.get("importance", 5),
+                        player_id=self.state.player.get("id", "default"),
                     )
 
             snapshot = self.state.snapshot()
