@@ -18,27 +18,34 @@ def print_separator():
 
 def print_game_state(engine: GameEngine):
     """현재 게임 상태 출력"""
-    state = engine.world_state
+    state = engine.state
     
-    print(f"🌍 World: {state.world_name}")
-    print(f"👤 Player: {state.player_name}")
-    print(f"🔄 Turn: {state.turn_count}")
-    print(f"📍 Location: {state.current_location}")
+    print(f"🌍 World: {state.world.get('name', 'Unknown')}")
+    print(f"👤 Player: {state.player.get('name', 'Unknown')}")
+    print(f"🔄 Turn: {state.turn}")
+    print(f"📍 Location: {state.player.get('location', 'Unknown')}")
     
     # 관계도 표시
-    if state.relationships:
+    relationships = state.player.get("relationships", {})
+    if relationships:
         print("\n💫 Relationships:")
-        for char, value in state.relationships.items():
-            emoji = "❤️" if value > 50 else "😊" if value > 0 else "😐"
-            print(f"  {emoji} {char}: {value}")
+        for npc_id, rel_data in relationships.items():
+            affection = rel_data.get("affection", 50)
+            emoji = "❤️" if affection > 50 else "😊" if affection > 0 else "😐"
+            npc_name = npc_id
+            for npc in state.npcs:
+                if npc["id"] == npc_id:
+                    npc_name = npc["name"]
+                    break
+            print(f"  {emoji} {npc_name}: {affection}")
     
     # 루프 경고
-    if hasattr(engine, 'loop_detector'):
-        severity = engine.loop_detector.calculate_severity()
-        if severity >= 7:
-            print(f"\n⚠️  Loop Warning: Severity {severity}/10")
-        elif severity >= 5:
-            print(f"ℹ️  Stagnation detected: {severity}/10")
+ #   if hasattr(engine, 'loop_detector'):
+  #      severity = engine.loop_detector.calculate_severity()
+   #     if severity >= 7:
+    #        print(f"\n⚠️  Loop Warning: Severity {severity}/10")
+     #   elif severity >= 5:
+      #      print(f"ℹ️  Stagnation detected: {severity}/10")
 
 
 def main():

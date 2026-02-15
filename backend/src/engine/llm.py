@@ -14,8 +14,10 @@ from typing import Any
 
 from anthropic import Anthropic
 
-from backend.src.utils.config import get_settings
-from backend.src.utils.logger import logger
+from ..utils.config import get_settings
+from ..utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 # 게임 상태 업데이트 Tool 정의

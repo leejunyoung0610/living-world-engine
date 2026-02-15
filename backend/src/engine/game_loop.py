@@ -18,6 +18,7 @@ from .loop_detector import LoopDetector
 from .events import EventManager
 from ..utils.logger import get_logger
 
+logger = get_logger(__name__)
 
 class GameEngine:
     """메인 게임 엔진 - 한 턴의 전체 플로우를 관리"""
