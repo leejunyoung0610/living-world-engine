@@ -44,10 +44,11 @@ def print_game_state(engine: GameEngine):
         entries = []
         for stat, emoji in stat_order:
             value = rel_data.get(stat, player_stats.get(stat, 0))
-            entries.append(f"{emoji}{value}")
-        if any(int(e[1:]) != 0 for e in entries if len(e) > 1):
+            if value > 0:
+                entries.append(f"{emoji}{value}")
+        if entries:
             shown = True
-        print(f"  {npc.get('name')}: {' '.join(entries)}")
+            print(f"  {npc.get('name')}: {' '.join(entries)}")
 
     if not shown:
         print("  (아직 관계 정보 없음)")
