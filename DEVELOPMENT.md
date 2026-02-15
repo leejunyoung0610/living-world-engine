@@ -320,13 +320,32 @@ Week 4: ░░░░░░░░░░  0%
 
 ## Week 2: 고도화 & API
 
-### Day 8-10 ⬜
+### Day 8 ⬜
+- [x] Anthropic Prompt Caching (System+Tools 캐싱, UsageTracker 확장)
 - [ ] FastAPI 엔드포인트 구현
 - [ ] API 테스트
 
-### Day 11-12 ⬜
-- [ ] CLI 또는 간단한 웹 클라이언트
-- [ ] 수동 플레이 테스트
+### Day 9 (2/16 일) ✅
+
+**완료:**
+- `PerformanceMonitor` 도입 → memory/prompt/LLM/state/loop/event 단계 측정
+- 18턴 장기 실험 → LLM 호출 14.6s/턴, 나머지 단계는 0.05s 이하
+- Context 누적으로 Turn 1: $0.005 → Turn 18: $0.034 → 예측 $0.15/turn
+- 종료 리포트에 performance/usage 로그 출력
+
+**문제:**
+- Context 누적 → 비용 상승, LLM 병목 (API 측면)
+- 목표: Day 10-11에 ContextManager(sliding window + importance sampling) 추가, $0.015/turn 고정
+
+**다음:**
+- Day 10-11: 장기 기억 / ContextManager 개발 + Day 12 회고
+
+### Day 10-11 ⬜
+- [ ] 장기 기억 시스템 설계
+- [ ] ContextManager + sliding window
+
+### Day 12 ⬜
+- [ ] Week 2 회고
 
 ### Day 13-14 ⬜
 - [ ] 버그 수정 + 성능 최적화
