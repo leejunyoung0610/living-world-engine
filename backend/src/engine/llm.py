@@ -120,6 +120,13 @@ class ClaudeClient:
         """
         messages = conversation_history or []
         messages.append({"role": "user", "content": user_input})
+        system_messages = [
+            {
+                "type": "text",
+                "text": system_prompt,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ]
 
         tools = self._get_tools()
         tools_str = json.dumps(tools, ensure_ascii=False)
@@ -134,17 +141,23 @@ class ClaudeClient:
         response = self.client.messages.create(
             model=self.model,
             max_tokens=self.max_tokens,
-            system=system_prompt,
+            system=system_messages,
             tools=tools,
             messages=messages,
         )
         usage = getattr(response, "usage", None)
         if usage:
             logger.debug(f"1차 input: {getattr(usage, 'input_tokens', 0)} tokens")
+            creation = getattr(usage, "cache_creation_input_tokens", 0)
+            read = getattr(usage, "cache_read_input_tokens", 0)
+            if creation:
+                logger.info(f"Cache created: {creation} tokens")
+            if read:
+                logger.info(f"Cache read: {read} tokens")
 
         # Tool Use 체크
         if response.stop_reason == "tool_use":
-            return self._handle_tool_use(response, messages, system_prompt, tools)
+            return self._handle_tool_use(response, messages, system_messages, tools)
         else:
             # Tool Use 없이 텍스트만 온 경우
             text = self._extract_text(response)
@@ -155,13 +168,15 @@ class ClaudeClient:
                 "tool_used": False,
                 "input_tokens": in_tokens,
                 "output_tokens": out_tokens,
+                "cache_creation_tokens": 0,
+                "cache_read_tokens": 0,
             }
 
     def _handle_tool_use(
         self,
         response: Any,
         messages: list[dict[str, Any]],
-        system_prompt: str,
+        system_messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """Tool Use 응답을 처리하고 2차 호출 수행"""
@@ -211,10 +226,19 @@ class ClaudeClient:
         final_response = self.client.messages.create(
             model=self.model,
             max_tokens=self.max_tokens,
-            system=system_prompt,
+            system=system_messages,
             tools=tools,
             messages=messages,
         )
+        usage_2 = getattr(final_response, "usage", None)
+        if usage_2:
+            logger.debug(f"2차 input: {getattr(usage_2, 'input_tokens', 0)} tokens")
+            creation = getattr(usage_2, "cache_creation_input_tokens", 0)
+            read = getattr(usage_2, "cache_read_input_tokens", 0)
+            if creation:
+                logger.info(f"Cache created (2차): {creation} tokens")
+            if read:
+                logger.info(f"Cache read (2차): {read} tokens")
         usage_2 = getattr(final_response, "usage", None)
         if usage_2:
             logger.debug(f"2차 input: {getattr(usage_2, 'input_tokens', 0)} tokens")
@@ -234,6 +258,10 @@ class ClaudeClient:
 
         in1, out1 = self._extract_usage(response)
         in2, out2 = self._extract_usage(final_response)
+        creation1 = getattr(response.usage, "cache_creation_input_tokens", 0) if getattr(response, "usage", None) else 0
+        creation2 = getattr(final_response.usage, "cache_creation_input_tokens", 0) if getattr(final_response, "usage", None) else 0
+        read1 = getattr(response.usage, "cache_read_input_tokens", 0) if getattr(response, "usage", None) else 0
+        read2 = getattr(final_response.usage, "cache_read_input_tokens", 0) if getattr(final_response, "usage", None) else 0
 
         return {
             "response": final_text,
@@ -241,6 +269,8 @@ class ClaudeClient:
             "tool_used": True,
             "input_tokens": in1 + in2,
             "output_tokens": out1 + out2,
+            "cache_creation_tokens": creation1 + creation2,
+            "cache_read_tokens": read1 + read2,
         }
 
     def _extract_text(self, response: Any) -> str:
