@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.src.utils.logger import logger
+from ..utils.logger import logger
 
 
 class StateChangeValidator:

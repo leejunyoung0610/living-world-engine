@@ -10,13 +10,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.src.engine.state import WorldState
-from backend.src.engine.memory import KeywordMemorySearch
-from backend.src.engine.llm import ClaudeClient
-from backend.src.engine.validator import StateChangeValidator
-from backend.src.engine.loop_detector import LoopDetector
-from backend.src.engine.events import EventManager
-from backend.src.utils.logger import logger
+from .state import WorldState
+from .llm import ClaudeClient
+from .memory import KeywordMemorySearch
+from .validator import StateChangeValidator
+from .loop_detector import LoopDetector
+from .events import EventManager
+from ..utils.logger import get_logger
 
 
 class GameEngine:
@@ -309,7 +309,7 @@ class GameEngine:
 
     def save(self, save_name: str) -> str:
         """게임 저장"""
-        from backend.src.utils.config import SAVES_DIR
+        from ..utils.config import SAVES_DIR
 
         save_path = SAVES_DIR / f"{save_name}.json"
         self.state.save_to_file(save_path)
