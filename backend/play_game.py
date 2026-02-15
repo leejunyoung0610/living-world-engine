@@ -27,27 +27,27 @@ def print_game_state(engine: GameEngine):
     
     # 관계도 표시
     print("\n💫 Relationships:")
+    relationships = state.player.get("relationships", {})
+    stat_order = [
+        ("affection", "😊"),
+        ("trust", "🤝"),
+        ("respect", "⭐"),
+        ("fear", "😱"),
+        ("loyalty", "💎"),
+        ("romance", "💕"),
+    ]
     shown = False
+    player_stats = state.player.get("stats", {})
     for npc in state.npcs:
-        name = npc.get("name")
-        stats = npc.get("stats", {})
-        active_stats = []
-        if stats.get("affection", 0) != 0:
-            active_stats.append(f"😊{stats['affection']}")
-        if stats.get("trust", 0) != 0:
-            active_stats.append(f"🤝{stats['trust']}")
-        if stats.get("respect", 0) != 0:
-            active_stats.append(f"⭐{stats['respect']}")
-        if stats.get("fear", 0) != 0:
-            active_stats.append(f"😱{stats['fear']}")
-        if stats.get("loyalty", 0) != 0:
-            active_stats.append(f"💎{stats['loyalty']}")
-        if stats.get("romance", 0) != 0:
-            active_stats.append(f"💕{stats['romance']}")
-
-        if active_stats:
+        npc_id = npc.get("id")
+        rel_data = relationships.get(npc_id, {})
+        entries = []
+        for stat, emoji in stat_order:
+            value = rel_data.get(stat, player_stats.get(stat, 0))
+            entries.append(f"{emoji}{value}")
+        if any(int(e[1:]) != 0 for e in entries if len(e) > 1):
             shown = True
-            print(f"  {name}: {' '.join(active_stats)}")
+        print(f"  {npc.get('name')}: {' '.join(entries)}")
 
     if not shown:
         print("  (아직 관계 정보 없음)")
