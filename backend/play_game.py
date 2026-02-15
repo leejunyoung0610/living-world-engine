@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Living World Engine - CLI Game Interface
-Day 5 - Manual playthrough script
 """
 
 import sys
@@ -27,39 +26,12 @@ def print_game_state(engine: GameEngine):
     
     # 관계도 표시
     print("\n💫 Relationships:")
-    relationships = state.player.get("relationships", {})
-    stat_order = [
-        ("affection", "😊"),
-        ("trust", "🤝"),
-        ("respect", "⭐"),
-        ("fear", "😱"),
-        ("loyalty", "💎"),
-        ("romance", "💕"),
-    ]
-    shown = False
-    player_stats = state.player.get("stats", {})
     for npc in state.npcs:
-        npc_id = npc.get("id")
-        rel_data = relationships.get(npc_id, {})
-        entries = []
-        for stat, emoji in stat_order:
-            value = rel_data.get(stat, player_stats.get(stat, 0))
-            if value > 0:
-                entries.append(f"{emoji}{value}")
-        if entries:
-            shown = True
-            print(f"  {npc.get('name')}: {' '.join(entries)}")
-
-    if not shown:
-        print("  (아직 관계 정보 없음)")
-    
-    # 루프 경고
- #   if hasattr(engine, 'loop_detector'):
-  #      severity = engine.loop_detector.calculate_severity()
-   #     if severity >= 7:
-    #        print(f"\n⚠️  Loop Warning: Severity {severity}/10")
-     #   elif severity >= 5:
-      #      print(f"ℹ️  Stagnation detected: {severity}/10")
+        npc_name = npc.get('name')
+        npc_stats = npc.get('stats', {})
+        active_stats = [f"{stat}:{value}" for stat, value in npc_stats.items() if value]
+        if active_stats:
+            print(f"  {npc_name}: {' '.join(active_stats)}")
 
 
 def main():
@@ -68,7 +40,6 @@ def main():
     print("Type 'quit' or 'q' to exit")
     print_separator()
     
-    # 게임 초기화
     try:
         world_dir = Path(__file__).parent / "src/worlds/arcane_academy"
         engine = GameEngine()
@@ -79,11 +50,9 @@ def main():
         print(f"❌ Error: {e}")
         return 1
     
-    # 초기 상태 표시
     print_game_state(engine)
     print_separator()
     
-    # 게임 루프
     try:
         while True:
             user_input = input("\nYou: ").strip()
@@ -105,7 +74,7 @@ def main():
                   f"Output: {result['output_tokens']:,} tokens")
             stats = engine.usage_tracker.get_stats()
             print(f"   Total Spent: ${stats['total_cost']:.6f}")
-
+            
             print_separator()
             print_game_state(engine)
             print_separator()
@@ -120,15 +89,6 @@ def main():
         engine.usage_tracker.print_summary()
         engine.print_performance_report()
         logger.info("Session ended")
-    
-    # 최종 상태 저장 (선택사항)
-    try:
-        save_path = Path(__file__).parent / "saves" / "last_session.json"
-        save_path.parent.mkdir(exist_ok=True)
-        # TODO: engine.save_state(save_path) 구현 시 활성화
-        logger.info("Session ended")
-    except Exception as e:
-        logger.warning(f"Failed to save state: {e}")
     
     return 0
 
