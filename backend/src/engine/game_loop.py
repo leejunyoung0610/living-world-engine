@@ -88,6 +88,8 @@ class GameEngine:
         turn_cost = self.usage_tracker.log_call(
             input_tokens=llm_result.get("input_tokens", 0),
             output_tokens=llm_result.get("output_tokens", 0),
+            cache_creation_tokens=llm_result.get("cache_creation_tokens", 0),
+            cache_read_tokens=llm_result.get("cache_read_tokens", 0),
         )
         logger.debug(f"Turn cost: ${turn_cost:.6f}")
 
