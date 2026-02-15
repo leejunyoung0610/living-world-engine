@@ -138,6 +138,9 @@ class ClaudeClient:
             tools=tools,
             messages=messages,
         )
+        usage = getattr(response, "usage", None)
+        if usage:
+            logger.debug(f"1차 input: {getattr(usage, 'input_tokens', 0)} tokens")
 
         # Tool Use 체크
         if response.stop_reason == "tool_use":
@@ -212,6 +215,15 @@ class ClaudeClient:
             tools=tools,
             messages=messages,
         )
+        usage_2 = getattr(final_response, "usage", None)
+        if usage_2:
+            logger.debug(f"2차 input: {getattr(usage_2, 'input_tokens', 0)} tokens")
+            first_usage = getattr(response, "usage", None)
+            total = (
+                getattr(first_usage, "input_tokens", 0)
+                + getattr(usage_2, "input_tokens", 0)
+            )
+            logger.debug(f"총 input: {total} tokens")
 
         final_text = self._extract_text(final_response)
 
