@@ -92,7 +92,6 @@ def main():
             # 종료 명령
             if user_input.lower() in ['quit', 'exit', 'q']:
                 print("\n👋 Game ended. Goodbye!")
-                engine.usage_tracker.print_summary()
                 break
             
             # 빈 입력 무시
@@ -119,9 +118,13 @@ def main():
             print_game_state(engine)
             print_separator()
             
-        except KeyboardInterrupt:
-            print("\n\n👋 Interrupted. Exiting...")
-            break
+    except KeyboardInterrupt:
+        print("\n\n👋 Interrupted. Exiting...")
+    finally:
+        print("\n")
+        engine.usage_tracker.print_summary()
+        engine.print_performance_report()
+        logger.info("Session ended")
         except Exception as e:
             logger.error(f"Turn error: {e}", exc_info=True)
             print(f"\n❌ Error during turn: {e}")
