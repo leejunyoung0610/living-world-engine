@@ -19,6 +19,7 @@ from .events import EventManager
 from .prompt_optimizer import SystemPromptOptimizer
 from ..utils.logger import get_logger
 from ..utils.usage_tracker import UsageTracker
+from ..utils.performance import PerformanceMonitor
 
 logger = get_logger(__name__)
 
@@ -35,6 +36,7 @@ class GameEngine:
         self.conversation_history: list[dict[str, Any]] = []
         self.usage_tracker = UsageTracker()
         self.prompt_optimizer = SystemPromptOptimizer()
+        self.performance = PerformanceMonitor()
 
     def initialize(self, world_dir: str) -> None:
         """게임 초기화 - 세계관 디렉토리에서 world.json + characters.json + events.json 로드"""
@@ -56,98 +58,81 @@ class GameEngine:
         logger.info(f"게임 초기화 완료: {world_dir}")
 
     def process_turn(self, user_input: str) -> dict[str, Any]:
-        """
-        한 턴 처리
-
-        1. 관련 기억 검색
-        2. 시스템 프롬프트 구성
-        3. LLM 호출 (Tool Use)
-        4. 상태 변경 검증
-        5. 상태 적용
-        6. 루프 감지
-        7. 이벤트 체크
-        8. 결과 반환
-        """
         logger.info(f"=== Turn {self.state.turn + 1} ===")
         logger.info(f"Player: {user_input}")
 
-        # 1. 관련 기억 검색
-        relevant_memories = self.memory.search(user_input, top_k=5)
+        with self.performance.measure("total_turn"):
+            with self.performance.measure("memory_search"):
+                relevant_memories = self.memory.search(user_input, top_k=5)
 
-        # 2. 시스템 프롬프트 구성
-        system_prompt = self._build_system_prompt(relevant_memories)
+            with self.performance.measure("prompt_building"):
+                system_prompt = self._build_system_prompt(relevant_memories)
 
-        # 3. LLM 호출
-        llm_result = self.llm.process_turn(
-            user_input=user_input,
-            system_prompt=system_prompt,
-            conversation_history=self.conversation_history.copy(),
-        )
+            with self.performance.measure("llm_call"):
+                llm_result = self.llm.process_turn(
+                    user_input=user_input,
+                    system_prompt=system_prompt,
+                    conversation_history=self.conversation_history.copy(),
+                )
 
-        # 사용량 기록
-        turn_cost = self.usage_tracker.log_call(
-            input_tokens=llm_result.get("input_tokens", 0),
-            output_tokens=llm_result.get("output_tokens", 0),
-            cache_creation_tokens=llm_result.get("cache_creation_tokens", 0),
-            cache_read_tokens=llm_result.get("cache_read_tokens", 0),
-        )
-        logger.debug(f"Turn cost: ${turn_cost:.6f}")
+            with self.performance.measure("usage_logging"):
+                turn_cost = self.usage_tracker.log_call(
+                    input_tokens=llm_result.get("input_tokens", 0),
+                    output_tokens=llm_result.get("output_tokens", 0),
+                    cache_creation_tokens=llm_result.get("cache_creation_tokens", 0),
+                    cache_read_tokens=llm_result.get("cache_read_tokens", 0),
+                )
+                logger.debug(f"Turn cost: ${turn_cost:.6f}")
 
-        # 4. 상태 변경 검증
-        state_changes = llm_result.get("state_changes", {})
-        if state_changes:
-            state_changes = self.validator.validate(state_changes)
+            with self.performance.measure("state_update"):
+                state_changes = llm_result.get("state_changes", {})
+                if state_changes:
+                    state_changes = self.validator.validate(state_changes)
 
-        # 5. 상태 적용
-        applied = self.state.apply_changes(state_changes)
-        self.state.advance_turn()
+                applied = self.state.apply_changes(state_changes)
+                self.state.advance_turn()
 
-        # 새 기억을 메모리 시스템에 추가
-        for mem in state_changes.get("new_memories", []):
-            self.memory.add_memory(
-                content=mem["content"],
-                emotion=mem.get("emotion", "neutral"),
-                importance=mem.get("importance", 5),
-            )
+                for mem in state_changes.get("new_memories", []):
+                    self.memory.add_memory(
+                        content=mem["content"],
+                        emotion=mem.get("emotion", "neutral"),
+                        importance=mem.get("importance", 5),
+                    )
 
-        # 6. 루프 감지 (강화된 버전)
-        snapshot = self.state.snapshot()
-        response_text = llm_result.get("response", "")
-        loop_result = self.loop_detector.detect_loop(snapshot, response_text)
+            snapshot = self.state.snapshot()
+            response_text = llm_result.get("response", "")
 
-        # 7. 이벤트 체크 + 발동
-        triggered_events = self.event_manager.check_events(snapshot)
-        events_triggered: list[dict[str, Any]] = []
-        for event in triggered_events:
-            self.event_manager.trigger_event(event["id"])
-            events_triggered.append({
-                "event_id": event["id"],
-                "description": event.get("description", ""),
-                "narrative_hint": event.get("narrative_hint", ""),
-            })
-            logger.info(f"🎲 이벤트 발생: {event.get('description', event['id'])}")
+            with self.performance.measure("loop_detection"):
+                loop_result = self.loop_detector.detect_loop(snapshot, response_text)
 
-        # 7-1. 심각한 루프 → 강제 돌발 이벤트 주입
-        if loop_result["detected"] and loop_result.get("severity", 0) >= 7:
-            surprise = {
-                "event_id": f"surprise_{self.state.turn}",
-                "description": "예상치 못한 돌발 상황이 발생합니다",
-                "narrative_hint": "갑자기 주변이 소란스러워진다...",
-            }
-            events_triggered.append(surprise)
-            logger.info(
-                f"⚠️ 루프 감지 (severity {loop_result['severity']}) → 강제 이벤트 주입"
-            )
+            events_triggered: list[dict[str, Any]] = []
+            with self.performance.measure("event_system"):
+                triggered_events = self.event_manager.check_events(snapshot)
+                for event in triggered_events:
+                    self.event_manager.trigger_event(event["id"])
+                    events_triggered.append({
+                        "event_id": event["id"],
+                        "description": event.get("description", ""),
+                        "narrative_hint": event.get("narrative_hint", ""),
+                    })
+                    logger.info(f"🎲 이벤트 발생: {event.get('description', event['id'])}")
 
-        self.event_manager.tick_cooldowns()
+                if loop_result["detected"] and loop_result.get("severity", 0) >= 7:
+                    surprise = {
+                        "event_id": f"surprise_{self.state.turn}",
+                        "description": "예상치 못한 돌발 상황이 발생합니다",
+                        "narrative_hint": "갑자기 주변이 소란스러워진다...",
+                    }
+                    events_triggered.append(surprise)
+                    logger.info(
+                        f"⚠️ 루프 감지 (severity {loop_result['severity']}) → 강제 이벤트 주입"
+                    )
+                self.event_manager.tick_cooldowns()
 
-        # 8. 대화 히스토리 업데이트
-        self.conversation_history.append({"role": "user", "content": user_input})
-        self.conversation_history.append({"role": "assistant", "content": response_text})
-
-        # 히스토리 길이 제한 (최근 20턴)
-        if len(self.conversation_history) > 40:
-            self.conversation_history = self.conversation_history[-40:]
+            self.conversation_history.append({"role": "user", "content": user_input})
+            self.conversation_history.append({"role": "assistant", "content": response_text})
+            if len(self.conversation_history) > 40:
+                self.conversation_history = self.conversation_history[-40:]
 
         result = {
             "turn": self.state.turn,
