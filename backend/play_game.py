@@ -26,18 +26,26 @@ def print_game_state(engine: GameEngine):
     print(f"📍 Location: {state.player.get('location', 'Unknown')}")
     
     # 관계도 표시
-    relationships = state.player.get("relationships", {})
-    if relationships:
-        print("\n💫 Relationships:")
-        for npc_id, rel_data in relationships.items():
-            affection = rel_data.get("affection", 50)
-            emoji = "❤️" if affection > 50 else "😊" if affection > 0 else "😐"
-            npc_name = npc_id
-            for npc in state.npcs:
-                if npc["id"] == npc_id:
-                    npc_name = npc["name"]
-                    break
-            print(f"  {emoji} {npc_name}: {affection}")
+    print("\n💫 Relationships:")
+    for npc in state.npcs:
+        name = npc.get("name")
+        stats = npc.get("stats", {})
+        active_stats = []
+        if stats.get("affection", 0) != 0:
+            active_stats.append(f"😊{stats['affection']}")
+        if stats.get("trust", 0) != 0:
+            active_stats.append(f"🤝{stats['trust']}")
+        if stats.get("respect", 0) != 0:
+            active_stats.append(f"⭐{stats['respect']}")
+        if stats.get("fear", 0) != 0:
+            active_stats.append(f"😱{stats['fear']}")
+        if stats.get("loyalty", 0) != 0:
+            active_stats.append(f"💎{stats['loyalty']}")
+        if stats.get("romance", 0) != 0:
+            active_stats.append(f"💕{stats['romance']}")
+
+        if active_stats:
+            print(f"  {name}: {' '.join(active_stats)}")
     
     # 루프 경고
  #   if hasattr(engine, 'loop_detector'):
