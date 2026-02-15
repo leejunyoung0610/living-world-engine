@@ -81,8 +81,10 @@ def validator(world_state: WorldState) -> StateChangeValidator:
 def arcane_academy_path() -> Path:
     """아케인 아카데미 세계관 경로"""
     return WORLDS_DIR / "arcane_academy"
-
 def pytest_configure(config):
     config.addinivalue_line("markers", "e2e: End-to-end tests")
     config.addinivalue_line("markers", "slow: Slow API tests")
     config.addinivalue_line("markers", "integration: Integration tests")
+
+
+

@@ -96,10 +96,10 @@ class GameEngine:
                 importance=mem.get("importance", 5),
             )
 
-        # 6. 루프 감지
+        # 6. 루프 감지 (강화된 버전)
         snapshot = self.state.snapshot()
         response_text = llm_result.get("response", "")
-        is_loop = self.loop_detector.is_loop_detected(snapshot, response_text)
+        loop_result = self.loop_detector.detect_loop(snapshot, response_text)
 
         # 7. 이벤트 체크 + 발동
         triggered_events = self.event_manager.check_events(snapshot)
@@ -112,6 +112,19 @@ class GameEngine:
                 "narrative_hint": event.get("narrative_hint", ""),
             })
             logger.info(f"🎲 이벤트 발생: {event.get('description', event['id'])}")
+
+        # 7-1. 심각한 루프 → 강제 돌발 이벤트 주입
+        if loop_result["detected"] and loop_result.get("severity", 0) >= 7:
+            surprise = {
+                "event_id": f"surprise_{self.state.turn}",
+                "description": "예상치 못한 돌발 상황이 발생합니다",
+                "narrative_hint": "갑자기 주변이 소란스러워진다...",
+            }
+            events_triggered.append(surprise)
+            logger.info(
+                f"⚠️ 루프 감지 (severity {loop_result['severity']}) → 강제 이벤트 주입"
+            )
+
         self.event_manager.tick_cooldowns()
 
         # 8. 대화 히스토리 업데이트
@@ -128,12 +141,16 @@ class GameEngine:
             "response": response_text,
             "state_changes": applied,
             "tool_used": llm_result.get("tool_used", False),
-            "loop_detected": is_loop,
+            "loop_detected": loop_result["detected"],
+            "loop_severity": loop_result.get("severity", 0),
             "events_triggered": events_triggered,
         }
 
         logger.info(f"NPC: {response_text[:100]}...")
-        logger.info(f"Tool Used: {result['tool_used']}, Loop: {result['loop_detected']}")
+        logger.info(
+            f"Tool Used: {result['tool_used']}, "
+            f"Loop: {result['loop_detected']} (severity {result['loop_severity']})"
+        )
 
         return result
 
