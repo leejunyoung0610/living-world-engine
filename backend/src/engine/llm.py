@@ -114,6 +114,8 @@ class ClaudeClient:
                 "response": str,           # NPC의 텍스트 응답
                 "state_changes": dict,     # 상태 변경 데이터
                 "tool_used": bool,         # Tool Use 발생 여부
+                "input_tokens": int,
+                "output_tokens": int,
             }
         """
         messages = conversation_history or []
@@ -136,10 +138,13 @@ class ClaudeClient:
         else:
             # Tool Use 없이 텍스트만 온 경우
             text = self._extract_text(response)
+            in_tokens, out_tokens = self._extract_usage(response)
             return {
                 "response": text,
                 "state_changes": {},
                 "tool_used": False,
+                "input_tokens": in_tokens,
+                "output_tokens": out_tokens,
             }
 
     def _handle_tool_use(
@@ -207,10 +212,15 @@ class ClaudeClient:
             logger.debug("2차 응답 비어있음 → 1차 텍스트를 fallback으로 사용")
             final_text = first_text
 
+        in1, out1 = self._extract_usage(response)
+        in2, out2 = self._extract_usage(final_response)
+
         return {
             "response": final_text,
             "state_changes": state_changes,
             "tool_used": True,
+            "input_tokens": in1 + in2,
+            "output_tokens": out1 + out2,
         }
 
     def _extract_text(self, response: Any) -> str:
@@ -219,3 +229,10 @@ class ClaudeClient:
             if block.type == "text":
                 return block.text
         return ""
+
+    def _extract_usage(self, response: Any) -> tuple[int, int]:
+        """응답에서 사용된 토큰 수 추출"""
+        usage = getattr(response, "usage", None)
+        if not usage:
+            return 0, 0
+        return getattr(usage, "input_tokens", 0) or 0, getattr(usage, "output_tokens", 0) or 0

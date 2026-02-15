@@ -78,6 +78,7 @@ def main():
             # 종료 명령
             if user_input.lower() in ['quit', 'exit', 'q']:
                 print("\n👋 Game ended. Goodbye!")
+                engine.usage_tracker.print_summary()
                 break
             
             # 빈 입력 무시
@@ -91,6 +92,13 @@ def main():
             
             # 응답 출력
             print(f"🎭 {response}")
+            # 비용 정보
+            print(f"\n💰 Turn Cost: ${result['turn_cost']:.6f}")
+            print(f"   Input: {result['input_tokens']:,} tokens | "
+                  f"Output: {result['output_tokens']:,} tokens")
+            stats = engine.usage_tracker.get_stats()
+            print(f"   Total Spent: ${stats['total_cost']:.6f}")
+
             print_separator()
             
             # 상태 업데이트 표시

@@ -17,6 +17,7 @@ from .validator import StateChangeValidator
 from .loop_detector import LoopDetector
 from .events import EventManager
 from ..utils.logger import get_logger
+from ..utils.usage_tracker import UsageTracker
 
 logger = get_logger(__name__)
 
@@ -31,6 +32,7 @@ class GameEngine:
         self.loop_detector = LoopDetector()
         self.event_manager = EventManager()
         self.conversation_history: list[dict[str, Any]] = []
+        self.usage_tracker = UsageTracker()
 
     def initialize(self, world_dir: str) -> None:
         """게임 초기화 - 세계관 디렉토리에서 world.json + characters.json + events.json 로드"""
@@ -79,6 +81,13 @@ class GameEngine:
             system_prompt=system_prompt,
             conversation_history=self.conversation_history.copy(),
         )
+
+        # 사용량 기록
+        turn_cost = self.usage_tracker.log_call(
+            input_tokens=llm_result.get("input_tokens", 0),
+            output_tokens=llm_result.get("output_tokens", 0),
+        )
+        logger.debug(f"Turn cost: ${turn_cost:.6f}")
 
         # 4. 상태 변경 검증
         state_changes = llm_result.get("state_changes", {})
@@ -145,6 +154,9 @@ class GameEngine:
             "loop_detected": loop_result["detected"],
             "loop_severity": loop_result.get("severity", 0),
             "events_triggered": events_triggered,
+            "turn_cost": round(turn_cost, 6),
+            "input_tokens": llm_result.get("input_tokens", 0),
+            "output_tokens": llm_result.get("output_tokens", 0),
         }
 
         logger.info(f"NPC: {response_text[:100]}...")
