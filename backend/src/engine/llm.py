@@ -135,7 +135,7 @@ class ClaudeClient:
             model=self.model,
             max_tokens=self.max_tokens,
             system=system_prompt,
-            tools=[GAME_STATE_TOOL],
+            tools=tools,
             messages=messages,
         )
 
@@ -208,7 +208,7 @@ class ClaudeClient:
             model=self.model,
             max_tokens=self.max_tokens,
             system=system_prompt,
-            tools=[GAME_STATE_TOOL],
+            tools=tools,
             messages=messages,
         )
 
@@ -243,3 +243,7 @@ class ClaudeClient:
         if not usage:
             return 0, 0
         return getattr(usage, "input_tokens", 0) or 0, getattr(usage, "output_tokens", 0) or 0
+
+    def _get_tools(self) -> list[dict[str, Any]]:
+        """Tool 정의를 일관되게 반환"""
+        return [GAME_STATE_TOOL]
