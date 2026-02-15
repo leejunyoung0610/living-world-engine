@@ -164,18 +164,127 @@ f4b7b16 feat: Add WorldState.load_from_file() with comprehensive validation
 
 ---
 
-### Day 4-5 ⬜
+## Day 5 (2/15 토) - CLI 스크립트 + 수동 테스트
+
+### 완료 작업
+
+#### 1. CLI 플레이 스크립트 작성
+- `backend/play_game.py` 생성
+  - GameEngine 초기화 (`initialize()` API 사용)
+  - 턴 처리 루프 (`process_turn()` 반환값 처리)
+  - 상태 출력 (세계, 플레이어, 관계도)
+  - 입력/종료 처리
+
+#### 2. Import 경로 통일
+- 문제: `from backend.src.engine` vs `from .engine` 혼재
+- 해결: 상대 경로로 통일
+  - `game_loop.py`: `from .state`, `from ..utils.logger`
+  - `llm.py`: `from ..utils.config`, `from ..utils.logger`
+  - `validator.py`: `from ..utils.logger`
+
+#### 3. Logger 누락 수정
+- `game_loop.py`: `logger = get_logger(__name__)` 추가
+- `llm.py`: `logger = get_logger(__name__)` 추가
+
+#### 4. GitHub 저장소 연결
+- Repository: https://github.com/leejunyoung0610/living-world-engine
+- 첫 Push 완료 (141 objects)
+
+### 수동 테스트 결과
+
+**4턴 플레이 테스트:**
+```
+Turn 1: "안녕하세요"
+→ 엘레나 등장, 정중한 인사
+→ 관계도: 20 → 22 (+2)
+
+Turn 2: "반갑습니다!"
+→ 호의적 반응, 마법 전투 관심 여부 질문
+→ 관계도: 22 → 24 (+2)
+
+Turn 3: "결투보다는 사람이랑 친해지고싶어서요"
+→ 솔직한 답변에 긍정적 반응
+→ 관계도: 24 → 27 (+3, trust +2)
+
+Turn 4: "아카데미에서 여자친구 만드는법이 궁금해요"
+→ 당황하면서도 진지한 조언
+→ 관계도: 27 → 29 (+2, trust +2)
+```
+
+**품질 평가:**
+- ✅ NPC 응답 품질: **9/10**
+  - 자연스러운 대화 흐름
+  - 캐릭터 일관성 유지 (엘레나의 차분한 멘토 톤)
+  - 행동 묘사 적절 `(노트를 덮으며 미소를 짓는다)`
+- ✅ Tool Use: **정상 작동** (매 턴 `update_game_state` 호출)
+- ✅ 관계도 시스템: **정상** (20 → 29, 9포인트 증가)
+- ✅ 기억 생성: **정상** (각 턴마다 기억 저장)
+- ✅ 이벤트 시스템: **작동** (Turn 1에 2개 이벤트 발생)
+- ✅ 루프 방지: **정상** (severity 0 유지)
+
+### 기술적 이슈 해결
+
+**Issue 1: Import 경로 충돌**
+- 증상: `ModuleNotFoundError: No module named 'backend'`
+- 원인: 절대 경로 (`from backend.src`) vs 상대 경로 혼재
+- 해결: 모든 엔진 모듈을 상대 경로로 통일
+- 시간: ~20분
+
+**Issue 2: Logger 정의 누락**
+- 증상: `NameError: name 'logger' is not defined`
+- 원인: `get_logger` import만 하고 객체 생성 안 함
+- 해결: `logger = get_logger(__name__)` 추가
+- 영향 파일: `game_loop.py`, `llm.py`
+
+**Issue 3: API 변경 적응**
+- 증상: `GameEngine.__init__()` 인자 불일치
+- 해결: `GameEngine()` 생성 후 `initialize(world_dir)` 호출
+- 변경: `engine.turn()` → `engine.process_turn()` (반환값 구조 변경)
+
+### 비용
+
+- 4턴 테스트: **~$0.25**
+- 예상대로 저렴하게 진행
+
+### 테스트 현황
+
+- 총 87개 (100% 통과)
+- Unit: 80개
+- Integration: 5개
+- E2E: 2개
+- **Manual: 4턴** (신규)
+
+### 다음 단계
+
+- [ ] Week 1 회고 작성
+- [ ] Day 6: 성능 벤치마크
+- [ ] Day 7: Week 1 마무리 + Week 2 계획
+
+### 커밋
+```
+71dc0a0 - feat(day5): Add CLI play script + fix logger imports
+[추가 커밋 예정] - fix: Add missing logger imports in game_loop and llm
+
+### Day 6 ⬜
 
 **예정:**
-- [ ] 이벤트 effects 적용 로직
-- [ ] LoopDetector 고도화 (루프 감지 시 이벤트 주입)
-- [ ] ClaudeClient 에러 재시도
+- [ ] 성능 벤치마크 (Day 6)
 
-### Day 6-7 ⬜
+### Day 7 ⬜
 
 **예정:**
-- [ ] 10턴 E2E 테스트
-- [ ] Week 1 마무리 + 버그 수정
+- [ ] Week 1 마무리 + Week 2 계획
+
+## 📊 진행도 업데이트
+
+```
+Week 1: ██████████ 71% (Day 5/7 완료)
+Week 2: ░░░░░░░░░░  0%
+Week 3: ░░░░░░░░░░  0%
+Week 4: ░░░░░░░░░░  0%
+
+전체:   ██████░░░░ 17.9% (Day 5/28)
+```
 
 ---
 
