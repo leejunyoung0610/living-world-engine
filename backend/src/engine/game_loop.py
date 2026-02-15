@@ -16,6 +16,7 @@ from .memory import KeywordMemorySearch
 from .validator import StateChangeValidator
 from .loop_detector import LoopDetector
 from .events import EventManager
+from .prompt_optimizer import SystemPromptOptimizer
 from ..utils.logger import get_logger
 from ..utils.usage_tracker import UsageTracker
 
@@ -33,6 +34,7 @@ class GameEngine:
         self.event_manager = EventManager()
         self.conversation_history: list[dict[str, Any]] = []
         self.usage_tracker = UsageTracker()
+        self.prompt_optimizer = SystemPromptOptimizer()
 
     def initialize(self, world_dir: str) -> None:
         """게임 초기화 - 세계관 디렉토리에서 world.json + characters.json + events.json 로드"""
@@ -168,157 +170,16 @@ class GameEngine:
         return result
 
     def _build_system_prompt(self, relevant_memories: list[dict[str, Any]]) -> str:
-        """시스템 프롬프트 구성 — NPC 페르소나 + 응답 스타일 가이드 포함"""
-        snapshot = self.state.snapshot()
-        world = self.state.world
-        player = self.state.player
+        prompt = self.prompt_optimizer.build_optimized_prompt(
+            world=self.state.world,
+            player=self.state.player,
+            active_location=self.state.player.get("location", "Unknown"),
+            npcs=self.state.npcs,
+            memories=relevant_memories,
+        )
 
-        # ── NPC 프로필 (전체 데이터에서 구성) ──
-        npc_profiles = self._format_npc_profiles(snapshot)
-
-        # ── 기억 포맷팅 ──
-        memory_text = self._format_memories(relevant_memories)
-
-        logger.debug(f"NPC profiles length: {len(npc_profiles)} chars")
-        logger.debug(f"Memory text length: {len(memory_text)} chars")
-
-        # ── 플레이어 스탯 포맷팅 ──
-        stats = player.get("stats", {})
-        stats_text = f"HP {stats.get('hp', '?')}/{stats.get('max_hp', '?')}, 마나 {stats.get('mana', '?')}/{stats.get('max_mana', '?')}, 집중 {stats.get('focus', '?')}"
-
-        prompt = f"""너는 "{world.get('name', '알 수 없는 세계')}"의 NPC들을 연기하는 게임 마스터(GM)다.
-플레이어가 말을 걸거나 행동하면, 해당 장면의 NPC로서 반응한다.
-
-## 응답 형식 (반드시 지켜라)
-- **대화 중심**: NPC의 대사가 응답의 핵심. 긴 서술이나 풍경 묘사 금지.
-- **행동은 괄호로 간결하게**: (미소를 짓는다), (고개를 돌린다), (한숨)
-- **분량**: 2~4문장. 절대 소설처럼 길게 쓰지 마라.
-- **RPG 소설체 금지**: "~했다", "~였다" 같은 3인칭 서술 금지. NPC 시점으로 직접 말해라.
-- **한국어로 응답**
-- **장면 설정 금지**: "**[장소명]**" 같은 장면 헤더를 쓰지 마라. 바로 NPC 대사로 시작해라.
-
-좋은 예:
-(결투장 벤치에 앉아 노트를 넘기다 고개를 든다) "어머, 신입생? 결투장까지 찾아오다니 대단하네요." (살짝 미소) "혹시 마법 전투에 관심 있어요?"
-
-나쁜 예:
-**[아케인 아카데미 결투장]** 따뜻한 햇살이 결투장을 비추고 있었다. 엘레나는 우아하게 앉아 노트를 보고 있었는데, 신입생이 다가오자 은발이 바람에 흔들리며...
-
-## 현재 상황
-- 세계: {world.get('name', '?')} — {world.get('description', '')}
-- 시간: {world.get('time', '알 수 없음')}
-- 턴: {snapshot['turn']}, 일차: {snapshot['day']}
-- 배경: {', '.join(world.get('facts', [])[:2])}
-
-## 플레이어 정보
-- 이름: {player.get('name', 'Unknown')}
-- 클래스: {player.get('class', 'Unknown')}
-- 스탯: {stats_text}
-
-## NPC 프로필
-{npc_profiles}
-
-## 관련 기억
-{memory_text if memory_text else '(아직 공유된 기억 없음 — 첫 만남)'}
-
-## 🚨 긴급 발견 (Day 6 실제 플레이)
-
-### **실제 비용 데이터**
-```
-Turn 1: $0.030660 (8,060 in / 432 out)
-Turn 2: $0.031674 (8,428 in / 426 out)
-
-평균: $0.031/turn
-입력 토큰: 8,244개 (예상의 5.4배!)
-```
-
-### **문제:**
-- 입력 토큰이 8,000개 (예상 1,500개)
-- 어디선가 6,500 tokens 추가 유입
-- 원인 불명 (디버깅 필요)
-
-### **즉시 할 일:**
-1. 시스템 프롬프트 각 부분 토큰 수 측정
-2. 병목 지점 파악
-3. 긴급 최적화
-
-### **목표:**
-- 8,000 → 1,500 tokens (81% 절감)
-- $0.031 → $0.010/turn (68% 절감)
-
-```
-## Tool Use 규칙 (매 턴 반드시 실행)
-1. **반드시** update_game_state 도구를 호출해라. 예외 없음.
-2. relationship_changes:
-   - 변화량은 **-5 ~ +5** 범위로 자연스럽게
-   - 사소한 인사 = ±1~2, 호의적 행동 = +3~5, 적대 행동 = -3~-5
-3. new_memories:
-   - 최소 1개 생성
-   - 사소한 인사 = importance 2~3
-   - 의미 있는 대화 = importance 4~6
-   - 감정적 사건(갈등, 고백, 결투) = importance 7~9
-4. 기억 content는 1문장으로 사실만 적어라 (감상 금지)
-
-```
-
-## 🎯 새 채팅 시작 멘트
-"```
-
-## 🔍 디버깅 진행 중 (추가 발견)
-
-### **로그 분석:**
-```
-Turn 1:
-- 시스템 프롬프트: 841 tokens ✅
-- 실제 입력: 9,340 tokens 😱
-- 차이: 8,499 tokens 미확인
-
-Turn 2:
-- 시스템 프롬프트: 854 tokens ✅  
-- 실제 입력: 9,924 tokens 😱
-- 차이: 9,070 tokens 미확인
-```
-
-### **의심되는 범인:**
-**Tool Use 스키마!**
-
-Claude API에 매번 전달되는 `tools` 정의가 엄청 클 가능성.
-- Tool description
-- Input schema
-→ 이게 7,000-8,000 tokens일 수 있음!
-
-### **즉시 할 일:**
-1. `llm.py`의 `_get_tools()` 확인
-2. Tool 스키마 크기 측정
-3. Tool 정의 최적화
-   - Description 압축
-   - Schema 단순화
-
-### **예상 최적화:**
-- Tool 스키마: 7,000 → 500 tokens (93% 절감!)
-- 총 입력: 9,340 → 2,000 tokens (79% 절감!)
-- Turn 비용: $0.035 → $0.008 (77% 절감!)
-"Day 6 UsageTracker 실제 플레이 완료!
-
-충격적 발견:
-- 입력 토큰: 8,000개 (예상 1,500개)
-- Turn당 비용: $0.031 (예상 $0.025보다 24% 비쌈)
-
-문제:
-어디선가 6,500 tokens가 추가로 들어감.
-시스템 프롬프트 디버깅 필요.
-
-즉시 할 일:
-1. 프롬프트 각 부분 토큰 수 측정
-2. 병목 지점 파악
-3. 긴급 최적화
-
-프로젝트 경로: /Users/leejy/Desktop/engine/
-위 전체 컨텍스트 참고해서 디버깅 시작하자!"
-```
-        """
-        logger.debug(f"Total prompt length: {len(prompt)} chars (~{len(prompt)//4} tokens)")
+        logger.debug(f"Optimized prompt length: {len(prompt)} chars (~{len(prompt)//4} tokens)")
         return prompt
-
     def _format_npc_profiles(self, snapshot: dict[str, Any]) -> str:
         """전체 NPC 데이터에서 상세 프로필 텍스트 생성"""
         profiles: list[str] = []

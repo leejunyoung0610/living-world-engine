@@ -39,7 +39,7 @@ GAME_STATE_TOOL = {
                         "character": {"type": "string", "description": "NPC 이름"},
                         "stat": {
                             "type": "string",
-                            "enum": ["affection", "trust", "respect", "fear"],
+                            "enum": ["affection", "trust", "respect", "fear", "loyalty", "romance"],
                             "description": "변경할 관계 수치",
                         },
                         "change": {

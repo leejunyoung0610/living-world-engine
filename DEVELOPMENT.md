@@ -265,10 +265,40 @@ Turn 4: "아카데미에서 여자친구 만드는법이 궁금해요"
 71dc0a0 - feat(day5): Add CLI play script + fix logger imports
 [추가 커밋 예정] - fix: Add missing logger imports in game_loop and llm
 
-### Day 6 ⬜
+## Day 6 (2/15 토) - 비용 추적 + 분석
 
-**예정:**
-- [ ] 성능 벤치마크 (Day 6)
+### 완료 작업
+- UsageTracker 구현 (토큰 카운팅, 비용 계산)
+- ClaudeClient 토큰 정보 반환
+- GameEngine 비용 기록
+- CLI 비용 표시
+- 상세 토큰 분석 로깅
+
+### 비용 분석 결과
+```
+Turn당: $0.036
+1차 호출: 4,658 tokens
+2차 호출: 4,968 tokens
+총: 9,626 tokens
+
+API 오버헤드: 3.7배 (불가피)
+```
+
+### 원인 파악
+1. **API 내부 포맷팅:** 3.7배 증가 (XML 태그, JSON 파싱)
+2. **System Prompt:** 992 tokens (최적화 가능)
+3. **Tools Definition:** 274 tokens (정상)
+
+### 최적화 계획
+- Week 2: System Prompt + Caching → $0.015/turn (58% ↓)
+- Week 3: Model Switching → $0.006/turn (83% ↓)
+
+### 테스트
+- 91개 (100% 통과, E2E 제외)
+- Coverage: 91%
+
+### 다음 단계
+- Day 7: SystemPromptOptimizer 구현
 
 ### Day 7 ⬜
 
