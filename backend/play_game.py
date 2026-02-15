@@ -84,28 +84,22 @@ def main():
     print_separator()
     
     # 게임 루프
-    while True:
-        try:
-            # 유저 입력
-            user_input = input("You: ").strip()
+    try:
+        while True:
+            user_input = input("\nYou: ").strip()
             
-            # 종료 명령
             if user_input.lower() in ['quit', 'exit', 'q']:
                 print("\n👋 Game ended. Goodbye!")
                 break
             
-            # 빈 입력 무시
             if not user_input:
                 continue
             
-            # 게임 턴 실행
             print("\n🤔 Processing...\n")
             result = engine.process_turn(user_input)
             response = result["response"]
             
-            # 응답 출력
             print(f"🎭 {response}")
-            # 비용 정보
             print(f"\n💰 Turn Cost: ${result['turn_cost']:.6f}")
             print(f"   Input: {result['input_tokens']:,} tokens | "
                   f"Output: {result['output_tokens']:,} tokens")
@@ -113,22 +107,19 @@ def main():
             print(f"   Total Spent: ${stats['total_cost']:.6f}")
 
             print_separator()
-            
-            # 상태 업데이트 표시
             print_game_state(engine)
             print_separator()
-            
     except KeyboardInterrupt:
         print("\n\n👋 Interrupted. Exiting...")
+    except Exception as e:
+        logger.error(f"Turn error: {e}", exc_info=True)
+        print(f"\n❌ Error during turn: {e}")
+        print("Game continues...\n")
     finally:
         print("\n")
         engine.usage_tracker.print_summary()
         engine.print_performance_report()
         logger.info("Session ended")
-        except Exception as e:
-            logger.error(f"Turn error: {e}", exc_info=True)
-            print(f"\n❌ Error during turn: {e}")
-            print("Game continues...\n")
     
     # 최종 상태 저장 (선택사항)
     try:
