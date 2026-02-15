@@ -14,6 +14,10 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
+from ..utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class WorldState:
     """게임 세계의 전체 상태를 관리하는 클래스"""
@@ -123,10 +127,15 @@ class WorldState:
             self.player["relationships"] = {}
         if npc_id not in self.player["relationships"]:
             self.player["relationships"][npc_id] = {}
+        logger.info(f"Updating {npc_id} {stat} {change}")
 
         current = self.player["relationships"][npc_id].get(stat, 50)
+        logger.info(f"Current {stat}: {current}")
         new_value = max(0, min(100, current + change))
+        if new_value != current + change:
+            logger.info(f"Clamped {stat} to {new_value} (requested {current + change})")
         self.player["relationships"][npc_id][stat] = new_value
+        logger.info(f"{npc_id} {stat}: {current} -> {new_value} ({change})")
         return new_value
 
     def apply_changes(self, changes: dict[str, Any]) -> dict[str, Any]:
