@@ -33,10 +33,15 @@ def test_build_context_recent_only(context_manager):
     assert len(optimized) == len(history)
 
 
-def test_build_context_with_sampling(context_manager, sample_history):
-    optimized = context_manager.build_context("루아 기억나?", sample_history, max_tokens=500)
-    assert len(optimized) < len(sample_history)
-    assert optimized[-1] == sample_history[-1]
+def test_build_context_with_sampling(context_manager):
+    history = []
+    for i in range(20):
+        history.append({"role": "user", "content": "a" * 200})
+        history.append({"role": "assistant", "content": "b" * 200})
+
+    optimized = context_manager.build_context("루아", history, max_tokens=500)
+    assert len(optimized) < len(history)
+    assert optimized[-1] == history[-1]
 
 
 def test_importance_calculation(context_manager):
