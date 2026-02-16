@@ -1,0 +1,516 @@
+{
+  "memories": [
+    {
+      "id": "506cd96175b44ac0958ce46a7df1d900",
+      "player_id": "default",
+      "content": "신입생으로 보이는 학생이 나에게 인사를 건넴",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-02-16T05:12:38.657153"
+    },
+    {
+      "id": "2c65651e437247a188454590e1d0496c",
+      "player_id": "default",
+      "content": "무명이라는 신입생이 루아를 찾으며 예의없이 행동함",
+      "emotion": "anger",
+      "importance": 4,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T05:13:11.564291"
+    },
+    {
+      "id": "764e536498fc4968b46551aa0200e089",
+      "player_id": "default",
+      "content": "무명이라는 신입생이 루아 선배를 찾아왔다",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T05:13:38.107819"
+    },
+    {
+      "id": "feb613091d154b3a911c1d2ad590c23c",
+      "player_id": "default",
+      "content": "엘레나에게 버릇없는 태도를 보여 눈총을 샀다",
+      "emotion": "anger",
+      "importance": 4,
+      "tags": [
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T05:13:38.108678"
+    },
+    {
+      "id": "3a9b9f5109f1458f981b348308a2c7b5",
+      "player_id": "default",
+      "content": "무명이라는 신입생이 엘레나 선배를 무시하고 자신을 찾아옴",
+      "emotion": "surprise",
+      "importance": 5,
+      "tags": [
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T05:14:08.433447"
+    },
+    {
+      "id": "afad067b9d54440d890682296c88c66b",
+      "player_id": "default",
+      "content": "무명이 자신을 미인이라고 칭찬함",
+      "emotion": "joy",
+      "importance": 4,
+      "tags": [
+        "compliment"
+      ],
+      "created_at": "2026-02-16T05:14:08.433996"
+    },
+    {
+      "id": "8e7e61351b324fc4bced43790cb2953d",
+      "player_id": "default",
+      "content": "무명이라는 신입생이 첫 만남부터 적극적으로 대시했다",
+      "emotion": "surprise",
+      "importance": 7,
+      "tags": [],
+      "created_at": "2026-02-16T05:14:51.264562"
+    },
+    {
+      "id": "51d05144df73468294d1f8386c29ce39",
+      "player_id": "default",
+      "content": "무명이 첫 만남에서 바로 고백하고 연애를 제안했다. 대담하고 재밌는 신입생.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [],
+      "created_at": "2026-02-16T05:15:26.962267"
+    },
+    {
+      "id": "bcf356846af9426ea06c5d58bdede7dc",
+      "player_id": "default",
+      "content": "무명과 내일 점심 약속을 잡았다. 얼마나 날 설레게 할 수 있을지 궁금하다.",
+      "emotion": "joy",
+      "importance": 7,
+      "tags": [
+        "emotion_excited"
+      ],
+      "created_at": "2026-02-16T05:15:26.963206"
+    },
+    {
+      "id": "0c067f9295094f46878502e083d556a9",
+      "player_id": "default",
+      "content": "무명이 첫 만남에서 바로 고백하고 연애를 제안했다. 대담하고 재밌는 신입생.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [],
+      "created_at": "2026-02-16T05:16:20.568810"
+    },
+    {
+      "id": "5412ff145f404df7ab8be876cd39bebb",
+      "player_id": "default",
+      "content": "무명과 내일 점심 약속을 잡았다. 얼마나 날 설레게 할 수 있을지 궁금하다.",
+      "emotion": "joy",
+      "importance": 7,
+      "tags": [
+        "emotion_excited"
+      ],
+      "created_at": "2026-02-16T05:16:20.571077"
+    },
+    {
+      "id": "a0a57727d04e43e6b70debf423815b47",
+      "player_id": "default",
+      "content": "무명이 엘레나 선배에게 결투를 신청했다. 미친 신입생이 재밌다.",
+      "emotion": "joy",
+      "importance": 6,
+      "tags": [
+        "duel",
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T05:16:20.571513"
+    },
+    {
+      "id": "ad2a6dc1540341629c673c6c55467803",
+      "player_id": "default",
+      "content": "무명이 첫 만남에서 칭찬하더니 바로 연애하자고 했다. 대담하고 재밌는 신입생.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [
+        "compliment"
+      ],
+      "created_at": "2026-02-16T05:17:08.521783"
+    },
+    {
+      "id": "8d7295bcb84242b6a9c34fb880560a62",
+      "player_id": "default",
+      "content": "무명과 내일 점심 약속을 잡았다. 얼마나 날 설레게 할 수 있을지 궁금하다.",
+      "emotion": "joy",
+      "importance": 7,
+      "tags": [
+        "emotion_excited"
+      ],
+      "created_at": "2026-02-16T05:17:08.522951"
+    },
+    {
+      "id": "dec62acdc20f4003bbc38d499128fc62",
+      "player_id": "default",
+      "content": "무명이 엘레나 선배에게 마법결투를 신청했다. 무모하지만 재밌는 녀석.",
+      "emotion": "surprise",
+      "importance": 7,
+      "tags": [
+        "duel",
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T05:17:08.523878"
+    },
+    {
+      "id": "828c075f0afb4ccf84993938180e02ae",
+      "player_id": "default",
+      "content": "무명이 료이키텐카이라는 압도적인 마법으로 2학년 수석 엘레나를 단번에 제압했다. 신입생이라고는 믿을 수 없는 실력.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T05:18:02.325266"
+    },
+    {
+      "id": "d34a36db94ed4284b20a018fb25e5f87",
+      "player_id": "default",
+      "content": "무명이 수련장에서 엘레나를 압도하며 강자임을 증명했다. 점점 더 흥미로워진다.",
+      "emotion": "joy",
+      "importance": 9,
+      "tags": [
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T05:18:02.326475"
+    },
+    {
+      "id": "193fbcf1b0d04fac8d3fb5b897ad007d",
+      "player_id": "default",
+      "content": "무명이 료이키텐카이라는 압도적인 마법으로 2학년 수석 엘레나를 단번에 제압했다. 신입생이라고는 믿을 수 없는 실력.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T05:18:49.593019"
+    },
+    {
+      "id": "1dfc622ae8634643a9bed565078f3d2b",
+      "player_id": "default",
+      "content": "무명이 수련장에서 엘레나를 압도하며 강자임을 증명했다. 점점 더 흥미로워진다.",
+      "emotion": "joy",
+      "importance": 9,
+      "tags": [
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T05:18:49.593845"
+    },
+    {
+      "id": "09d6ce41cf904ef995f393791085af2d",
+      "player_id": "default",
+      "content": "무명이 첫 만남에서 바로 고백하고 연애를 제안했다. 대담하고 재밌는 신입생.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [],
+      "created_at": "2026-02-16T05:18:49.594579"
+    },
+    {
+      "id": "f42f2d465a164e3a8753746df690ce61",
+      "player_id": "default",
+      "content": "무명이 료이키텐카이라는 압도적인 마법으로 2학년 수석 엘레나를 단번에 제압했다. 신입생이라고는 믿을 수 없는 실력.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T05:19:24.510657"
+    },
+    {
+      "id": "c7806615ea0a40fa96b2ba7d43c3a922",
+      "player_id": "default",
+      "content": "무명이 첫 만남에서 바로 고백하고 연애를 제안했다. 대담하고 재밌는 신입생.",
+      "emotion": "joy",
+      "importance": 8,
+      "tags": [],
+      "created_at": "2026-02-16T05:19:24.511743"
+    },
+    {
+      "id": "b43164a4de1f40e6a8566ab133d2d692",
+      "player_id": "default",
+      "content": "무명과 중앙 정원 분수대에서 첫 데이트 약속을 했다.",
+      "emotion": "joy",
+      "importance": 7,
+      "tags": [],
+      "created_at": "2026-02-16T05:19:24.512804"
+    },
+    {
+      "id": "cab0cad212bb4de18e40dafe2ff8879a",
+      "player_id": "default",
+      "content": "무명이 첫 데이트에서 갑자기 키스를 했다. 심장이 너무 뛰어서 당황스러웠다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "kiss",
+        "emotion_embarrassed"
+      ],
+      "created_at": "2026-02-16T05:20:06.598248"
+    },
+    {
+      "id": "b8d3b2409206467d9aba70ff0c5749a0",
+      "player_id": "default",
+      "content": "무명이 루아에게 갑작스럽게 뽀뽀하며 남자친구라고 선언했다. 루아가 당황하며 얼굴을 붉혔다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "루아",
+        "emotion_embarrassed"
+      ],
+      "created_at": "2026-02-16T05:20:54.406273"
+    },
+    {
+      "id": "6da554613e2240869d8be5324371585e",
+      "player_id": "default",
+      "content": "무명이 료이키텐카이(무량공처)라는 압도적인 마법으로 엘레나를 완전히 제압했다. 2학년 수석이 신입생에게 무릎 꿇었다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T05:20:54.408059"
+    },
+    {
+      "id": "98e6dd6d52694bb0bc041cf3568b0297",
+      "player_id": "default",
+      "content": "무명이 루아에게 데이트를 약속받고, 첫 만남부터 적극적으로 작업을 걸었다.",
+      "emotion": "joy",
+      "importance": 8,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T05:20:54.408503"
+    },
+    {
+      "id": "bf3458cf020c4e0c9843500a1f0820e2",
+      "player_id": "default",
+      "content": "무명이 루아에게 갑작스럽게 키스하며 남자친구라고 선언했다. 루아가 당황하며 얼굴을 붉혔다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "kiss",
+        "루아",
+        "emotion_embarrassed"
+      ],
+      "created_at": "2026-02-16T05:21:35.973021"
+    },
+    {
+      "id": "1b4d25509fc74c14933b6d94edd5736f",
+      "player_id": "default",
+      "content": "무명이 루아와 내일 데이트 약속 후 벨라를 찾아갔다. 대담하고 예측 불가능한 행동.",
+      "emotion": "surprise",
+      "importance": 7,
+      "tags": [
+        "벨라",
+        "루아"
+      ],
+      "created_at": "2026-02-16T05:21:35.974414"
+    },
+    {
+      "id": "4588f17c1f9b4c12bb352b17b7bb4274",
+      "player_id": "default",
+      "content": "무명이 루아에게 갑자기 키스를 했다. 루아가 완전히 당황하며 얼굴을 붉혔다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "kiss",
+        "루아",
+        "emotion_embarrassed"
+      ],
+      "created_at": "2026-02-16T05:22:11.032039"
+    },
+    {
+      "id": "4b0c2a1ff6ea4c169cd800374cac22f5",
+      "player_id": "default",
+      "content": "무명이 루아에게 데이트 신청을 받고, 내일 답을 주겠다며 여유를 부렸다.",
+      "emotion": "joy",
+      "importance": 8,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T05:22:11.033474"
+    },
+    {
+      "id": "45ba0359d8aa45c1a11399265fd3e7c6",
+      "player_id": "default",
+      "content": "무명이 벨라를 '성격 더러운 가시나'라고 직설적으로 모욕했다. 벨라가 폭발했다.",
+      "emotion": "anger",
+      "importance": 8,
+      "tags": [
+        "벨라",
+        "insult"
+      ],
+      "created_at": "2026-02-16T05:22:11.034330"
+    },
+    {
+      "id": "1e82a54b075b464db064e3192b774791",
+      "player_id": "default",
+      "content": "무명이 루아에게 갑작스럽게 키스하고 남자친구라고 선언했다. 루아는 당황하며 얼굴을 붉혔다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "kiss",
+        "루아",
+        "emotion_embarrassed"
+      ],
+      "created_at": "2026-02-16T05:22:50.851001"
+    },
+    {
+      "id": "3f2db057821341ea8483a6eca5fe42e2",
+      "player_id": "default",
+      "content": "무명이 벨라를 성격 더럽다고 도발하고 료이키텐카이로 무릎 꿇렸다. 벨라는 굴욕에 눈물을 글썽였다.",
+      "emotion": "anger",
+      "importance": 9,
+      "tags": [
+        "벨라"
+      ],
+      "created_at": "2026-02-16T05:22:50.852423"
+    },
+    {
+      "id": "91840dbab81842159defe5cd5fc69361",
+      "player_id": "default",
+      "content": "무명이 료이키텐카이로 벨라를 무릎 꿇리고 굴욕을 줬다. 벨라는 이 굴욕을 절대 잊지 않을 것이다.",
+      "emotion": "anger",
+      "importance": 9,
+      "tags": [
+        "벨라"
+      ],
+      "created_at": "2026-02-16T05:23:24.484780"
+    },
+    {
+      "id": "2082aa7c6d51460790787109cd0b1d59",
+      "player_id": "default",
+      "content": "무명이 루아에게 갑작스럽게 뽀뽀하며 남자친구라고 선언했다. 루아가 당황하며 얼굴을 붉혔다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "루아",
+        "emotion_embarrassed"
+      ],
+      "created_at": "2026-02-16T05:23:52.078780"
+    },
+    {
+      "id": "b1dfe56f1c504e1c8bb17854b1a92c93",
+      "player_id": "default",
+      "content": "무명이 벨라를 료이키텐카이로 제압하고 무릎 꿇게 만들었다. 완전한 굴욕.",
+      "emotion": "fear",
+      "importance": 9,
+      "tags": [
+        "벨라"
+      ],
+      "created_at": "2026-02-16T05:23:52.081002"
+    },
+    {
+      "id": "1006b726f26b45a08d0890b229998e8e",
+      "player_id": "default",
+      "content": "무명이 루아에게 첫 만남에서 작업을 걸고 갑작스럽게 뽀뽀를 했다. 내일 대답을 재촉했다.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T05:24:27.136530"
+    },
+    {
+      "id": "b096c3a3c2354bd5a1361840445352e1",
+      "player_id": "default",
+      "content": "무명이 벨라를 성격 더러운 가시나라고 모욕하고 료이키텐카이로 무릎 꿇렸다.",
+      "emotion": "anger",
+      "importance": 9,
+      "tags": [
+        "벨라",
+        "insult"
+      ],
+      "created_at": "2026-02-16T05:24:27.138682"
+    },
+    {
+      "id": "5edf75f8afef41729824c4af79181428",
+      "player_id": "default",
+      "content": "무명이 세인에게 조심하라고 말했다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [
+        "세인"
+      ],
+      "created_at": "2026-02-16T05:24:27.139716"
+    },
+    {
+      "id": "a007f4e03f2a4768be735d80fc7d37ea",
+      "player_id": "default",
+      "content": "무명이 엘레나와의 마법 결투에서 무량공처로 압도적 승리를 거뒀다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [
+        "duel",
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T05:25:30.495574"
+    },
+    {
+      "id": "148978bc9c5d4a2eb9f85d69c5f2a14f",
+      "player_id": "default",
+      "content": "무명이 루아에게 갑작스럽게 키스하며 남자친구라고 선언했다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "kiss",
+        "루아"
+      ],
+      "created_at": "2026-02-16T05:25:30.498105"
+    },
+    {
+      "id": "d732903a01444b6cb921e459b1269f15",
+      "player_id": "default",
+      "content": "무명이 벨라를 복마어주자로 굴복시키고 모욕을 줬다.",
+      "emotion": "anger",
+      "importance": 8,
+      "tags": [
+        "벨라",
+        "insult"
+      ],
+      "created_at": "2026-02-16T05:25:30.498983"
+    },
+    {
+      "id": "e6ffbb67e17e45df889f49cbad063888",
+      "player_id": "default",
+      "content": "무명이 루아에게 갑자기 뽀뽀를 하고 '자기야'라고 불렀다. 하지만 동시에 세인과 엘레나 등 다른 여자들에게도 관심을 보인다.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [
+        "세인",
+        "루아",
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T05:27:12.792308"
+    },
+    {
+      "id": "871ed95c90d841a29d06376c267eb12b",
+      "player_id": "default",
+      "content": "무명이 료이키텐카이로 벨라를 무릎 꿇렸다. 벨라는 눈물을 흘리며 복수를 다짐했다.",
+      "emotion": "anger",
+      "importance": 9,
+      "tags": [
+        "벨라"
+      ],
+      "created_at": "2026-02-16T05:27:12.793299"
+    },
+    {
+      "id": "d2e85537fba9493eb5bc227401821ece",
+      "player_id": "default",
+      "content": "무명이 세인을 귀엽다고 칭찬했다.",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [
+        "compliment",
+        "세인"
+      ],
+      "created_at": "2026-02-16T05:27:12.794428"
+    }
+  ]
+}
