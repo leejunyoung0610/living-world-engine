@@ -104,7 +104,7 @@ class LongTermMemory:
             "player_id": player_id,
             "content": content,
             "emotion": emotion,
-            "importance": max(1, min(10, importance)),  # 1-10 제한
+            "importance": max(1, min(100, importance)),
             "tags": tags,
             "created_at": datetime.now().isoformat(),
         }
