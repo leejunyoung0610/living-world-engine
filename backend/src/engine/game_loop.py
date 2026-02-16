@@ -20,6 +20,7 @@ from ..utils.logger import get_logger
 from ..utils.usage_tracker import UsageTracker
 from ..utils.performance import PerformanceMonitor
 from .long_term_memory import LongTermMemory
+from .context_manager import ContextManager
 
 logger = get_logger(__name__)
 
@@ -37,6 +38,7 @@ class GameEngine:
         self.usage_tracker = UsageTracker()
         self.prompt_optimizer = SystemPromptOptimizer()
         self.performance = PerformanceMonitor()
+        self.context_manager = ContextManager()
 
     def initialize(self, world_dir: str) -> None:
         """게임 초기화 - 세계관 디렉토리에서 world.json + characters.json + events.json 로드"""
@@ -74,10 +76,17 @@ class GameEngine:
                 system_prompt = self._build_system_prompt(relevant_memories)
 
             with self.performance.measure("llm_call"):
+                full_history = self.conversation_history.copy()
+                full_history.append({"role": "user", "content": user_input})
+                optimized_history = self.context_manager.build_context(
+                    user_input,
+                    full_history,
+                    max_tokens=3000,
+                )
                 llm_result = self.llm.process_turn(
                     user_input=user_input,
                     system_prompt=system_prompt,
-                    conversation_history=self.conversation_history.copy(),
+                    conversation_history=optimized_history,
                 )
 
             with self.performance.measure("usage_logging"):
