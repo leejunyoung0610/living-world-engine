@@ -2,12 +2,45 @@
 
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import List, Dict, Optional
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def normalize_query(query: str) -> List[str]:
+    """쿼리를 확장하여 동의어/영어/태그를 포함하게 함"""
+    keywords: List[str] = []
+    q_lower = query.lower()
+
+    name_map = {
+        "루아": ["루아", "lua"],
+        "벨라": ["벨라", "bella"],
+        "엘레나": ["엘레나", "elena"],
+        "세인": ["세인", "sein"],
+        "록산느": ["록산느", "roxanne"],
+        "레오": ["레오", "leo"],
+    }
+    for kr, synonyms in name_map.items():
+        if kr in query or any(en in query.lower() for en in synonyms):
+            keywords.extend(synonyms)
+
+    action_map = {
+        "키스": ["키스", "kiss", "romance"],
+        "결투": ["결투", "duel", "fight"],
+        "공격": ["공격", "attack"],
+        "대화": ["대화", "conversation"],
+        "식사": ["식사", "meal"],
+    }
+    for kr, synonyms in action_map.items():
+        if kr in query:
+            keywords.extend(synonyms)
+
+    keywords.append(q_lower)
+    return list(dict.fromkeys(keywords))
 
 
 class LongTermMemory:
@@ -62,6 +95,10 @@ class LongTermMemory:
         # 자동 태그 추출
         tags = self._extract_tags(content)
         
+        if self._is_duplicate(content):
+            logger.info(f"Duplicate memory skipped: {content[:50]}...")
+            return ""
+
         memory = {
             "id": uuid.uuid4().hex,
             "player_id": player_id,
@@ -179,8 +216,8 @@ class LongTermMemory:
         
         # 3. 쿼리 관련성 점수 계산
         scored_memories = []
-        query_lower = query.lower()
-        query_tags = self._extract_tags(query)
+        keywords = normalize_query(query)
+        query_tags = list(set(self._extract_tags(query) + keywords))
         
         for memory in player_memories:
             # 중요도 필터
@@ -190,7 +227,7 @@ class LongTermMemory:
             # 관련성 점수 계산
             score = self._calculate_relevance(
                 memory=memory,
-                query=query_lower,
+                keywords=keywords,
                 query_tags=query_tags
             )
             
@@ -209,7 +246,7 @@ class LongTermMemory:
     def _calculate_relevance(
         self,
         memory: Dict,
-        query: str,
+        keywords: List[str],
         query_tags: List[str]
     ) -> float:
         """관련성 점수 계산
@@ -224,13 +261,11 @@ class LongTermMemory:
         tags = memory.get("tags", [])
         importance = memory.get("importance", 5)
         
-        # 1. 내용 매칭 (키워드 포함)
-        if query in content:
-            score += 3.0
-        
-        # 2. 태그 매칭
-        matching_tags = set(query_tags) & set(tags)
-        score += len(matching_tags) * 2.0
+        for keyword in keywords:
+            if keyword and keyword.lower() in content:
+                score += 3.0
+            if keyword and keyword.lower() in [t.lower() for t in tags]:
+                score += 2.0
         
         # 3. 중요도 보너스
         score += importance / 10.0
@@ -255,6 +290,76 @@ class LongTermMemory:
         )
         
         return player_memories[:limit]
+
+    def _is_duplicate(self, new_content: str) -> bool:
+        """최근 기억 대비 중복 판단"""
+        recent = self.memories[-10:]
+        for memory in reversed(recent):
+            old_content = memory.get("content", "")
+            ratio = SequenceMatcher(None, new_content, old_content).ratio()
+            if ratio > 0.95:
+                logger.debug(f"Similar memory found: {ratio:.2f}")
+                return True
+        return False
+
+    def summarize_old_memories(self, days_ago: int = 7) -> None:
+        """오래된 중요 낮은 기억을 요약"""
+        cutoff = datetime.now() - timedelta(days=days_ago)
+        old_memories = [
+            m for m in self.memories
+            if datetime.fromisoformat(m["created_at"]) < cutoff
+            and m.get("importance", 0) < 50
+        ]
+        if len(old_memories) < 10:
+            return
+        summary = self._create_summary(old_memories)
+        for old in old_memories:
+            self.memories.remove(old)
+
+        summary_memory = {
+            "id": uuid.uuid4().hex,
+            "player_id": "summary",
+            "content": f"[요약] {summary}",
+            "emotion": "neutral",
+            "importance": 30,
+            "tags": ["summary"],
+            "created_at": datetime.now().isoformat(),
+        }
+        self.memories.append(summary_memory)
+        self._save()
+        logger.info(f"Summarized {len(old_memories)} memories into one")
+
+    def _create_summary(self, memories: List[Dict]) -> str:
+        tag_counts: Dict[str, int] = {}
+        for m in memories:
+            for tag in m.get("tags", []):
+                tag_counts[tag] = tag_counts.get(tag, 0) + 1
+        top_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+        summary_parts = [f"{tag} 관련 사건 {count}회" for tag, count in top_tags]
+        return ", ".join(summary_parts)
+
+    def print_memory_dashboard(self, player_id: str = "default") -> None:
+        stats = self.get_stats(player_id)
+        print("\n" + "="*60)
+        print("📚 Memory Dashboard")
+        print("="*60)
+        print(f"Total Memories: {stats['total']}")
+        print(f"Avg Importance: {stats['avg_importance']:.1f}/100")
+        print("\nTop Characters:")
+        npc_counts: Dict[str, int] = {}
+        for memory in self.memories:
+            for tag in memory.get("tags", []):
+                if tag in ["lua", "bella", "elena", "sein", "roxanne", "leo"]:
+                    npc_counts[tag] = npc_counts.get(tag, 0) + 1
+        for npc, count in sorted(npc_counts.items(), key=lambda x: x[1], reverse=True)[:5]:
+            print(f"  {npc}: {count} memories")
+        print("\nTop Tags:")
+        for tag, count in list(stats["top_tags"].items())[:10]:
+            print(f"  {tag}: {count}")
+        print("\nEmotions:")
+        for emotion, count in stats["emotions"].items():
+            print(f"  {emotion}: {count}")
+        print("="*60 + "\n")
     
     def get_stats(self, player_id: str = "default") -> Dict:
         """통계 반환"""

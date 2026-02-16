@@ -4,7 +4,9 @@ import pytest
 import tempfile
 import json
 from pathlib import Path
-from backend.src.engine.long_term_memory import LongTermMemory
+from datetime import datetime, timedelta
+
+from backend.src.engine.long_term_memory import LongTermMemory, normalize_query
 
 
 @pytest.fixture
@@ -145,8 +147,8 @@ def test_get_recent(memory_system):
 def test_importance_clamping(memory_system):
     """중요도 범위 제한 테스트"""
     # 범위 초과
-    memory_system.add_memory("테스트", importance=15)
-    assert memory_system.memories[-1]["importance"] == 10
+    memory_system.add_memory("테스트", importance=150)
+    assert memory_system.memories[-1]["importance"] == 100
     
     # 범위 미만
     memory_system.add_memory("테스트2", importance=-5)
@@ -226,3 +228,29 @@ def test_multiple_tags_matching(memory_system):
     # 벨라 + 키스 관련 태그 포함
     assert any("bella" in t.lower() or "벨라" in t for t in tags)
     assert "kiss" in tags
+
+
+def test_normalize_query():
+    keywords = normalize_query("루아 키스")
+    assert "루아" in keywords or "lua" in keywords
+    assert "kiss" in keywords
+    assert "romance" in keywords
+
+
+def test_duplicate_detection(memory_system):
+    assert memory_system.add_memory("같은 내용", importance=5)
+    duplicate = memory_system.add_memory("같은 내용", importance=5)
+    assert duplicate == ""
+    assert len(memory_system.memories) == 1
+
+
+def test_summarization(memory_system):
+    for i in range(12):
+        memory_system.add_memory(f"과거 기억 {i}", importance=10)
+        memory_system.memories[-1]["importance"] = 30
+        memory_system.memories[-1]["created_at"] = (
+            datetime.now() - timedelta(days=10)
+        ).isoformat()
+
+    memory_system.summarize_old_memories(days_ago=7)
+    assert any(m["tags"] == ["summary"] for m in memory_system.memories)
