@@ -511,6 +511,930 @@
         "세인"
       ],
       "created_at": "2026-02-16T05:27:12.794428"
+    },
+    {
+      "id": "ff60054bb14648af975dc949fd63c87d",
+      "player_id": "default",
+      "content": "신입생 무명을 아케인 아카데미 복도에서 처음 목격했다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [
+        "location_복도"
+      ],
+      "created_at": "2026-02-16T19:40:35.222730"
+    },
+    {
+      "id": "e39691ab9f354b9d920d0d926cac747b",
+      "player_id": "default",
+      "content": "무명이 루아를 미인이라고 칭찬했다. 루아가 남자친구 관계를 상기시키자 엘레나와 벨라가 당황했다.",
+      "emotion": "surprise",
+      "importance": 7,
+      "tags": [
+        "루아",
+        "compliment",
+        "emotion_embarrassed",
+        "벨라",
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T19:41:06.257285"
+    },
+    {
+      "id": "0299be2127d846e083cdf3c3c82a4e4e",
+      "player_id": "default",
+      "content": "무명이 복도에서 갑자기 루아에게 고백했다. 루아는 당황하면서도 긍정적인 반응을 보였다.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [
+        "루아",
+        "emotion_embarrassed",
+        "location_복도"
+      ],
+      "created_at": "2026-02-16T19:41:37.696842"
+    },
+    {
+      "id": "fe7128f8603c4f58a1883e8d46b6fd9c",
+      "player_id": "default",
+      "content": "무명이 복도에서 루아에게 기습 키스를 하며 연애하자고 공개적으로 선언했다. 루아는 완전히 당황했다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [
+        "루아",
+        "location_복도",
+        "emotion_embarrassed",
+        "kiss"
+      ],
+      "created_at": "2026-02-16T19:42:16.749372"
+    },
+    {
+      "id": "a9f18a4b6a9246d483105a35232eab13",
+      "player_id": "default",
+      "content": "벨라가 무명과 루아의 키스를 목격하고 격렬하게 반응했다.",
+      "emotion": "anger",
+      "importance": 7,
+      "tags": [
+        "루아",
+        "벨라",
+        "kiss"
+      ],
+      "created_at": "2026-02-16T19:42:16.752074"
+    },
+    {
+      "id": "f1023708d44441ec8801bc49362d63be",
+      "player_id": "default",
+      "content": "무명이 복도에서 루아에게 기습 키스를 하고 순간이동으로 도망쳤다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "루아",
+        "location_복도",
+        "kiss"
+      ],
+      "created_at": "2026-02-16T19:43:06.988920"
+    },
+    {
+      "id": "193fb0a8ded34a5184f6fba966862fe5",
+      "player_id": "default",
+      "content": "무명과 루아가 연인 사이일 가능성이 있다는 소문이 퍼지기 시작했다.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T19:43:06.991508"
+    },
+    {
+      "id": "83d14cec35fe4820887dc43045de7d8d",
+      "player_id": "default",
+      "content": "무명이 복도에서 루아에게 연속으로 두 번이나 기습 키스를 했다. 루아는 완전히 당황하며 얼굴을 붉혔고, 전교생이 목격했다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [
+        "루아",
+        "location_복도",
+        "emotion_embarrassed",
+        "kiss"
+      ],
+      "created_at": "2026-02-16T19:43:47.132618"
+    },
+    {
+      "id": "ade0f4a65bc94b5d90170251b82c19ca",
+      "player_id": "default",
+      "content": "무명이 복도에서 루아에게 기습 키스를 하고, 빈 교실에서 다시 한번 키스한 후 저녁 데이트를 신청했다. 루아는 당황하며 얼굴을 붉혔지만 데이트를 수락했다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [
+        "루아",
+        "emotion_embarrassed",
+        "location_교실",
+        "location_복도",
+        "kiss"
+      ],
+      "created_at": "2026-02-16T19:44:25.636821"
+    },
+    {
+      "id": "f1d45cf52cb5497dbc12d55761b451d0",
+      "player_id": "default",
+      "content": "벨라가 무명과 루아의 키스 장면을 목격하고 매우 화를 냈다.",
+      "emotion": "anger",
+      "importance": 7,
+      "tags": [
+        "루아",
+        "emotion_angry",
+        "벨라",
+        "kiss"
+      ],
+      "created_at": "2026-02-16T19:44:25.639608"
+    },
+    {
+      "id": "10e970bdfdfb4185900e0fae5866dc6e",
+      "player_id": "default",
+      "content": "무명이 복도에서 루아에게 기습 키스를 했다. 학생들 앞에서 공개적으로.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "루아",
+        "location_복도",
+        "kiss"
+      ],
+      "created_at": "2026-02-16T19:44:58.608314"
+    },
+    {
+      "id": "8ac44a1f3d8e4d00ba65e0a6c60e804b",
+      "player_id": "default",
+      "content": "무명이 루아에게 데이트를 신청했고, 루아가 수락했다. 내일 7시 정문 앞.",
+      "emotion": "joy",
+      "importance": 8,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T19:44:58.611996"
+    },
+    {
+      "id": "fa3d9fe622fb4cd0a8092f8a202de11f",
+      "player_id": "default",
+      "content": "무명이 복도에서 루아에게 기습 키스를 하고 데이트를 신청했다. 루아는 당황했지만 받아들였다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "루아",
+        "location_복도",
+        "emotion_embarrassed",
+        "kiss"
+      ],
+      "created_at": "2026-02-16T19:45:29.848846"
+    },
+    {
+      "id": "52baa3e48c1448a2a13356452732d18d",
+      "player_id": "default",
+      "content": "무명이 록산느 교수에게 마법 배틀을 신청했다. 실력 향상을 위한 도전.",
+      "emotion": "neutral",
+      "importance": 7,
+      "tags": [
+        "록산느"
+      ],
+      "created_at": "2026-02-16T19:45:29.851240"
+    },
+    {
+      "id": "22f3d1aa03894f29b05eb76ce6d8a245",
+      "player_id": "default",
+      "content": "무명이 흑마법 '압도'로 록산느 교수의 화염구를 순식간에 소멸시켰다. 금지된 마법을 신입생이 구사하다니...",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "록산느",
+        "emotion_angry",
+        "dark_magic"
+      ],
+      "created_at": "2026-02-16T19:46:04.759291"
+    },
+    {
+      "id": "33f9e02938be43baaaa71c2a77774811",
+      "player_id": "default",
+      "content": "무명이 복도에서 루아에게 기습 키스를 했다. 여러 학생들이 목격했다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "루아",
+        "location_복도",
+        "kiss"
+      ],
+      "created_at": "2026-02-16T19:46:38.926912"
+    },
+    {
+      "id": "88c970aa036048d093b03832264c422c",
+      "player_id": "default",
+      "content": "무명과 루아가 내일 저녁 7시 학원 정문에서 데이트 약속을 했다.",
+      "emotion": "joy",
+      "importance": 8,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T19:46:38.930147"
+    },
+    {
+      "id": "365b5bfdc5834840bd37ad1d446fced1",
+      "player_id": "default",
+      "content": "무명이 록산느 교수와의 배틀에서 흑마법을 사용했다. 금지된 마법임에도 완벽히 제어하는 모습을 보였다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [
+        "록산느",
+        "dark_magic"
+      ],
+      "created_at": "2026-02-16T19:46:38.932985"
+    },
+    {
+      "id": "b9722086ebb44b7eb7104b26f291c6b2",
+      "player_id": "default",
+      "content": "무명이 흑마법을 완벽하게 제어하며 사용했다. 태어날 때부터 가능했다고 하는데, 이는 매우 위험하면서도 경이로운 재능이다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [
+        "dark_magic"
+      ],
+      "created_at": "2026-02-16T19:47:29.894026"
+    },
+    {
+      "id": "61bd5d42898a4ca4a85e51ff1337f9c5",
+      "player_id": "default",
+      "content": "무명이 복도에서 루아에게 기습 키스를 했고, 내일 저녁 7시 데이트 약속을 잡았다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "루아",
+        "location_복도",
+        "kiss"
+      ],
+      "created_at": "2026-02-16T19:47:29.895397"
+    },
+    {
+      "id": "6f625ee0c05a4e84b6a38a86960449a3",
+      "player_id": "default",
+      "content": "록산느 교수가 무명의 흑마법을 비밀로 해주는 대신 특별 지도를 제안했다.",
+      "emotion": "trust",
+      "importance": 8,
+      "tags": [
+        "록산느",
+        "dark_magic"
+      ],
+      "created_at": "2026-02-16T19:47:29.896314"
+    },
+    {
+      "id": "bcf3731413184ac083cbd82d31d91a40",
+      "player_id": "default",
+      "content": "무명이 록산느 교수에게 흑마법을 사용했고, 완벽한 제어력을 보여줬다. 록산느는 비밀을 지켜주는 대신 특별 지도를 제안했다.",
+      "emotion": "trust",
+      "importance": 9,
+      "tags": [
+        "록산느",
+        "dark_magic"
+      ],
+      "created_at": "2026-02-16T19:48:14.504124"
+    },
+    {
+      "id": "dd27f95b005d413b818d48b96f180909",
+      "player_id": "default",
+      "content": "루아와 저녁 데이트 약속을 잡았다. 다음날 저녁 7시 학원 정문 앞.",
+      "emotion": "joy",
+      "importance": 8,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T19:48:14.506759"
+    },
+    {
+      "id": "64b3e0a875194446bf6235533dcae8ad",
+      "player_id": "default",
+      "content": "무명이 약속을 지켜 저녁 데이트에 나타났다. 루아는 단정한 원피스를 입고 10분 일찍 나와 기다렸다.",
+      "emotion": "joy",
+      "importance": 8,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T19:48:43.263938"
+    },
+    {
+      "id": "a8fcb851893f4a11ad662dcd3b3b123a",
+      "player_id": "default",
+      "content": "무명과의 첫 정식 데이트. 식당에 도착하자마자 무명이 키스를 하고 싶다고 말했다. 너무 당황스럽고 부끄러웠다.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [
+        "emotion_embarrassed",
+        "location_식당",
+        "kiss"
+      ],
+      "created_at": "2026-02-16T19:49:23.624835"
+    },
+    {
+      "id": "79207409e5874f5197e0b1eb09db15d0",
+      "player_id": "default",
+      "content": "루아와의 첫 데이트에서 무명이 저녁보다 키스에만 관심을 보여 루아가 서운해했다.",
+      "emotion": "sadness",
+      "importance": 6,
+      "tags": [
+        "루아",
+        "kiss"
+      ],
+      "created_at": "2026-02-16T19:49:50.285506"
+    },
+    {
+      "id": "4d46e6aa25e440d18f2c49a4636bc2f0",
+      "player_id": "default",
+      "content": "무명이 복도에서 루아에게 기습 키스를 했다. 너무 급작스러웠지만... 나쁘지 않았다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "루아",
+        "location_복도",
+        "kiss"
+      ],
+      "created_at": "2026-02-16T19:50:13.690065"
+    },
+    {
+      "id": "56066da39e7d48ccb905ff5847b26516",
+      "player_id": "default",
+      "content": "무명과 첫 데이트. 학원 근처 맛집에서 저녁을 함께 먹었다.",
+      "emotion": "joy",
+      "importance": 8,
+      "tags": [],
+      "created_at": "2026-02-16T19:50:13.692845"
+    },
+    {
+      "id": "ed57491dbc034584a1f55166ab371abf",
+      "player_id": "default",
+      "content": "무명과 루아가 학원 근처 맛집에서 첫 저녁 데이트를 했다. 루아는 단정한 원피스를 입고 나왔다.",
+      "emotion": "joy",
+      "importance": 8,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T19:50:54.831160"
+    },
+    {
+      "id": "14b5f728d580456dbf863fd49ada59c4",
+      "player_id": "default",
+      "content": "레오가 무명에게 결투를 신청했다. 귀족의 자존심을 건 도전.",
+      "emotion": "neutral",
+      "importance": 6,
+      "tags": [
+        "레오",
+        "duel"
+      ],
+      "created_at": "2026-02-16T19:51:30.395216"
+    },
+    {
+      "id": "62584171afe648dbbfbbb314daa45e19",
+      "player_id": "default",
+      "content": "무명이 레오의 바람의 창을 무영창으로 간단히 무력화했다. 광장에서 많은 학생들이 목격했다.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [
+        "emotion_angry",
+        "레오"
+      ],
+      "created_at": "2026-02-16T19:52:01.016703"
+    },
+    {
+      "id": "d6bd577fb3c5443483a2d693e37c87f7",
+      "player_id": "default",
+      "content": "무명이 레오를 무영창 흑마법으로 압도하고 공개적으로 무시했다. 귀족 플레이보이가 굴욕을 당했다.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [
+        "레오",
+        "dark_magic"
+      ],
+      "created_at": "2026-02-16T19:52:34.174383"
+    },
+    {
+      "id": "88beba76e3574e56b7499d44c60763b6",
+      "player_id": "default",
+      "content": "무명과 루아가 저녁 데이트를 했다. 루아가 공개적으로 '남자친구'라고 언급함",
+      "emotion": "joy",
+      "importance": 8,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T19:53:27.008509"
+    },
+    {
+      "id": "cb0acf14a96f4725bd019971221b5eb8",
+      "player_id": "default",
+      "content": "무명이 레오를 무영창 흑마법으로 순식간에 제압하고 무시했다. 레오는 공개적으로 굴욕당함",
+      "emotion": "surprise",
+      "importance": 7,
+      "tags": [
+        "레오",
+        "dark_magic"
+      ],
+      "created_at": "2026-02-16T19:53:27.011505"
+    },
+    {
+      "id": "813bbb432b8940c7b5b23c2d944d7fa8",
+      "player_id": "default",
+      "content": "무명이 갑자기 마인의 공격에 대해 물어봤다. 무슨 정보를 알고 있는 걸까?",
+      "emotion": "surprise",
+      "importance": 6,
+      "tags": [
+        "attack"
+      ],
+      "created_at": "2026-02-16T19:53:27.013961"
+    },
+    {
+      "id": "d20c45cc0e0a4ffc9ba7ae68b1bb39d0",
+      "player_id": "default",
+      "content": "무명이 레오를 무영창 무력화로 순식간에 제압했다. 광장에서 많은 학생들이 목격.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [
+        "emotion_angry",
+        "레오"
+      ],
+      "created_at": "2026-02-16T19:54:21.540197"
+    },
+    {
+      "id": "969b7fa330e942b5997592750ca9a247",
+      "player_id": "default",
+      "content": "무명과 루아가 저녁 데이트를 했다. 루아가 남자친구라고 공개적으로 언급.",
+      "emotion": "joy",
+      "importance": 9,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T19:54:21.542609"
+    },
+    {
+      "id": "7b041d0ff1d54a08bf87568e073dbb16",
+      "player_id": "default",
+      "content": "무명이 마왕을 없애고 평화를 찾고 싶다는 용사 같은 목표를 밝혔다.",
+      "emotion": "trust",
+      "importance": 9,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-02-16T19:54:21.544968"
+    },
+    {
+      "id": "e124fb619fdc4854878efc3b477aebe6",
+      "player_id": "default",
+      "content": "무명이 루아와 첫 데이트를 했다. 식당에서 함께 저녁을 먹으며 좋은 시간을 보냈다.",
+      "emotion": "joy",
+      "importance": 7,
+      "tags": [
+        "루아",
+        "location_식당"
+      ],
+      "created_at": "2026-02-16T19:55:06.364789"
+    },
+    {
+      "id": "5a9cbfb900154293bb17d256d2df935d",
+      "player_id": "default",
+      "content": "무명이 레오와의 대결에서 무영창 마법으로 압도적으로 제압하고 '수준 낮다'며 무시했다.",
+      "emotion": "anger",
+      "importance": 8,
+      "tags": [
+        "레오"
+      ],
+      "created_at": "2026-02-16T19:55:06.367419"
+    },
+    {
+      "id": "47b5cea811044c7aa5ac3658fc6afaf4",
+      "player_id": "default",
+      "content": "무명이 록산느 교수에게 연애를 제안하는 충격적인 발언을 했다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "록산느"
+      ],
+      "created_at": "2026-02-16T19:55:06.369195"
+    },
+    {
+      "id": "78ba5d7190c2455784e0e6dbaef92840",
+      "player_id": "default",
+      "content": "무명이 루아와 첫 데이트를 성공적으로 마쳤다. 테라스석에서 로맨틱한 저녁을 함께 했다.",
+      "emotion": "joy",
+      "importance": 8,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T19:56:23.574827"
+    },
+    {
+      "id": "e87ee98b3d25492b8048ca65a5a10da8",
+      "player_id": "default",
+      "content": "무명이 레오를 무영창 흑마법으로 압도하고 공개적으로 모욕했다. 학생들 앞에서 레오가 굴욕을 당했다.",
+      "emotion": "anger",
+      "importance": 7,
+      "tags": [
+        "insult",
+        "레오",
+        "dark_magic"
+      ],
+      "created_at": "2026-02-16T19:56:23.578873"
+    },
+    {
+      "id": "98c1743c177b4f81addc3558a4c568cd",
+      "player_id": "default",
+      "content": "무명이 록산느 교수에게 연애를 제안하며 두 명의 여자친구를 가질 수 있다고 주장했다. 록산느는 당황했다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "록산느",
+        "emotion_embarrassed"
+      ],
+      "created_at": "2026-02-16T19:56:23.581405"
+    },
+    {
+      "id": "023e2368a03d453eb479378f61639f49",
+      "player_id": "default",
+      "content": "무명이 마왕을 쓰러뜨리고 평화를 되찾고 싶다는 용사의 각오를 밝혔다.",
+      "emotion": "trust",
+      "importance": 8,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-02-16T19:56:23.583721"
+    },
+    {
+      "id": "9091bcfc312f41feb029e0a4124a46ff",
+      "player_id": "default",
+      "content": "무명이 루아와 첫 데이트를 했다. 레스토랑에서 함께 저녁을 먹으며 좋은 시간을 보냄",
+      "emotion": "joy",
+      "importance": 7,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T19:56:59.618770"
+    },
+    {
+      "id": "81885906437c4a378da38b9dacc2ad62",
+      "player_id": "default",
+      "content": "무명이 레오를 무영창 마법으로 압도하고 '수준이 낮다'며 모욕했다. 레오는 아무것도 못하고 굴욕을 당함",
+      "emotion": "neutral",
+      "importance": 8,
+      "tags": [
+        "insult",
+        "레오"
+      ],
+      "created_at": "2026-02-16T19:56:59.622199"
+    },
+    {
+      "id": "194d7b14445749ec8d346d1e7845cd64",
+      "player_id": "default",
+      "content": "무명이 록산느 교수에게 마왕을 없애고 평화를 찾겠다는 용사의 각오를 밝혔다",
+      "emotion": "trust",
+      "importance": 9,
+      "tags": [
+        "록산느",
+        "emotion_angry"
+      ],
+      "created_at": "2026-02-16T19:56:59.624690"
+    },
+    {
+      "id": "f079752976f643679e223cd9ca2c1602",
+      "player_id": "default",
+      "content": "무명이 록산느 교수에게 대담하게 고백했다. '강한 수컷에게 두 명의 여자친구는 무리가 아니다'라며",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "록산느"
+      ],
+      "created_at": "2026-02-16T19:56:59.626305"
+    },
+    {
+      "id": "b1f65aaaf2274adf87d01ba995b1bdac",
+      "player_id": "default",
+      "content": "무명이 록산느 교수에게 연애를 가르쳐달라며 고백했다. '두 명의 여자친구는 강한 수컷에게 무리가 아니다'라며 자신을 남자로 봐달라고 했다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [
+        "록산느"
+      ],
+      "created_at": "2026-02-16T19:57:33.493299"
+    },
+    {
+      "id": "68128644effd4e7fa99375f49f348095",
+      "player_id": "default",
+      "content": "무명이 레오와의 대결에서 무영창 흑마법으로 압도하고 '수준이 관심없다'며 전교생 앞에서 굴욕을 줬다.",
+      "emotion": "anger",
+      "importance": 8,
+      "tags": [
+        "레오",
+        "dark_magic"
+      ],
+      "created_at": "2026-02-16T19:57:33.496678"
+    },
+    {
+      "id": "edff49aff95742dca3f81709e296aa7c",
+      "player_id": "default",
+      "content": "무명이 용사가 되어 마왕을 없애고 평화를 찾고 싶다고 록산느에게 말했다.",
+      "emotion": "trust",
+      "importance": 7,
+      "tags": [
+        "록산느",
+        "emotion_angry"
+      ],
+      "created_at": "2026-02-16T19:57:33.498362"
+    },
+    {
+      "id": "4e40dbc8ef6346ffb943ff8789124bf0",
+      "player_id": "default",
+      "content": "무명과 루아가 석양 아래 테라스 레스토랑에서 데이트를 즐겼다.",
+      "emotion": "joy",
+      "importance": 7,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T19:57:33.499937"
+    },
+    {
+      "id": "2cd23090547e4200971d617541221bb7",
+      "player_id": "default",
+      "content": "무명이 록산느 교수에게 직접적으로 고백하며 연애를 신청했다. 록산느는 동요하며 실력부터 키우라고 답을 미뤘다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [
+        "록산느"
+      ],
+      "created_at": "2026-02-16T19:58:09.834858"
+    },
+    {
+      "id": "ac7c52b8a7f8426a98ddf612e5113a98",
+      "player_id": "default",
+      "content": "무명이 레오를 무영창 흑마법으로 압도한 후 수준 낮다며 무시했다. 레오는 굴욕을 당했다.",
+      "emotion": "anger",
+      "importance": 8,
+      "tags": [
+        "레오",
+        "dark_magic"
+      ],
+      "created_at": "2026-02-16T19:58:09.837588"
+    },
+    {
+      "id": "3e9b96b9be0e4df99d5ce038b4057f72",
+      "player_id": "default",
+      "content": "무명이 록산느에게 직접 연애를 고백했다. '두 명의 여자친구는 강한 수컷에게 무리가 아니다'라며 자신감을 보였다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "록산느"
+      ],
+      "created_at": "2026-02-16T19:58:50.386219"
+    },
+    {
+      "id": "f336d38a9ee74a3bac18deb5af7df5cb",
+      "player_id": "default",
+      "content": "록산느가 무명의 고백에 동요하며 '실력부터 키워라, 그 다음에 답하겠다'고 했다.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [
+        "록산느"
+      ],
+      "created_at": "2026-02-16T19:58:50.389445"
+    },
+    {
+      "id": "666ff9483f05478ba6c2bfa09ce911f4",
+      "player_id": "default",
+      "content": "무명과 루아가 저녁 데이트를 즐겼다. 루아가 단정한 원피스를 입고 10분 일찍 나왔다.",
+      "emotion": "joy",
+      "importance": 7,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T19:58:50.392063"
+    },
+    {
+      "id": "e5002a12dbde485d8414164a0d85f9dc",
+      "player_id": "default",
+      "content": "레오가 무명에게 무력화당하고 '관심없어 비켜'라는 말에 공개적으로 굴욕을 당했다.",
+      "emotion": "anger",
+      "importance": 8,
+      "tags": [
+        "emotion_angry",
+        "레오"
+      ],
+      "created_at": "2026-02-16T19:58:50.394695"
+    },
+    {
+      "id": "41a5816224b44c28a8a9b5c6192262d3",
+      "player_id": "default",
+      "content": "무명이 레오를 무영창 흑마법으로 압도하고 '관심없어 비켜'라며 무시했다. 레오는 공개적으로 굴욕당했다.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [
+        "레오",
+        "dark_magic"
+      ],
+      "created_at": "2026-02-16T19:59:29.226170"
+    },
+    {
+      "id": "85fc9a9bf3c948549bdd6b47c71b6568",
+      "player_id": "default",
+      "content": "록산느가 무명의 고백에 동요하며 '실력부터 키워, 그런 말은 그 다음에'라고 답했다. 완전히 거절하지는 않았다.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [
+        "록산느"
+      ],
+      "created_at": "2026-02-16T19:59:29.228657"
+    },
+    {
+      "id": "27f76a022a4248ebb9b4fc83cae3eb6a",
+      "player_id": "default",
+      "content": "무명이 루아에게 '너한테 멋져 보이고 싶으니까'라며 달콤한 고백을 했다.",
+      "emotion": "joy",
+      "importance": 7,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T19:59:29.230298"
+    },
+    {
+      "id": "0a5681f899ea4fc791059f4c9acd2d70",
+      "player_id": "default",
+      "content": "무명이 레오를 무영창 무력화로 일격에 제압하고 '관심없어 비켜'라며 굴욕을 줬다.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [
+        "emotion_angry",
+        "레오"
+      ],
+      "created_at": "2026-02-16T20:00:05.172570"
+    },
+    {
+      "id": "1e4fa0d4338f47839a50a91008cf0123",
+      "player_id": "default",
+      "content": "무명이 록산느 교수에게 고백했고, 교수는 거부하지 않고 '실력부터 키워'라고 답했다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "록산느"
+      ],
+      "created_at": "2026-02-16T20:00:05.177921"
+    },
+    {
+      "id": "25567b42144b4afe9eacddd1ba73f174",
+      "player_id": "default",
+      "content": "무명과 루아가 저녁 데이트를 즐겼다. 분위기가 좋았다.",
+      "emotion": "joy",
+      "importance": 7,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T20:00:05.180446"
+    },
+    {
+      "id": "3f62b64eba9344c2b6a2b55f8addf024",
+      "player_id": "default",
+      "content": "일주일간 학업에 집중하며 록산느에게 특별 훈련을 받았다",
+      "emotion": "neutral",
+      "importance": 6,
+      "tags": [
+        "록산느"
+      ],
+      "created_at": "2026-02-16T20:00:49.210426"
+    },
+    {
+      "id": "357e93735c8646e2b252683d753c7f62",
+      "player_id": "default",
+      "content": "엘레나와 재대결이 결정됐다. 그녀는 설욕을 노리고 있다",
+      "emotion": "trust",
+      "importance": 7,
+      "tags": [
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T20:00:49.214556"
+    },
+    {
+      "id": "5962b0b0cb184a6192227293c0f54cf2",
+      "player_id": "default",
+      "content": "일주일간 학업에 집중한 후, 실전마법 훈련장에서 엘레나와 재대결하게 되었다. 엘레나는 일주일 동안 훈련하며 더 강해졌다.",
+      "emotion": "neutral",
+      "importance": 7,
+      "tags": [
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T20:01:16.955265"
+    },
+    {
+      "id": "ddf38a964b9c4cb5921b130f85a524d0",
+      "player_id": "default",
+      "content": "무명이 실전 훈련에서 캐리건이라는 고위 용을 소환했다. 신입생이 용 소환술을 사용할 수 있다니 믿을 수 없는 일이다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-02-16T20:01:54.781625"
+    },
+    {
+      "id": "27e81a99df16480a97c1a644d06b5867",
+      "player_id": "default",
+      "content": "무명이 실전 수업에서 고위 용마법 '캐리건 소환'을 사용했다. 신입생이 용을 소환하다니 전례 없는 일이다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-02-16T20:02:38.321842"
+    },
+    {
+      "id": "910d9c696cc94292a2f66d68597d1634",
+      "player_id": "default",
+      "content": "무명이 엘레나를 용 소환으로 압도적으로 제압했다. 일주일간의 성장이 차원이 다르다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T20:02:38.325041"
+    },
+    {
+      "id": "24ac126731d54834870adfb320569f2f",
+      "player_id": "default",
+      "content": "무명이 록산느에게 다시 한번 고백의 답을 요구했다. 그녀가 동요하며 답을 망설인다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "록산느"
+      ],
+      "created_at": "2026-02-16T20:02:38.328563"
+    },
+    {
+      "id": "6b826f8ce6114b5e84ca49ca047cec53",
+      "player_id": "default",
+      "content": "무명이 엘레나와의 재대결에서 고위 용마법 '캐리건 소환'을 사용해 압도적으로 승리했다. 신입생이 용을 소환하다니...",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T20:03:19.999343"
+    },
+    {
+      "id": "fd673441eb9f414c89cccc03d50506d2",
+      "player_id": "default",
+      "content": "무명이 수업 중 록산느에게 귓속말로 고백의 대답을 재촉했고, 록산느는 수업 후 연구실로 부르며 동요하는 모습을 보였다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "록산느"
+      ],
+      "created_at": "2026-02-16T20:03:20.003084"
+    },
+    {
+      "id": "f5115a60dfd4441bb643df0f23ebfd56",
+      "player_id": "default",
+      "content": "무명이 용마법으로 고위 용 캐리건을 소환해 엘레나를 압도했다. 신입생의 수준을 넘어선 힘.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T20:03:46.706871"
+    },
+    {
+      "id": "4527c98c716a4f768fd276ef571e6531",
+      "player_id": "default",
+      "content": "록산느 교수가 무명의 고백을 받아들였다. 교수와 학생이라는 경계를 넘어섰다.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [
+        "록산느"
+      ],
+      "created_at": "2026-02-16T20:03:46.710097"
+    },
+    {
+      "id": "fd909d396caf47ef87f9e291df88fdad",
+      "player_id": "default",
+      "content": "무명이 고위 용 캐리건을 소환해 엘레나를 압도했다. 전교생이 경악했다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [
+        "엘레나"
+      ],
+      "created_at": "2026-02-16T20:04:33.000970"
+    },
+    {
+      "id": "d87324883ce5489aaa6aa1dd666c09d4",
+      "player_id": "default",
+      "content": "록산느 교수가 무명의 고백을 받아들이고 키스했다. 단, 루아에게 제대로 말하라는 조건을 걸었다.",
+      "emotion": "trust",
+      "importance": 10,
+      "tags": [
+        "루아",
+        "록산느",
+        "kiss"
+      ],
+      "created_at": "2026-02-16T20:04:33.005945"
+    },
+    {
+      "id": "015ced8161ff4af484ee04690ad2ba06",
+      "player_id": "default",
+      "content": "무명이 루아에게 두 명의 여자친구를 두어도 되는지 물었다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [
+        "루아"
+      ],
+      "created_at": "2026-02-16T20:04:33.008381"
     }
   ]
 }
