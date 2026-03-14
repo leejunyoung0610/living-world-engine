@@ -11,22 +11,21 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def normalize_query(query: str) -> List[str]:
-    """쿼리를 확장하여 동의어/영어/태그를 포함하게 함"""
+def normalize_query(query: str, npc_names: List[str] = None) -> List[str]:
+    """쿼리를 확장하여 동의어/영어/태그를 포함하게 함
+    
+    Args:
+        query: 검색 쿼리
+        npc_names: NPC 이름 리스트 (동적)
+    """
     keywords: List[str] = []
     q_lower = query.lower()
 
-    name_map = {
-        "루아": ["루아", "lua"],
-        "벨라": ["벨라", "bella"],
-        "엘레나": ["엘레나", "elena"],
-        "세인": ["세인", "sein"],
-        "록산느": ["록산느", "roxanne"],
-        "레오": ["레오", "leo"],
-    }
-    for kr, synonyms in name_map.items():
-        if kr in query or any(en in query.lower() for en in synonyms):
-            keywords.extend(synonyms)
+    # NPC 이름 매칭 (동적)
+    if npc_names:
+        for name in npc_names:
+            if name.lower() in q_lower:
+                keywords.append(name.lower())
 
     action_map = {
         "키스": ["키스", "kiss", "romance"],
@@ -49,7 +48,13 @@ class LongTermMemory:
     def __init__(self, storage_path: str = "data/memories.json"):
         self.storage_path = Path(storage_path)
         self.memories: List[Dict] = []
+        self.npc_names: List[str] = []  # 동적으로 설정됨
         self._load()
+    
+    def set_npc_names(self, npc_names: List[str]) -> None:
+        """세계관 로딩 시 NPC 이름 설정"""
+        self.npc_names = npc_names
+        logger.info(f"LongTermMemory: NPC {len(npc_names)}명 등록 - {', '.join(npc_names)}")
     
     def _load(self):
         """저장된 기억 로드"""
@@ -120,7 +125,7 @@ class LongTermMemory:
         """자동 태그 추출
         
         규칙:
-        1. 고유명사 (NPC 이름)
+        1. 고유명사 (NPC 이름 - 동적)
         2. 행동 키워드 (키스, 공격, 대화 등)
         3. 장소
         4. 감정 키워드
@@ -128,11 +133,9 @@ class LongTermMemory:
         tags = []
         content_lower = content.lower()
         
-        # 1. NPC 이름 (하드코딩, 나중에 동적으로)
-        npc_names = ["엘레나", "벨라", "루아", "세인", "록산느", "레오",
-                     "elena", "bella", "lua", "sein", "roxanne", "leo"]
-        for name in npc_names:
-            if name in content_lower:
+        # 1. NPC 이름 (동적)
+        for name in self.npc_names:
+            if name.lower() in content_lower:
                 tags.append(name.lower())
         
         # 2. 행동 키워드
@@ -216,7 +219,7 @@ class LongTermMemory:
         
         # 3. 쿼리 관련성 점수 계산
         scored_memories = []
-        keywords = normalize_query(query)
+        keywords = normalize_query(query, self.npc_names)
         query_tags = list(set(self._extract_tags(query) + keywords))
         
         for memory in player_memories:

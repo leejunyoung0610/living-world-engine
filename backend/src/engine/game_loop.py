@@ -51,6 +51,15 @@ class GameEngine:
         )
         self.validator.set_valid_characters(self.state.get_all_character_names())
 
+        # NPC 이름 추출 (세계관 독립적)
+        npc_names = [npc.get("name") for npc in self.state.npcs if npc.get("name")]
+        
+        # ContextManager에 NPC 이름 설정
+        self.context_manager.set_npc_names(npc_names)
+        
+        # LongTermMemory에 NPC 이름 설정
+        self.memory.set_npc_names(npc_names)
+
         # 이벤트 로딩 (파일 있으면)
         events_path = world_dir_path / "events.json"
         if events_path.exists():

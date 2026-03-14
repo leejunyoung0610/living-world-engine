@@ -13,6 +13,14 @@ class ContextManager:
     MAX_CONTEXT_TOKENS = 3000
     KEEP_RECENT_TURNS = 10
 
+    def __init__(self):
+        self.npc_names = []  # 동적으로 설정됨
+    
+    def set_npc_names(self, npc_names: List[str]) -> None:
+        """세계관 로딩 시 NPC 이름 설정"""
+        self.npc_names = [name.lower() for name in npc_names]
+        logger.info(f"ContextManager: NPC {len(npc_names)}명 등록 - {', '.join(npc_names)}")
+
     def build_context(
         self,
         user_input: str,
@@ -88,9 +96,10 @@ class ContextManager:
         if isinstance(content, str):
             current_lower = current_input.lower()
             content_lower = content.lower()
-            npcs = ["루아", "lua", "벨라", "bella", "엘레나", "elena", "록산느", "roxanne"]
-            for npc in npcs:
-                if npc in current_lower and npc in content_lower:
+            
+            # NPC 이름 매칭 (동적)
+            for npc_name in self.npc_names:
+                if npc_name in current_lower and npc_name in content_lower:
                     score += 2.0
                     break
 

@@ -2997,6 +2997,244 @@
       "importance": 9,
       "tags": [],
       "created_at": "2026-03-14T22:49:29.028191"
+    },
+    {
+      "id": "ce4692d7bf114285be0025f8a1c63220",
+      "player_id": "default",
+      "content": "새 학기가 시작되었다. 캠퍼스에 활기가 돌아왔다.",
+      "emotion": "joy",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T23:18:22.245114"
+    },
+    {
+      "id": "82db96da47de4846b5caf7300c1d5705",
+      "player_id": "default",
+      "content": "개강 첫날 무명과 함께 밥 먹으러 가기로 했다",
+      "emotion": "joy",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-14T23:19:28.861370"
+    },
+    {
+      "id": "c4b4ece53fb642219ca069146f408e9b",
+      "player_id": "default",
+      "content": "무명이 나를 알아보지 못하는 것 같았다. 처음 만나는 건가?",
+      "emotion": "surprise",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T23:19:54.427410"
+    },
+    {
+      "id": "df1ab48a6af74cc58879694326c944f7",
+      "player_id": "default",
+      "content": "새 학기가 시작되었다. 이정민이 활기차게 개강을 맞이했다.",
+      "emotion": "joy",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-14T23:24:00.773421"
+    },
+    {
+      "id": "1355a7d45dd94cebbbe79302d2af5171",
+      "player_id": "default",
+      "content": "새 학기 첫날, 이정민과 복도에서 만나 오리엔테이션과 학생회 행사에 대해 이야기했다.",
+      "emotion": "joy",
+      "importance": 3,
+      "tags": [
+        "location_복도"
+      ],
+      "created_at": "2026-03-15T03:22:53.479059"
+    },
+    {
+      "id": "72114f96a1a94e70902259a9f40ef1db",
+      "player_id": "default",
+      "content": "이정민이 새 학기 오리엔테이션 도우미를 자원해줬다. 신입생 안내를 함께 할 예정.",
+      "emotion": "joy",
+      "importance": 6,
+      "tags": [],
+      "created_at": "2026-03-15T03:23:50.671219"
+    },
+    {
+      "id": "dbf7de1b24db4e49afc3e7ea2bcd7bf5",
+      "player_id": "default",
+      "content": "이정민이 개강 첫날 신입생 오리엔테이션 도우미를 맡아주기로 했다. 캠퍼스 투어 조로 배정됨.",
+      "emotion": "trust",
+      "importance": 6,
+      "tags": [],
+      "created_at": "2026-03-15T03:24:28.951620"
+    },
+    {
+      "id": "8c86dee6db9a4c39921ac2067d545228",
+      "player_id": "default",
+      "content": "이정민이 새 학기 오리엔테이션 도우미로 참여하기로 했다. 이준호와 같은 캠퍼스 투어 조로 배정됨.",
+      "emotion": "trust",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-15T03:24:53.233964"
+    },
+    {
+      "id": "9be0e870886d428382cf6c4fd47236d4",
+      "player_id": "default",
+      "content": "이정민이 새 학기 오리엔테이션 도우미로 참여하기로 했다. 캠퍼스 투어 조에 배정됨.",
+      "emotion": "trust",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-15T03:26:09.201754"
+    },
+    {
+      "id": "a6e66e34eeec4b04afc6e74a1dd8d192",
+      "player_id": "default",
+      "content": "이정민과 이준호를 같은 조로 배정했다. 내일 본관 앞 광장에서 신입생 환영식 예정.",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [],
+      "created_at": "2026-03-15T03:26:09.209091"
+    },
+    {
+      "id": "4aa907fcf6134da6b9cd4bca88fa3ce1",
+      "player_id": "default",
+      "content": "개강을 맞아 김서연 학생회장이 이정민에게 신입생 오리엔테이션 도우미를 부탁했다. 캠퍼스 투어 조로 배정됨.",
+      "emotion": "neutral",
+      "importance": 6,
+      "tags": [],
+      "created_at": "2026-03-15T03:28:10.651998"
+    },
+    {
+      "id": "c69ec7349ae94594bab6d8e3b4654405",
+      "player_id": "default",
+      "content": "이준호와 같은 캠퍼스 투어 조로 배정되었다. 내일 오전 10시 본관 광장에서 신입생 환영식 예정.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-15T03:28:10.659500"
+    },
+    {
+      "id": "0757b12ecbaa481a810b2a85fdecd80d",
+      "player_id": "default",
+      "content": "개강 첫날, 김서연이 이정민을 캠퍼스 투어 도우미로 요청했고 흔쾌히 수락했다.",
+      "emotion": "trust",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-15T03:28:50.723229"
+    },
+    {
+      "id": "51f01b77723f43dc964260dd127b337c",
+      "player_id": "default",
+      "content": "이정민과 이준호가 같은 캠퍼스 투어 조로 배정되어 내일 신입생 안내를 함께 하기로 했다.",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [],
+      "created_at": "2026-03-15T03:28:50.727300"
+    },
+    {
+      "id": "44348919612f4127a103a541bc8a94a9",
+      "player_id": "default",
+      "content": "개강 첫날 복도에서 박지민과 재회했다. 신환회 때를 기억하며 반갑게 인사를 나눴다.",
+      "emotion": "joy",
+      "importance": 5,
+      "tags": [
+        "location_복도"
+      ],
+      "created_at": "2026-03-15T03:29:28.745877"
+    },
+    {
+      "id": "fd8640c5704a42e6877b8bc73c2ed977",
+      "player_id": "default",
+      "content": "새 학기가 시작되어 캠퍼스에서 이정민을 만났다",
+      "emotion": "joy",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-15T03:33:34.202082"
+    },
+    {
+      "id": "9a8a9f4ecb2c45e89080547e36a79dec",
+      "player_id": "default",
+      "content": "개강 첫날 김서연과 이준호가 이정민에게 밝게 인사했다.",
+      "emotion": "joy",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-15T03:40:32.033998"
+    },
+    {
+      "id": "f143e12addf84d4aa5af77fe401243a5",
+      "player_id": "default",
+      "content": "이정민이 이번 학기 싸강 위주로 수업을 신청했다고 했다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-15T03:41:09.706453"
+    },
+    {
+      "id": "7fa8c93b905c414dad3f1854f675097e",
+      "player_id": "default",
+      "content": "이정민은 싸강 위주로 수업을 듣고 시험기간에 벼락치기하는 스타일이라고 했다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-15T03:42:01.204577"
+    },
+    {
+      "id": "19cce835310045b8a9efdb000fe16f44",
+      "player_id": "default",
+      "content": "개강 첫날 이정민이 싸강 위주로 수업을 신청했고 벼락치기로 공부한다고 말했다.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-15T03:43:08.353860"
+    },
+    {
+      "id": "a91bed885dc941f9b4a40a2a3666e386",
+      "player_id": "default",
+      "content": "개강 첫날, 이정민과 함께 싸강 이야기를 나누며 개강파티 계획을 세웠다.",
+      "emotion": "joy",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-15T03:44:07.265958"
+    },
+    {
+      "id": "58396c888e1e4966b9b6b6a8acd83a30",
+      "player_id": "default",
+      "content": "개강 첫날 김서연, 이준호, 박지민과 만났다. 박지민은 경영학과 1학년이다.",
+      "emotion": "joy",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-15T03:44:37.476425"
+    },
+    {
+      "id": "1280c32987c847a7ba404b152a26920a",
+      "player_id": "default",
+      "content": "이준호가 오늘 밤 홍대 개강파티에 초대했다.",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [],
+      "created_at": "2026-03-15T03:44:37.481595"
+    },
+    {
+      "id": "359733b3c0c1428380e6691f6984f19b",
+      "player_id": "default",
+      "content": "이정민이 새 학기에 싸강 위주로 수업을 신청했고, 개강파티에 가기로 했다.",
+      "emotion": "joy",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-15T03:46:10.829568"
+    },
+    {
+      "id": "0132ab63b11942faac0c213ef8525470",
+      "player_id": "default",
+      "content": "박지민이 경영학과 1학년이며 장학금을 받을 정도로 성적이 우수하다는 것을 알게 되었다.",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [],
+      "created_at": "2026-03-15T03:46:10.834810"
+    },
+    {
+      "id": "81ba919e6bb141088108b7f65beeedcb",
+      "player_id": "default",
+      "content": "이정민과 개강 첫날 개강파티에 함께 가기로 했다. 싸강 위주로 수업을 듣는다고 했다.",
+      "emotion": "joy",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-15T03:48:59.966830"
     }
   ]
 }
