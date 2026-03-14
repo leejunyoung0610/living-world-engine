@@ -74,11 +74,12 @@ class GameEngine:
 
         with self.performance.measure("total_turn"):
             with self.performance.measure("memory_search"):
+                # Layer 3: 장기 중요 기억 (전체 범위, importance >= 7)
                 relevant_memories = self.memory.search(
                     query=user_input,
                     player_id=self.state.player.get("id", "default"),
-                    min_importance=5,
-                    limit=5,
+                    min_importance=7,  # 5 → 7로 상향 (중요 사건만)
+                    limit=10,          # 5 → 10으로 증가
                 )
 
             with self.performance.measure("prompt_building"):
@@ -87,10 +88,12 @@ class GameEngine:
             with self.performance.measure("llm_call"):
                 full_history = self.conversation_history.copy()
                 full_history.append({"role": "user", "content": user_input})
+                
+                # Layer 1 + Layer 2: 대화 히스토리 최적화
                 optimized_history = self.context_manager.build_context(
                     user_input,
                     full_history,
-                    max_tokens=3000,
+                    max_tokens=2000,  # 3000 → 2000 (보수적)
                 )
                 llm_result = self.llm.process_turn(
                     user_input=user_input,
@@ -126,8 +129,10 @@ class GameEngine:
             snapshot = self.state.snapshot()
             response_text = llm_result.get("response", "")
 
-            with self.performance.measure("loop_detection"):
-                loop_result = self.loop_detector.detect_loop(snapshot, response_text)
+            # Loop Detection 비활성화 (Week 3 재평가 예정)
+            # with self.performance.measure("loop_detection"):
+            #     loop_result = self.loop_detector.detect_loop(snapshot, response_text)
+            loop_result = {"detected": False, "severity": 0}  # 비활성화
 
             events_triggered: list[dict[str, Any]] = []
             with self.performance.measure("event_system"):
@@ -141,16 +146,17 @@ class GameEngine:
                     })
                     logger.info(f"🎲 이벤트 발생: {event.get('description', event['id'])}")
 
-                if loop_result["detected"] and loop_result.get("severity", 0) >= 7:
-                    surprise = {
-                        "event_id": f"surprise_{self.state.turn}",
-                        "description": "예상치 못한 돌발 상황이 발생합니다",
-                        "narrative_hint": "갑자기 주변이 소란스러워진다...",
-                    }
-                    events_triggered.append(surprise)
-                    logger.info(
-                        f"⚠️ 루프 감지 (severity {loop_result['severity']}) → 강제 이벤트 주입"
-                    )
+                # Loop Detection 비활성화
+                # if loop_result["detected"] and loop_result.get("severity", 0) >= 7:
+                #     surprise = {
+                #         "event_id": f"surprise_{self.state.turn}",
+                #         "description": "예상치 못한 돌발 상황이 발생합니다",
+                #         "narrative_hint": "갑자기 주변이 소란스러워진다...",
+                #     }
+                #     events_triggered.append(surprise)
+                #     logger.info(
+                #         f"⚠️ 루프 감지 (severity {loop_result['severity']}) → 강제 이벤트 주입"
+                #     )
                 self.event_manager.tick_cooldowns()
 
             self.conversation_history.append({"role": "user", "content": user_input})

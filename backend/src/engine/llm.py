@@ -216,9 +216,13 @@ class ClaudeClient:
             "content": "Success",
         }
 
-        # 2차 호출용 메시지 (기존 messages 복사 + tool_use/tool_result 추가)
-        # 기존 messages를 수정하지 않고 새 리스트 생성
-        messages_for_2nd = messages.copy()
+        # 2차 호출용 메시지 구성
+        # 핵심 최적화: 2차 호출 시 Layer 1 (최근 4턴 = 8개) + Tool Use만 전송
+        # Layer 2 (NPC Sampling)는 1차에서만 필요, 2차는 즉각 응답 생성용
+        recent_count = 8  # 최근 4턴 = 8개 메시지
+        messages_recent = messages[-recent_count:] if len(messages) > recent_count else messages.copy()
+        
+        messages_for_2nd = messages_recent.copy()
         
         tool_use_payload = {
             "type": "tool_use",
@@ -229,7 +233,7 @@ class ClaudeClient:
         messages_for_2nd.append({"role": "assistant", "content": [tool_use_payload]})
         messages_for_2nd.append({"role": "user", "content": [tool_result]})
 
-        logger.debug("LLM 2차 호출 (Tool Result 포함)...")
+        logger.debug(f"LLM 2차 호출 (Layer 1만: {len(messages_recent)}개 + Tool Result)...")
 
         final_response = self.client.messages.create(
             model=self.model,
