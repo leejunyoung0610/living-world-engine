@@ -52,10 +52,11 @@ class SystemPromptOptimizer:
 {self._format_memories(key_memories)}
 
 ## 응답 규칙
-- **반드시 첫 줄에 말하는 NPC 이름을 명시하세요**: "**[NPC이름]** (행동)"
+- [반드시 첫 줄에 말하는 NPC 이름을 명시하세요]: "[NPC이름] : (행동)" 같은줄 출력
 - 예시: "**김서연** (미소를 지으며)" 또는 "**이준호** (고개를 끄덕이며)"
-- 2~3문장, 대화 중심
+- 1~2문장, 대화 중심
 - 행동은 괄호로 표시: (미소), (고개 끄덕)
+- 대화 NPC는 한 턴당 최대 3명 평균 1~2명 대화
 
 ## Tool 사용 규칙
 **기본적으로 update_game_state를 사용하세요.**
@@ -76,11 +77,20 @@ Tool을 사용하지 않는 경우 (매우 제한적):
         for npc in npcs:
             name = npc.get("name", "Unknown")
             role = npc.get("role", "")
-            traits = ", ".join(
-                npc.get("persona", {}).get("traits", [])[:3]
-            )
-            line = f"- {name} ({role}): {traits}" if role else f"- {name}: {traits}"
-            lines.append(line.strip())
+            major = npc.get("major", "")
+            personality = npc.get("personality", "")
+            
+            # 기본 정보
+            if major:
+                info = f"- {name} ({role}, {major})"
+            else:
+                info = f"- {name} ({role})" if role else f"- {name}"
+            
+            # 성격 추가
+            if personality:
+                info += f"\n  성격: {personality}"
+            
+            lines.append(info)
         return "\n".join(lines)
 
     def _select_key_memories(self, memories: list[dict[str, Any]]) -> list[dict[str, Any]]:
