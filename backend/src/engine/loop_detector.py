@@ -163,24 +163,27 @@ class LoopDetector:
         ]
         avg_change = sum(changes) / len(changes) if changes else 0
 
-        if avg_change < 0.01:
+        # 임계값 완화 (기존 0.01 → 0.001)
+        if avg_change < 0.001:
             return 10
-        if avg_change < 0.03:
+        if avg_change < 0.01:
             return 8
         if avg_change < 0.05:
-            return 7
+            return 6
         if avg_change < 0.1:
-            return 5
-        return 3
+            return 4
+        return 1
 
     def _calculate_repetition_severity(self, response: str) -> int:
         """
         반복 횟수 기반 심각도 (1-10)
 
         유사 응답 수가 많을수록 심각:
-          3+ matches  →  10
-          2  matches  →  7
-          1  match    →  5
+          4+ matches  →  10
+          3  matches  →  8
+          2  matches  →  6
+          1  match    →  3
+          0  matches  →  1
         """
         match_count = sum(
             1
@@ -188,12 +191,18 @@ class LoopDetector:
             if self._similarity(response, prev) > self.SIMILARITY_THRESHOLD
         )
         # record_response는 이미 detect_loop에서 호출되므로
-        # 자기 자신이 포함될 수 있음 → 최소 1
-        if match_count >= 3:
+        # 자기 자신이 포함될 수 있음 → -1 보정
+        match_count = max(0, match_count - 1)
+        
+        if match_count >= 4:
             return 10
+        if match_count >= 3:
+            return 8
         if match_count >= 2:
-            return 7
-        return 5
+            return 6
+        if match_count >= 1:
+            return 3
+        return 1
 
     # ── 유틸리티 ──
 

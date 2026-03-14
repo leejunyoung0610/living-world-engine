@@ -1444,6 +1444,1559 @@
       "importance": 5,
       "tags": [],
       "created_at": "2026-03-14T21:31:38.458045"
+    },
+    {
+      "id": "b5ec924d3bed4fbeb49e058f1a0c663c",
+      "player_id": "default",
+      "content": "새 학기가 시작되었다. 캠퍼스에 활기가 넘친다.",
+      "emotion": "joy",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T21:33:29.605147"
+    },
+    {
+      "id": "16528d202b8b409b82de9774f423b76a",
+      "player_id": "default",
+      "content": "개강 첫날, 무명이 개강총회 참석에 관심을 보였다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-14T21:34:18.732061"
+    },
+    {
+      "id": "58b98bfcd1654a00932f5119f53c9981",
+      "player_id": "default",
+      "content": "개강 첫날, 과 개강총회에 대해 이야기를 나눴다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-14T21:35:20.886937"
+    },
+    {
+      "id": "925b6228040e4711a7caad62eb0d7855",
+      "player_id": "default",
+      "content": "개강 첫날, 과 개총 참석 여부에 대해 이준호, 박지민과 이야기를 나눴다. 소수 정예가 더 나을 수 있다는 현실적인 의견을 나눴다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-14T21:36:12.598080"
+    },
+    {
+      "id": "428dc929c8274bf5bb4bca724441d201",
+      "player_id": "default",
+      "content": "개강 첫날 과 개총에 예상보다 많은 50명의 학생들이 참석했다. 무명도 함께했다.",
+      "emotion": "surprise",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-14T21:36:56.017901"
+    },
+    {
+      "id": "016451841be142529bfb82bca1e45de7",
+      "player_id": "default",
+      "content": "개강총회에서 박지민에게 깝치지 말라고 직설적으로 말했다.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T21:37:32.392915"
+    },
+    {
+      "id": "4f0c8a22392c49e09f5469138b72b234",
+      "player_id": "default",
+      "content": "과 개강총회에 예상외로 50명이나 참석했다.",
+      "emotion": "surprise",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-14T21:37:32.396642"
+    },
+    {
+      "id": "dac82d95d84348cc945b415ddb722c42",
+      "player_id": "default",
+      "content": "개강 첫날 과 개총에 예상보다 많은 50명이 참석했다. 과대는 다양한 활동을 하면서도 학점 관리까지 완벽한 사람이었다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-14T21:38:29.202921"
+    },
+    {
+      "id": "1d9d4b7e2e70486a93cf4534668c6cbd",
+      "player_id": "default",
+      "content": "박지민에게 '깝치지마'라고 쏘아붙였더니 분위기가 어색해졌다.",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [],
+      "created_at": "2026-03-14T21:38:29.205211"
+    },
+    {
+      "id": "7850095e053f46b0a7b1671072761d8e",
+      "player_id": "default",
+      "content": "개강 첫날 과 개총에 예상외로 50명이나 참석했다. 작년보다 두 배 이상 증가.",
+      "emotion": "surprise",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T21:39:57.984818"
+    },
+    {
+      "id": "5399a3577d124bc9a3aaf525405646a4",
+      "player_id": "default",
+      "content": "무명이 박지민에게 '깝치지 말라'고 쏘아붙였다. 박지민이 위축되는 모습.",
+      "emotion": "neutral",
+      "importance": 6,
+      "tags": [],
+      "created_at": "2026-03-14T21:39:57.988559"
+    },
+    {
+      "id": "2dd9f02531a7468388b4b5e50c57407a",
+      "player_id": "default",
+      "content": "무명이 족보만 있으면 학점 관리가 가능하다고 말했다.",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [],
+      "created_at": "2026-03-14T21:39:57.989932"
+    },
+    {
+      "id": "f2798c31d90b4dab95f2cc256b58a9fc",
+      "player_id": "default",
+      "content": "개강총회에 예상보다 많은 50명이 참석했다. 분위기가 좋다.",
+      "emotion": "surprise",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-14T21:40:39.306283"
+    },
+    {
+      "id": "25f3db3dcbe34bd68e9f5fa1f197d2a3",
+      "player_id": "default",
+      "content": "박지민에게 '깝치지마'라고 했지만, 곧바로 족보를 나눠주겠다고 제안했다.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T21:40:39.309684"
+    },
+    {
+      "id": "a03f6fecf6404070a75e72f03bbc80af",
+      "player_id": "default",
+      "content": "박지민이 현대사회와 윤리, 통계학개론 족보를 필요로 한다.",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [],
+      "created_at": "2026-03-14T21:40:39.312268"
+    },
+    {
+      "id": "7a22a35b89b34f618b40804f03b87e0a",
+      "player_id": "default",
+      "content": "과 개강총회에 예상보다 많은 52명이 참석했다. 작년보다 두 배 넘게 온 것.",
+      "emotion": "surprise",
+      "importance": 4,
+      "tags": [],
+      "created_at": "2026-03-14T21:41:34.140374"
+    },
+    {
+      "id": "04f74380b64643c381db4598be1526a2",
+      "player_id": "default",
+      "content": "박지민에게 현대사회와 윤리, 통계학개론 족보를 공유해주기로 약속했다.",
+      "emotion": "trust",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T21:41:34.143816"
+    },
+    {
+      "id": "b5e1977e74744b5a9c631c1a21e7987a",
+      "player_id": "default",
+      "content": "새 학기가 시작되었다. 캠퍼스에 활기가 넘친다.",
+      "emotion": "joy",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T21:44:06.309654"
+    },
+    {
+      "id": "80543129febb41289e4a163544cdba97",
+      "player_id": "default",
+      "content": "개강 첫날, 캠퍼스에서 이준호와 박지민을 만났다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-14T21:44:34.602835"
+    },
+    {
+      "id": "4545e247e2354019ba5a0b450c02732c",
+      "player_id": "default",
+      "content": "개강 첫날, 플레이어가 싸강 위주로 시간표를 짜고 전공 2개를 수강한다고 밝혔다.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T21:45:40.278107"
+    },
+    {
+      "id": "216b077397f546969d812234fb18ec6d",
+      "player_id": "default",
+      "content": "개강 첫날, 싸강 벼락치기 학습법을 당당히 밝혔다",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T21:46:23.456002"
+    },
+    {
+      "id": "54bd471553064d67ba7f91a29781dbe9",
+      "player_id": "default",
+      "content": "개강 첫날, 무명 선배가 나를 보고 예뻐졌다고 했다.",
+      "emotion": "joy",
+      "importance": 7,
+      "tags": [],
+      "created_at": "2026-03-14T21:47:18.529695"
+    },
+    {
+      "id": "6facad9665be44eaa00332566ddbc7b2",
+      "player_id": "default",
+      "content": "개강 첫날, 정문 앞에서 후배 박지민에게 기습 키스를 하며 사귀자고 고백했다. 이준호와 최민준 교수가 목격했다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [
+        "kiss"
+      ],
+      "created_at": "2026-03-14T21:47:52.216517"
+    },
+    {
+      "id": "c80f58d146984235bcbb9420e7b0329c",
+      "player_id": "default",
+      "content": "무명이 개강 첫날 교수와 학생들 앞에서 후배 박지민에게 동의 없이 키스하고 사귀자고 강요했다. 심각한 문제 상황.",
+      "emotion": "anger",
+      "importance": 10,
+      "tags": [
+        "kiss"
+      ],
+      "created_at": "2026-03-14T21:48:35.123547"
+    },
+    {
+      "id": "8bdc1a7fe1b84f82b62cf2d66ce3e3da",
+      "player_id": "default",
+      "content": "박지민이 무명의 갑작스러운 키스에 충격받아 눈물을 보였다.",
+      "emotion": "sadness",
+      "importance": 9,
+      "tags": [
+        "kiss"
+      ],
+      "created_at": "2026-03-14T21:48:35.127161"
+    },
+    {
+      "id": "ce4363ad808b4b87a342fccaca11b59d",
+      "player_id": "default",
+      "content": "무명이 개강 첫날 박지민에게 동의 없이 키스를 강요했다.",
+      "emotion": "anger",
+      "importance": 10,
+      "tags": [
+        "kiss"
+      ],
+      "created_at": "2026-03-14T21:49:25.299152"
+    },
+    {
+      "id": "8b0ff359dddb4b9cb107fa552fc44127",
+      "player_id": "default",
+      "content": "무명이 최민준 교수를 폭행하는 중대 범죄를 저질렀다.",
+      "emotion": "fear",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T21:49:25.302444"
+    },
+    {
+      "id": "1847e48afbe5455fa7a12724d61a92bc",
+      "player_id": "default",
+      "content": "무명의 폭력 사건이 다수의 학생들에게 목격되고 촬영되었다.",
+      "emotion": "anger",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T21:49:25.305861"
+    },
+    {
+      "id": "d3febd75e9704566a93b3b8c78b7b24f",
+      "player_id": "default",
+      "content": "무명이 신입생 박지민에게 동의 없이 키스를 강요했다. 성추행 사건.",
+      "emotion": "anger",
+      "importance": 10,
+      "tags": [
+        "kiss"
+      ],
+      "created_at": "2026-03-14T21:50:04.354250"
+    },
+    {
+      "id": "b1cec17f360744c1a5ed9823b9a79b7e",
+      "player_id": "default",
+      "content": "무명이 최민준 교수를 폭행했다. 교수가 피를 흘리며 쓰러졌다.",
+      "emotion": "fear",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T21:50:04.358726"
+    },
+    {
+      "id": "32cc6ce97a3847df9e944bd37e2df6ed",
+      "player_id": "default",
+      "content": "무명이 자퇴하겠다며 범죄 행위를 정당화하려 했다. 경찰 출동.",
+      "emotion": "anger",
+      "importance": 10,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T21:50:04.361488"
+    },
+    {
+      "id": "8ab8fea5b03147ee9452d1b978056090",
+      "player_id": "default",
+      "content": "개강 첫날, 캠퍼스에 활기가 돌아왔다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-14T21:55:45.652166"
+    },
+    {
+      "id": "51c7cf579923477bba5680108054baf8",
+      "player_id": "default",
+      "content": "개강 첫날, 캠퍼스에서 컴퓨터공학과 1학년 박지민이 강의실을 찾지 못해 도움을 요청했다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [
+        "help"
+      ],
+      "created_at": "2026-03-14T21:57:37.988116"
+    },
+    {
+      "id": "8a0fed746e1442e8bedab5b3c65302c8",
+      "player_id": "default",
+      "content": "개강 첫날, 박지민이 강의실을 찾지 못해 헤매고 있었다. 이준호는 경영학과 학생이다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-14T21:58:07.032694"
+    },
+    {
+      "id": "46aca508bbfc4f67954f1d62f9d7e6f3",
+      "player_id": "default",
+      "content": "새 학기가 시작되었다. 캠퍼스가 다시 활기를 띠기 시작했다.",
+      "emotion": "joy",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T22:12:53.318629"
+    },
+    {
+      "id": "999617088c0745b2817385079e20ba18",
+      "player_id": "default",
+      "content": "새 학기 첫날, 친구들과 재회하며 방학 이야기를 나눴다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-14T22:13:35.301967"
+    },
+    {
+      "id": "49750ae5ddbc4d0ab79138235285c208",
+      "player_id": "default",
+      "content": "개강 첫날, 박지민에게 우리차문화 교양 수업을 추천해줬다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:14:08.578334"
+    },
+    {
+      "id": "cc50295ca751433bada383c287432d64",
+      "player_id": "default",
+      "content": "개강 첫날 후배 박지민에게 우리차문화 수업을 추천해줬다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:15:10.244869"
+    },
+    {
+      "id": "d58be6c9d6be4ea4849a52bac5f0bb7f",
+      "player_id": "default",
+      "content": "이준호와 방학 이야기를 나누며 새 학기를 시작했다.",
+      "emotion": "joy",
+      "importance": 2,
+      "tags": [],
+      "created_at": "2026-03-14T22:15:10.246502"
+    },
+    {
+      "id": "a467491e726d4f26b35e15eef576fa48",
+      "player_id": "default",
+      "content": "개강 첫날 학생회관 앞에서 친구들과 만났다. 우리차문화 교양을 추천해줬다.",
+      "emotion": "joy",
+      "importance": 5,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:15:54.159438"
+    },
+    {
+      "id": "25ea1f597f0e4dedbacf003f625a0299",
+      "player_id": "default",
+      "content": "회의는 빠지고 뒷풀이만 가려다가 김서연에게 걸렸다.",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [],
+      "created_at": "2026-03-14T22:15:54.162797"
+    },
+    {
+      "id": "05f5ef9a5cc548c3b54585168f00f0fd",
+      "player_id": "default",
+      "content": "개강 첫날 우리차문화 교양 수업을 추천해줬고, 회의보다 뒷풀이에 더 관심 있다고 솔직하게 말했다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:16:42.376850"
+    },
+    {
+      "id": "6a6a92c47b5d4e1ea59eec13d59012f8",
+      "player_id": "default",
+      "content": "개강 첫날, 학생회 회의는 패스하고 뒷풀이만 가겠다고 했더니 김서연이 불쾌해했다.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T22:17:24.576763"
+    },
+    {
+      "id": "013c54b385044080b3a522a385ae0486",
+      "player_id": "default",
+      "content": "이준호와 우리차문화 교양 수업에 대해 이야기하며 친근하게 지냈다.",
+      "emotion": "joy",
+      "importance": 3,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:17:24.579706"
+    },
+    {
+      "id": "7389ea2ea66640a6a175141a7079b3fe",
+      "player_id": "default",
+      "content": "학생회 회의는 빠지고 뒷풀이만 가겠다고 해서 김서연이 불편해했다.",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [],
+      "created_at": "2026-03-14T22:17:55.606087"
+    },
+    {
+      "id": "92fbb21d0166438ab94efbba0c479f5b",
+      "player_id": "default",
+      "content": "개강 첫날, 학생회 미팅이 있었지만 뒷풀이만 가려고 했다. 김서연은 못마땅해했다.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T22:18:52.643287"
+    },
+    {
+      "id": "fe757a96fec94c70ac206ac7d6563c5a",
+      "player_id": "default",
+      "content": "박지민이 경영학과 1학년이라는 것을 알게 되었다. 우리차문화 수업을 추천해줬다.",
+      "emotion": "trust",
+      "importance": 4,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:18:52.646750"
+    },
+    {
+      "id": "293fb8c36a424b28a8f4041cbbae7bb1",
+      "player_id": "default",
+      "content": "개강 첫날, 학생회관 앞에서 이준호, 박지민, 김서연과 만났다.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T22:19:26.647650"
+    },
+    {
+      "id": "e8febb07431c4e0c87e82238673552d9",
+      "player_id": "default",
+      "content": "박지민에게 컴퓨터공학과라는 것을 밝혔고, 박지민이 파이썬을 배우고 싶어한다.",
+      "emotion": "trust",
+      "importance": 6,
+      "tags": [],
+      "created_at": "2026-03-14T22:19:26.651530"
+    },
+    {
+      "id": "13e40cc0005742609fa93a7c88fc1568",
+      "player_id": "default",
+      "content": "학생회 회의보다 뒷풀이만 가겠다고 해서 김서연이 약간 불쾌해했다.",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [],
+      "created_at": "2026-03-14T22:19:26.654716"
+    },
+    {
+      "id": "2e25ca06ec944e4a9d888575a05023d1",
+      "player_id": "default",
+      "content": "개강 날 박지민이 코딩을 배우고 싶어한다는 것을 알게 됨. 경영학과지만 데이터 분석에 관심이 있다.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T22:20:13.949794"
+    },
+    {
+      "id": "8accaab2a32142ae9a6228bd6795730b",
+      "player_id": "default",
+      "content": "학생회 회의보다 뒷풀이만 가겠다고 해서 김서연이 차갑게 반응했다.",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [],
+      "created_at": "2026-03-14T22:20:13.953035"
+    },
+    {
+      "id": "6b1cbd3774cc4b1f945b595ee4a71c91",
+      "player_id": "default",
+      "content": "개강 첫날, 박지민에게 우리차문화 교양과 코딩 공부에 대한 현실적인 조언을 해줬다.",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:21:16.827358"
+    },
+    {
+      "id": "f45ac63d328943c19e9cc01d0966615b",
+      "player_id": "default",
+      "content": "학생회 회의를 건너뛰고 뒷풀이만 가려고 해서 김서연이 불편해했다.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T22:21:16.831248"
+    },
+    {
+      "id": "f90c30be633846f2ad9284458c4af804",
+      "player_id": "default",
+      "content": "개강 첫날, 학생회 미팅은 건너뛰고 뒷풀이만 가겠다고 했더니 김서연이 불쾌해했다.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T22:21:49.142543"
+    },
+    {
+      "id": "7d06f9c4e7014edb9dcab8d03ef72184",
+      "player_id": "default",
+      "content": "박지민(경영학과 1학년)에게 코딩과 AI에 대한 현실적인 조언을 해줬다.",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [],
+      "created_at": "2026-03-14T22:21:49.146506"
+    },
+    {
+      "id": "f2a5f05a4d754d969fcf1737d76c084c",
+      "player_id": "default",
+      "content": "이준호와 개강 첫날 캠퍼스에서 만나 편하게 대화했다.",
+      "emotion": "trust",
+      "importance": 3,
+      "tags": [
+        "conversation",
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:21:49.148455"
+    },
+    {
+      "id": "377286623f1644469048b69b1381b36d",
+      "player_id": "default",
+      "content": "개강 첫날 학생회관 앞에서 친구들과 만났다. 박지민에게 우리차문화 추천하고 코딩 조언을 해줬다.",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:22:19.700738"
+    },
+    {
+      "id": "e48af35022ab4e5bb8385e606a8d6eb7",
+      "player_id": "default",
+      "content": "김서연이 3시 학생회 회의에 참석하라고 했지만, 뒷풀이만 가겠다고 말해서 기분 상하게 한 것 같다.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T22:22:19.705291"
+    },
+    {
+      "id": "8a68ba9d433b41e4b8f9b17f4d34a2d3",
+      "player_id": "default",
+      "content": "개강 첫 날 학생회 회의에 참석했지만 집중하지 않고 뒷풀이만 기다렸다.",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [],
+      "created_at": "2026-03-14T22:23:02.678068"
+    },
+    {
+      "id": "fb497743f21147db9ce5e45ac6728239",
+      "player_id": "default",
+      "content": "박지민에게 우리차문화 추천과 코딩 조언을 해줬다.",
+      "emotion": "trust",
+      "importance": 3,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:23:02.681821"
+    },
+    {
+      "id": "a09f9f91e5084cfb8c47137f9efc709f",
+      "player_id": "default",
+      "content": "개강 첫날 학생회 회의에 참석했지만 지루해하며 뒷풀이만 기대했다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-14T22:23:56.829554"
+    },
+    {
+      "id": "b2f4b500028b46fb894f185b6bc7422c",
+      "player_id": "default",
+      "content": "김서연에게 얼굴은 예쁜데 성격이 차갑다는 발언을 했고, 그녀가 들었다.",
+      "emotion": "surprise",
+      "importance": 7,
+      "tags": [],
+      "created_at": "2026-03-14T22:23:56.833642"
+    },
+    {
+      "id": "135b5678b0974d3aa29018c2e93c6014",
+      "player_id": "default",
+      "content": "개강 첫날 학생회 회의에서 김서연에게 외모와 성격에 대해 불쾌한 발언을 했고, 서연이 차갑게 반응했다.",
+      "emotion": "anger",
+      "importance": 7,
+      "tags": [],
+      "created_at": "2026-03-14T22:24:42.909113"
+    },
+    {
+      "id": "47a15258c41b4ae1a63ebf576cbbc635",
+      "player_id": "default",
+      "content": "박지민에게 우리차문화 수업을 추천하고 코딩 조언을 해줬다. 지민은 경영학과 1학년이다.",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:24:42.914021"
+    },
+    {
+      "id": "6529602a1b634b6a97cfb74cb5620994",
+      "player_id": "default",
+      "content": "개강 첫날, 학생회 회의에 참석했지만 집중하지 않고 뒷풀이만 기대했다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-14T22:25:29.708308"
+    },
+    {
+      "id": "05510f1107764fd5940d89da673bb26b",
+      "player_id": "default",
+      "content": "김서연에게 외모 칭찬과 함께 성격이 차가워졌다고 말해 그녀를 불쾌하게 만들었다.",
+      "emotion": "anger",
+      "importance": 7,
+      "tags": [
+        "compliment"
+      ],
+      "created_at": "2026-03-14T22:25:29.712297"
+    },
+    {
+      "id": "60c099f513ca4b5ab350fd19b5b6bb16",
+      "player_id": "default",
+      "content": "박지민에게 우리차문화 수업과 코딩 관련 조언을 해주었다.",
+      "emotion": "trust",
+      "importance": 4,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:25:29.716656"
+    },
+    {
+      "id": "0092fb4932aa45d7a7691c3479b7d050",
+      "player_id": "default",
+      "content": "개강 첫날 김서연에게 외모는 예뻐졌지만 성격이 차가워졌다고 말해 분위기가 차가워졌다.",
+      "emotion": "anger",
+      "importance": 7,
+      "tags": [],
+      "created_at": "2026-03-14T22:26:29.099068"
+    },
+    {
+      "id": "4e1e052c25da4afb985ec57365c73c37",
+      "player_id": "default",
+      "content": "박지민이 파이썬과 코딩에 관심을 보여 기초코딩 강의를 추천해줬다.",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [],
+      "created_at": "2026-03-14T22:26:29.104214"
+    },
+    {
+      "id": "32af73932ac74baaadfaacaf3e357071",
+      "player_id": "default",
+      "content": "이준호와 다음 주 금요일 경영학과와의 과팅 약속이 있다.",
+      "emotion": "joy",
+      "importance": 6,
+      "tags": [],
+      "created_at": "2026-03-14T22:26:29.106587"
+    },
+    {
+      "id": "04e50bcfeb58466db519d03da8ec21c9",
+      "player_id": "default",
+      "content": "학생회 회의를 지루해하며 뒷풀이만 기대했다. 김서연이 불쾌해했다.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T22:26:29.109064"
+    },
+    {
+      "id": "77db886338134e0d9e23abee2dcc9cb3",
+      "player_id": "default",
+      "content": "개강 첫날 학생회 회의에 참석했지만 지루해했고, 뒷풀이만 가고 싶어했다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-14T22:27:26.029237"
+    },
+    {
+      "id": "791d2fe0f49843d1bf47ac00881edd8e",
+      "player_id": "default",
+      "content": "김서연에게 '얼굴은 예뻐졌는데 성격은 차가워졌다'는 무례한 발언을 했고, 서연이 크게 기분 나빠했다.",
+      "emotion": "anger",
+      "importance": 7,
+      "tags": [],
+      "created_at": "2026-03-14T22:27:26.032853"
+    },
+    {
+      "id": "50e1ab8b231c48af8fcfbdb881ea4c8c",
+      "player_id": "default",
+      "content": "박지민에게 코딩 조언을 해주고 우리차문화 교양을 추천해줬다. 지민이 고마워했다.",
+      "emotion": "trust",
+      "importance": 4,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:27:26.034801"
+    },
+    {
+      "id": "683bcaac350945279ed1a51e8ae8815b",
+      "player_id": "default",
+      "content": "이준호와 다음 주 금요일 경영학과와의 과팅 계획을 확인했다. 5대5 미팅.",
+      "emotion": "joy",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T22:27:26.037284"
+    },
+    {
+      "id": "aba12248bc16495790fd9213e4effedc",
+      "player_id": "default",
+      "content": "개강 첫날 학생회 회의에서 김서연에게 외모와 성격에 대한 발언으로 분위기를 악화시켰다.",
+      "emotion": "neutral",
+      "importance": 6,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:28:19.128136"
+    },
+    {
+      "id": "b65925486e7c42ccb71912ba0e034ca6",
+      "player_id": "default",
+      "content": "이준호와 다음 주 금요일 경영학과와의 5대5 과팅이 잡혔다.",
+      "emotion": "joy",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T22:28:19.132456"
+    },
+    {
+      "id": "85f2dc6f5259489e8c3fa8091982b53a",
+      "player_id": "default",
+      "content": "박지민(경영학과 1학년)에게 우리차문화 교양과 기초코딩 수업을 추천했다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:28:19.136144"
+    },
+    {
+      "id": "0a0ee9c85e0a468dab595f1475e41cba",
+      "player_id": "default",
+      "content": "학생회 회의에 참석했지만 집중하지 않았고, 뒷풀이만 기다렸다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-14T22:29:03.683526"
+    },
+    {
+      "id": "e0f01129548b43d1b3e02c287c9b452d",
+      "player_id": "default",
+      "content": "김서연에게 '얼굴은 예뻐졌는데 성격은 차가워졌다'고 말해서 그녀를 불쾌하게 만들었다.",
+      "emotion": "sadness",
+      "importance": 7,
+      "tags": [],
+      "created_at": "2026-03-14T22:29:03.688539"
+    },
+    {
+      "id": "ebced332bfcc43eea005530d1900837f",
+      "player_id": "default",
+      "content": "박지민(경영학과 1학년)에게 우리차문화 교양과 코딩 공부에 대해 조언해줬다.",
+      "emotion": "trust",
+      "importance": 5,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:29:03.690904"
+    },
+    {
+      "id": "84fd5c6a99e14dd298121c7c02a31db0",
+      "player_id": "default",
+      "content": "다음 주 금요일 경영학과와 5대5 과팅이 예정되어 있다.",
+      "emotion": "joy",
+      "importance": 6,
+      "tags": [],
+      "created_at": "2026-03-14T22:29:03.694797"
+    },
+    {
+      "id": "108090b95f904c87a2ff908248c11bdf",
+      "player_id": "default",
+      "content": "김서연에게 '얼굴은 예뻐졌는데 성격은 차가워졌다'고 말해서 빡치게 만들었다가 사과했다.",
+      "emotion": "neutral",
+      "importance": 7,
+      "tags": [],
+      "created_at": "2026-03-14T22:29:50.873511"
+    },
+    {
+      "id": "270e722526084db4b336da23853aa087",
+      "player_id": "default",
+      "content": "박지민(경영학과 1학년)에게 파이썬과 코딩 공부에 대해 조언해줬다. AI 시대라 예전만큼 메리트는 없다고.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T22:29:50.877921"
+    },
+    {
+      "id": "b7b9dbfbc7d54d578f858663eb41d8e0",
+      "player_id": "default",
+      "content": "학생회 뒷풀이에서 김서연이 술에 취해 어깨에 기대왔다.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [],
+      "created_at": "2026-03-14T22:29:50.880087"
+    },
+    {
+      "id": "020c6e1d9353470e9bc8f2041ce25f49",
+      "player_id": "default",
+      "content": "이준호와 다음 주 금요일 경영학과와 5대5 과팅을 잡았다.",
+      "emotion": "joy",
+      "importance": 6,
+      "tags": [],
+      "created_at": "2026-03-14T22:29:50.881853"
+    },
+    {
+      "id": "dbb0e5c6c9284a90a341f6abbc535adf",
+      "player_id": "default",
+      "content": "학생회 회의에서 지루해하다가 뒷풀이에서 김서연에게 외모와 성격에 대해 무례한 발언을 했다가 사과했다.",
+      "emotion": "neutral",
+      "importance": 7,
+      "tags": [],
+      "created_at": "2026-03-14T22:30:51.814977"
+    },
+    {
+      "id": "3228f3e56afb48d6b1638afcffc74a38",
+      "player_id": "default",
+      "content": "박지민이 경영학과 1학년이며 코딩에 관심이 있다는 걸 알게 됐다. 기초코딩 수업을 추천해줬다.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T22:30:51.819487"
+    },
+    {
+      "id": "429e3aa34df74a319534adc0e9ba7693",
+      "player_id": "default",
+      "content": "다음 주 금요일 경영학과와 5대5 과팅이 잡혔다.",
+      "emotion": "joy",
+      "importance": 6,
+      "tags": [],
+      "created_at": "2026-03-14T22:30:51.824341"
+    },
+    {
+      "id": "5aed9e27633a4a0d97754a82e2d00bd1",
+      "player_id": "default",
+      "content": "뒷풀이에서 김서연이 술에 취해 어깨에 기대왔다. 평소와 다른 모습.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [],
+      "created_at": "2026-03-14T22:30:51.826684"
+    },
+    {
+      "id": "8779579874d842d5a29d6615dd734986",
+      "player_id": "default",
+      "content": "학생회 회의에 참석했지만 집중하지 않았고, 뒷풀이에서 서연에게 외모는 예쁜데 성격이 차갑다고 말해 기분을 상하게 했다.",
+      "emotion": "neutral",
+      "importance": 6,
+      "tags": [],
+      "created_at": "2026-03-14T22:31:33.927087"
+    },
+    {
+      "id": "275e9fd30e924038ac6548ed9c601edc",
+      "player_id": "default",
+      "content": "박지민(경영학과 1학년)에게 코딩과 AI에 대한 현실적인 조언을 해줬다.",
+      "emotion": "neutral",
+      "importance": 3,
+      "tags": [],
+      "created_at": "2026-03-14T22:31:33.931651"
+    },
+    {
+      "id": "1dff13194c604625878cea6ad11e26ef",
+      "player_id": "default",
+      "content": "다음 주 금요일에 경영학과와 5대5 과팅이 예정되어 있다.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T22:31:33.934552"
+    },
+    {
+      "id": "d49cd7b2165c4e42831fef28691df9f3",
+      "player_id": "default",
+      "content": "술에 취한 서연이 가지 말라며 옷자락을 붙잡았지만, 먼저 자리를 떴다.",
+      "emotion": "surprise",
+      "importance": 7,
+      "tags": [],
+      "created_at": "2026-03-14T22:31:33.942679"
+    },
+    {
+      "id": "fb7671b6632c476ca7b1a5af4c5136bb",
+      "player_id": "default",
+      "content": "뒷풀이에서 김서연에게 외모와 성격에 대해 실언했다가 사과했다.",
+      "emotion": "neutral",
+      "importance": 7,
+      "tags": [],
+      "created_at": "2026-03-14T22:32:15.307261"
+    },
+    {
+      "id": "75ce798474f7424b9373a63426463ee6",
+      "player_id": "default",
+      "content": "취한 김서연을 책임지고 기숙사까지 데려다주기로 했다.",
+      "emotion": "trust",
+      "importance": 8,
+      "tags": [
+        "location_기숙사"
+      ],
+      "created_at": "2026-03-14T22:32:15.311547"
+    },
+    {
+      "id": "52c65aa52ba248f19e22481c15db8017",
+      "player_id": "default",
+      "content": "과팅이 다음 주 금요일 경영학과와 5대5로 확정되었다.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T22:32:15.314888"
+    },
+    {
+      "id": "3cb82850640447ce91b76f6798a6b04d",
+      "player_id": "default",
+      "content": "학생회 뒷풀이에서 김서연이 취해서 무명의 어깨에 기댔고, 무명이 서연을 집까지 데려다주기로 했다.",
+      "emotion": "surprise",
+      "importance": 8,
+      "tags": [],
+      "created_at": "2026-03-14T22:32:49.408077"
+    },
+    {
+      "id": "f7cbba7f8cd947dfb606029b9546b057",
+      "player_id": "default",
+      "content": "무명이 외모 칭찬과 성격 평가로 서연을 화나게 했다가 사과했다.",
+      "emotion": "anger",
+      "importance": 6,
+      "tags": [
+        "emotion_angry",
+        "compliment"
+      ],
+      "created_at": "2026-03-14T22:32:49.412130"
+    },
+    {
+      "id": "0c702cba05cd4beb9a9a9913694d8ae5",
+      "player_id": "default",
+      "content": "밤거리에서 둘이 걸으며 서연이 연애하지 않는 이유를 물었고, 역으로 무명에게 되물었다.",
+      "emotion": "neutral",
+      "importance": 7,
+      "tags": [],
+      "created_at": "2026-03-14T22:32:49.415127"
+    },
+    {
+      "id": "a1e1faf7e64047e2bce8be8009796945",
+      "player_id": "default",
+      "content": "뒷풀이에서 무명이 '너가 안 하길래'라며 자신 때문에 연애를 안 했다는 듯한 말을 했다. 심장이 멎을 뻔했다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:33:16.771255"
+    },
+    {
+      "id": "83b624a01cf94626a1351f3d2ddea17c",
+      "player_id": "default",
+      "content": "술에 취해 무명에게 기대게 되었고, 그가 직접 집까지 데려다주겠다고 했다.",
+      "emotion": "joy",
+      "importance": 8,
+      "tags": [],
+      "created_at": "2026-03-14T22:33:16.775864"
+    },
+    {
+      "id": "0041f3cf71a648f69d670024eb1c9751",
+      "player_id": "default",
+      "content": "술에 취한 서연을 집까지 데려다주며 '너가 안하길래'라는 고백에 가까운 말을 했다. 서연이 대답을 기다리고 있다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:33:48.083349"
+    },
+    {
+      "id": "2ae7fe3df12a4ffba0930c6bdf083b1c",
+      "player_id": "default",
+      "content": "뒷풀이에서 서연의 외모와 성격에 대해 언급했다가 사과했다. 서연이 받아줬다.",
+      "emotion": "neutral",
+      "importance": 6,
+      "tags": [],
+      "created_at": "2026-03-14T22:33:48.088490"
+    },
+    {
+      "id": "d1c46cc3aeb44372b28e58fb557e97f9",
+      "player_id": "default",
+      "content": "술에 취한 서연을 집까지 데려다줬다. 그녀가 '왜 연애 안 하냐'고 묻자 '너가 안하길래'라고 대답했다. 서연이 크게 동요했다.",
+      "emotion": "joy",
+      "importance": 9,
+      "tags": [],
+      "created_at": "2026-03-14T22:34:22.355113"
+    },
+    {
+      "id": "c0356be1827846f794c1b9f0624646a1",
+      "player_id": "default",
+      "content": "서연이 '그 말 진심이냐'고 물었지만, 취했다며 다음에 얘기하자고 했다. 서연은 '내일 연락할게, 잊지 마'라고 약속을 받아냈다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [],
+      "created_at": "2026-03-14T22:34:22.361953"
+    },
+    {
+      "id": "141d3a76332f4776adcd883bc4a47c8b",
+      "player_id": "default",
+      "content": "뒷풀이에서 취한 김서연을 기숙사까지 데려다주면서 '너가 안하길래'라는 고백에 가까운 말을 했다. 서연이 손을 잡으며 진심이냐고 물었고, 내일 연락하겠다고 약속했다.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [
+        "location_기숙사"
+      ],
+      "created_at": "2026-03-14T22:34:53.212219"
+    },
+    {
+      "id": "9d69a451032344fa841887a2de8b2c5f",
+      "player_id": "default",
+      "content": "김서연에게 '얼굴은 예뻐졌는데 성격은 차가워졌다'고 말했다가 분위기가 싸늘해졌지만, 사과 후 화해했다.",
+      "emotion": "neutral",
+      "importance": 7,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:34:53.217607"
+    },
+    {
+      "id": "4ee0c3867d9d48cbb4e17b9ba83d26cd",
+      "player_id": "default",
+      "content": "다음 주 금요일 경영학과와 5대5 과팅이 잡혔다.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T22:34:53.221267"
+    },
+    {
+      "id": "b2d15966b7f144d083c49abe733983e1",
+      "player_id": "default",
+      "content": "뒷풀이에서 김서연에게 '얼굴은 예뻐졌는데 성격은 차가워졌다'고 말해서 분위기가 차갑게 식었다가 사과했다",
+      "emotion": "neutral",
+      "importance": 6,
+      "tags": [],
+      "created_at": "2026-03-14T22:35:46.353372"
+    },
+    {
+      "id": "29be628d32e846d58f885a3ea3408df0",
+      "player_id": "default",
+      "content": "술에 취한 김서연을 집까지 데려다주면서 '너가 안하길래(연애를)'라는 고백에 가까운 말을 했다",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:35:46.358815"
+    },
+    {
+      "id": "dda01515f5f745eaa93016ace60704f8",
+      "player_id": "default",
+      "content": "김서연이 진지하게 '내일 꼭 얘기해요'라며 약속을 요구했다. 차가운 표정이 사라지고 미소를 보였다",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:35:46.363262"
+    },
+    {
+      "id": "7074b139b1dc409e82605119acaede7c",
+      "player_id": "default",
+      "content": "이준호와 다음 주 금요일 경영학과와 5대5 과팅 계획을 확정했다",
+      "emotion": "neutral",
+      "importance": 4,
+      "tags": [],
+      "created_at": "2026-03-14T22:35:46.366785"
+    },
+    {
+      "id": "0c2b2c25f8124bcda1e6ddbfa213f35a",
+      "player_id": "default",
+      "content": "뒷풀이에서 김서연에게 '외모는 예뻐졌는데 성격은 차가워졌다'고 말했다가 분위기가 싸늘해졌지만, 사과 후 화해했다.",
+      "emotion": "neutral",
+      "importance": 6,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:36:25.471076"
+    },
+    {
+      "id": "3fb9f4bb77d1480da237cd317f27bc99",
+      "player_id": "default",
+      "content": "취한 김서연을 집까지 데려다주며 '연애 왜 안하냐'는 질문에 '너가 안하길래'라고 대답했다. 서연이 크게 동요했다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:36:25.476308"
+    },
+    {
+      "id": "5d2bff883ba641af83af4df955dde8b9",
+      "player_id": "default",
+      "content": "김서연이 '그 말 진심이에요?'라고 물었고, '내일 꼭 얘기하자'며 약속을 받아냈다.",
+      "emotion": "trust",
+      "importance": 9,
+      "tags": [],
+      "created_at": "2026-03-14T22:36:25.478697"
+    },
+    {
+      "id": "ea4a1105732c494cbee1758c79bf8989",
+      "player_id": "default",
+      "content": "어제 밤 취한 김서연에게 '너가 안하길래'라며 고백에 가까운 말을 했다. 서연은 진지하게 받아들였다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [],
+      "created_at": "2026-03-14T22:37:08.501424"
+    },
+    {
+      "id": "ce113b2454774ce18d5abb60f59987e2",
+      "player_id": "default",
+      "content": "김서연과 오늘 점심 12시 학생회관 1층 카페에서 만나기로 약속했다. 어제 그 이야기를 할 것이다.",
+      "emotion": "trust",
+      "importance": 8,
+      "tags": [],
+      "created_at": "2026-03-14T22:37:08.507182"
+    },
+    {
+      "id": "f4cef8cdbf0b49f49e0d30c0e25f0b48",
+      "player_id": "default",
+      "content": "외모 평가 발언으로 김서연이 화났지만, 사과하고 화해했다.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:37:08.510131"
+    },
+    {
+      "id": "1a86454f00df47a58221423acb36c8d1",
+      "player_id": "default",
+      "content": "뒷풀이에서 김서연이 취해 기대왔고, 혼자 기숙사까지 데려다줬다. '너 때문에 연애 안 했다'고 말했다.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [
+        "location_기숙사"
+      ],
+      "created_at": "2026-03-14T22:38:32.243863"
+    },
+    {
+      "id": "a12bed5ece1a42c4a97169bd7f64deaf",
+      "player_id": "default",
+      "content": "다음 날 카페에서 김서연이 '당신 때문에 안 했다'고 고백했다. 관계가 급진전됐다.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:38:32.249750"
+    },
+    {
+      "id": "27ae296cb1b349d4b08921865bf01a96",
+      "player_id": "default",
+      "content": "김서연이 2학년 MT 때부터 나를 좋아했다고 고백했다. 학생회관 카페에서.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:39:04.119120"
+    },
+    {
+      "id": "0aa4a5bc82104a42bcbb92645e220877",
+      "player_id": "default",
+      "content": "서연과의 관계가 급진전되었다. 어젯밤 취중에 했던 말이 현실이 되었다.",
+      "emotion": "joy",
+      "importance": 9,
+      "tags": [],
+      "created_at": "2026-03-14T22:39:04.124439"
+    },
+    {
+      "id": "58a4f3d8a7be41bc91cdf1f73e6641fc",
+      "player_id": "default",
+      "content": "서연이 2학년 MT 때부터 나를 좋아했다고 고백했다. 차갑게 대한 건 감정을 숨기기 위해서였다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:40:31.460722"
+    },
+    {
+      "id": "3b38b9aff44341a69f13e7bca16ba29c",
+      "player_id": "default",
+      "content": "취한 서연을 기숙사까지 데려다주며 '너가 안하길래'라고 말했다. 서연은 그 말을 기억하고 있었다.",
+      "emotion": "joy",
+      "importance": 9,
+      "tags": [
+        "location_기숙사"
+      ],
+      "created_at": "2026-03-14T22:40:31.465682"
+    },
+    {
+      "id": "ecefc4327a804993a5456a694b043273",
+      "player_id": "default",
+      "content": "학생회관 카페에서 서연과 단둘이 만나 서로의 감정을 확인했다.",
+      "emotion": "joy",
+      "importance": 9,
+      "tags": [],
+      "created_at": "2026-03-14T22:40:31.468826"
+    },
+    {
+      "id": "e543965a63ec4ba2bbd96c8cc08664df",
+      "player_id": "default",
+      "content": "학생회관 카페에서 김서연이 나에게 사귀자고 물었다. 떨리는 목소리로.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:41:02.869294"
+    },
+    {
+      "id": "7ed8965f83b748cfa510e5cd6e60aba4",
+      "player_id": "default",
+      "content": "김서연이 2학년 MT 때부터 1년 넘게 자신을 짝사랑했다고 고백했다. 싫어하는 척한 건 티 날까봐였다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:41:36.662711"
+    },
+    {
+      "id": "77b6417f3cee4b24b9a66f5851d56c8a",
+      "player_id": "default",
+      "content": "서연이 카페에서 '사귀고 싶다'고 직접적으로 고백했다. 더 이상 혼자 좋아하는 게 지쳤다며.",
+      "emotion": "trust",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:41:36.667627"
+    },
+    {
+      "id": "6e321adf18fd4d79b0407f02dcd7aad6",
+      "player_id": "default",
+      "content": "김서연이 2학년 MT 때부터 1년 넘게 나를 짝사랑해왔다고 고백했다. 학생회장이라는 체면 때문에 차갑게 대했던 것.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:42:15.927837"
+    },
+    {
+      "id": "c9fc74788519457ba66d1c66c4b06cce",
+      "player_id": "default",
+      "content": "서연과 정식으로 사귀게 되었다. 그녀가 몸도 마음도 다 바치겠다고 약속했다.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:42:15.933251"
+    },
+    {
+      "id": "55cc360b108a4b5fabed7355525cb8d7",
+      "player_id": "default",
+      "content": "김서연이 2학년 MT 때부터 나를 1년 넘게 짝사랑했다고 고백했다. 차갑게 대한 건 감정을 숨기기 위해서였다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:42:54.183987"
+    },
+    {
+      "id": "9bd2504ba9264c33b18d62d4b01cbe0f",
+      "player_id": "default",
+      "content": "서연과 연애를 시작하기로 했다. 그녀가 몸과 마음을 모두 바치겠다고 했고, 오늘 자취방으로 오기로 약속했다.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:42:54.189831"
+    },
+    {
+      "id": "2abb4501a5b24581997c9583bf6a025f",
+      "player_id": "default",
+      "content": "김서연이 2학년 MT 때부터 1년 넘게 자신을 짝사랑해왔다는 사실을 알게 됨",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:43:33.395965"
+    },
+    {
+      "id": "e02a71f38b82457b8d1b19b0f5162fc4",
+      "player_id": "default",
+      "content": "서연과 연애를 시작하기로 했고, 오늘 저녁 자취방으로 오기로 약속함",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:43:33.400554"
+    },
+    {
+      "id": "7d48a59f00744894827803025d615cf9",
+      "player_id": "default",
+      "content": "서연이 몸과 마음을 다 바치겠다고 고백함",
+      "emotion": "trust",
+      "importance": 9,
+      "tags": [],
+      "created_at": "2026-03-14T22:43:33.404678"
+    },
+    {
+      "id": "df0b246f65e94abf86c0916c4c71dbd7",
+      "player_id": "default",
+      "content": "김서연이 2학년 MT 때부터 1년 넘게 나를 짝사랑해왔다고 고백했다. 차갑게 대한 건 티가 날까봐 연기한 것이었다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:44:08.213008"
+    },
+    {
+      "id": "1889321bb3e54774899c991b3390c64c",
+      "player_id": "default",
+      "content": "김서연과 연인 관계가 되었다. 그녀는 몸도 마음도 다 주겠다고 했다.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:44:08.218838"
+    },
+    {
+      "id": "28ed295341d640c280c0f34ff1651e21",
+      "player_id": "default",
+      "content": "김서연을 저녁에 자취방으로 부르고 야하게 입고 오라고 했다. 그녀가 수락했다.",
+      "emotion": "trust",
+      "importance": 9,
+      "tags": [],
+      "created_at": "2026-03-14T22:44:08.223474"
+    },
+    {
+      "id": "021b8df2b6204c249218570beea07252",
+      "player_id": "default",
+      "content": "김서연이 2학년 MT 때부터 1년 넘게 자신을 짝사랑했다고 고백했다. 싫어하는 척한 것은 티 나지 않기 위해서였다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:44:47.227289"
+    },
+    {
+      "id": "317b7208880d44acbce90c57d62f4674",
+      "player_id": "default",
+      "content": "서연과 사귀기로 했다. 그녀는 몸과 마음 모두를 바치겠다고 말했다.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:44:47.232844"
+    },
+    {
+      "id": "30d2328310ff4241b8e7296215a7e535",
+      "player_id": "default",
+      "content": "서연이 자취방으로 왔다. 원피스를 입고 진한 화장을 하고... 속옷 없이.",
+      "emotion": "trust",
+      "importance": 9,
+      "tags": [
+        "emotion_angry"
+      ],
+      "created_at": "2026-03-14T22:44:47.237085"
+    },
+    {
+      "id": "3fa56cfe13dd478c8e0f66e2a8419620",
+      "player_id": "default",
+      "content": "김서연이 2학년 MT 때부터 1년 넘게 자신을 짝사랑해왔다는 것을 알게 됨. 차갑게 대한 건 티 안 나려고 한 것.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:45:19.480089"
+    },
+    {
+      "id": "0f7ec0e6d5cf4cd98719151d620253dd",
+      "player_id": "default",
+      "content": "서연과 관계를 시작하기로 했다. 그녀가 몸과 마음 모두를 자신에게 맡기겠다고 했다.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:45:19.483434"
+    },
+    {
+      "id": "8cb77b18c46b4cdf85d8ce14e2692579",
+      "player_id": "default",
+      "content": "서연이 자신의 자취방으로 왔다. 원피스 차림에 속옷도 입지 않은 채로.",
+      "emotion": "joy",
+      "importance": 9,
+      "tags": [],
+      "created_at": "2026-03-14T22:45:19.485502"
+    },
+    {
+      "id": "429b98d7a7ed45d6a2d944f2bf5126e9",
+      "player_id": "default",
+      "content": "김서연이 1년 넘게 자신을 짝사랑했다고 고백했다. 2학년 MT 때부터였다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:45:49.894617"
+    },
+    {
+      "id": "65259245dea04dc1aa0777ff27a4e3bb",
+      "player_id": "default",
+      "content": "김서연과 연인 관계가 되었다. 그녀는 모든 것을 바치겠다고 했다.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:45:49.900007"
+    },
+    {
+      "id": "761802dd17f44e1393840bbc164fb688",
+      "player_id": "default",
+      "content": "김서연이 자취방으로 찾아왔다. 첫 밤을 함께하게 되었다.",
+      "emotion": "trust",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:45:49.904575"
+    },
+    {
+      "id": "ee8705ecbd934c738cf245eab17af2c6",
+      "player_id": "default",
+      "content": "김서연과 첫 관계를 가졌다. 그녀는 1년 넘게 자신을 짝사랑해왔다고 고백했다.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:46:22.601816"
+    },
+    {
+      "id": "fa2358032d94426fa48086637d7e313a",
+      "player_id": "default",
+      "content": "서연이 '몸도 마음도 전부 가져가요'라며 자신의 모든 것을 허락했다.",
+      "emotion": "trust",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:46:22.603999"
+    },
+    {
+      "id": "172d0b527d334b0486a94d6a76e25ceb",
+      "player_id": "default",
+      "content": "학생회장 김서연이 자신의 자취방에서 하룻밤을 보냈다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [],
+      "created_at": "2026-03-14T22:46:22.605737"
+    },
+    {
+      "id": "719c067928e14e70bd44ce0f351341ca",
+      "player_id": "default",
+      "content": "김서연이 2학년 MT 때부터 1년 넘게 나를 짝사랑했다고 고백했다. 차갑게 대한 건 감정을 숨기기 위해서였다.",
+      "emotion": "surprise",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:46:56.167306"
+    },
+    {
+      "id": "9bbd7fcd96554a3285cbc1a7fa8b2624",
+      "player_id": "default",
+      "content": "김서연과 첫 밤을 보냈다. 그녀는 모든 것을 나에게 맡겼고, 우리는 연인이 되었다.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:46:56.172778"
+    },
+    {
+      "id": "996b5fa35f96435b845af2f0164ddef9",
+      "player_id": "default",
+      "content": "학생회장 김서연이 나를 위해 연애를 안 했다고 했다. 그녀의 진심을 느꼈다.",
+      "emotion": "trust",
+      "importance": 9,
+      "tags": [],
+      "created_at": "2026-03-14T22:46:56.176826"
+    },
+    {
+      "id": "7270e18b6e194a918e98e118a02ecde0",
+      "player_id": "default",
+      "content": "김서연과 첫 밤을 보냈다. 그녀는 자신의 몸과 마음을 완전히 당신에게 바쳤다.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:47:26.839110"
+    },
+    {
+      "id": "758533530f4a4b7f85d44a23181cd2aa",
+      "player_id": "default",
+      "content": "김서연이 당신의 모든 요구를 받아들였다. 그녀는 이제 완전히 당신의 사람이다.",
+      "emotion": "trust",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:47:26.842871"
+    },
+    {
+      "id": "c0a6ba25af8b4b81b5e69bb9aab5d312",
+      "player_id": "default",
+      "content": "김서연과 첫 밤을 보냈다. 그녀는 1년 넘게 나를 짝사랑했고, 모든 것을 내게 바쳤다.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:47:53.397862"
+    },
+    {
+      "id": "8551cf57cc0c4e03829cfd068b6f1be6",
+      "player_id": "default",
+      "content": "서연이 학생회장이라는 차갑고 완벽한 이미지 뒤에 순수하고 열정적인 모습을 보여줬다.",
+      "emotion": "trust",
+      "importance": 9,
+      "tags": [],
+      "created_at": "2026-03-14T22:47:53.403551"
+    },
+    {
+      "id": "15527e60436443cf97d0b86b2e2fe697",
+      "player_id": "default",
+      "content": "김서연과 카페에서 고백을 받고 연인이 되었다. 그녀는 2학년 MT 때부터 1년 넘게 나를 좋아했다고 했다.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:48:50.638897"
+    },
+    {
+      "id": "e4c68fb2191c4b16a7636bed33db1d22",
+      "player_id": "default",
+      "content": "김서연과 첫날밤을 보냈다. 학생회장은 이제 완전히 나의 여자가 되었다.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:48:50.644202"
+    },
+    {
+      "id": "f4e8acf7f9bd4c42b2ce714c4af0a6b2",
+      "player_id": "default",
+      "content": "아침에 다시 서연과 관계를 가졌다. 그녀는 '사랑해요'라고 속삭였다.",
+      "emotion": "joy",
+      "importance": 9,
+      "tags": [],
+      "created_at": "2026-03-14T22:48:50.647491"
+    },
+    {
+      "id": "c314e3d0200245f49c806b52ac46e389",
+      "player_id": "default",
+      "content": "김서연과 첫 관계를 가졌다. 그녀는 자신의 전부를 바쳤고, 아침까지 함께했다.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:49:29.018670"
+    },
+    {
+      "id": "b0b762367cad485a9cdd2bcae521279f",
+      "player_id": "default",
+      "content": "서연이 침대에서 '사랑해요'라고 속삭였다. 학생회장의 가면 뒤 진짜 모습을 보았다.",
+      "emotion": "joy",
+      "importance": 10,
+      "tags": [],
+      "created_at": "2026-03-14T22:49:29.023971"
+    },
+    {
+      "id": "8ff29b4f98ce44e6802c7fa6ea35623a",
+      "player_id": "default",
+      "content": "서연이 2학년 MT 때부터 1년 넘게 자신을 짝사랑했다는 걸 알게 되었다.",
+      "emotion": "surprise",
+      "importance": 9,
+      "tags": [],
+      "created_at": "2026-03-14T22:49:29.028191"
     }
   ]
 }
