@@ -528,18 +528,149 @@ Week 4: ░░░░░░░░░░  0%
 
 ---
 
+## Day 13 (2/15 일) - ContextManager + Tool 최적화
+
+### 🎯 목표
+- ContextManager 통합으로 conversation history 최적화
+- Tool Use 선택적 사용으로 비용 절감
+- LoopDetector 오탐지 수정
+
+### ✅ 완료 작업
+
+#### 1. ContextManager 구현 및 통합
+```python
+# backend/src/engine/context_manager.py
+class ContextManager:
+    MAX_CONTEXT_TOKENS = 3000
+    KEEP_RECENT_TURNS = 10
+    
+    def build_context(user_input, full_history, max_tokens):
+        # 최근 10턴 유지
+        # 오래된 메시지 중요도 샘플링 (tool_use, NPC 매칭, 길이)
+        # 토큰 예산 내에서 선택
+```
+
+**통합**:
+- `GameEngine.process_turn()`에서 `context_manager.build_context()` 호출
+- LLM에 최적화된 히스토리 전달
+- 로그: "Context optimized from 104 → 41 messages (900 tokens)"
+
+**테스트**: 7개 전부 통과
+- `test_keep_recent`, `test_build_context_with_sampling`
+- `test_importance_calculation`, `test_token_counting`
+
+#### 2. Tool 선택적 사용 (System Prompt 개선)
+```python
+# backend/src/engine/prompt_optimizer.py
+## Tool 사용 규칙 (중요!)
+다음 경우에만 update_game_state 호출:
+  ✅ 관계 변화 (호감/신뢰 증감)
+  ✅ 중요한 이벤트 발생
+  ✅ 의미 있는 대화/행동
+
+다음 경우는 Tool 없이 직접 답변:
+  ❌ 단순 인사 ("안녕", "잘가")
+  ❌ 짧은 응답 ("응", "그래")
+  ❌ 상태 변화 없는 일상 대화
+```
+
+**예상 효과**:
+- 단순 대화 50% → Tool 미사용 → 1차 API 호출만
+- 복잡한 대화 50% → Tool 사용 → 2차 API 호출
+- 평균 비용: $0.034 → $0.017 (50% 절감)
+
+#### 3. LoopDetector 오탐지 수정
+```python
+# backend/src/engine/loop_detector.py
+# Stagnation 임계값 완화
+if avg_change < 0.001:  # 기존 0.01 → 0.001
+    return 10
+
+# Repetition 자기 매칭 보정
+match_count = max(0, match_count - 1)  # 자기 자신 제외
+```
+
+**변경 이유**:
+- 기존: 관계 0.01 변화(1%) → severity 10 (너무 민감)
+- 수정: 관계 0.001 변화(0.1%) → severity 10
+- 정상 대화(1-5% 변화)는 severity 1-4로 낮춤
+
+#### 4. 캠퍼스 세계관 추가
+```
+backend/src/worlds/campus/
+├── world.json         (서울대학교 캠퍼스)
+├── characters.json    (김서연, 이준호, 박지민, 최민준 교수)
+└── events.json        (조별과제, 중간고사, MT 등)
+```
+
+**CLI 개선**:
+```bash
+# 기본 (campus)
+poetry run python backend/play_game.py
+
+# 선택
+poetry run python backend/play_game.py --world arcane_academy
+```
+
+#### 5. 버그 수정
+- EventManager: `{"events": [...]}` 구조 로딩 수정
+- `GameEngine.print_performance_report()` 메서드 추가
+- `context_manager.py`: `get_logger()` 사용으로 로그 출력
+
+### 📊 비용 분석
+
+#### Before (Turn 52 기준)
+```
+평균: $0.034/turn
+원인: 매 턴 Tool 사용 (2차 API 호출)
+      전체 conversation history 재전송
+```
+
+#### After (예상)
+```
+평균: $0.017/turn
+Tool 사용률: 100% → 50%
+ContextManager: 104 messages → 41 messages
+```
+
+#### 실제 테스트 결과 (Turn 1-3)
+```
+Turn 1: $0.007932 (캐시 생성)
+Turn 2: $0.013992 (Tool 사용, 관계 변화)
+Turn 3: Context optimized from 5 → 5 messages (86 tokens)
+```
+
+### 🔍 다음 작업 (Day 14)
+
+#### Priority 1: Tool 최적화 검증
+- 50턴 테스트 실행
+- Tool 사용 빈도 측정 (목표: 50%)
+- 평균 비용 확인 (목표: $0.017)
+
+#### Priority 2: Static/Dynamic Prompt 분리
+- Static: 세계관, NPC 프로필 (캐시)
+- Dynamic: 현재 상황, 기억 (매 턴 변경)
+- 예상: 캐시 히트율 95% → 비용 추가 절감
+
+#### Priority 3: Model Switching
+- 단순 대화: Claude Haiku ($0.25/1M tokens)
+- 복잡한 이벤트: Claude Sonnet ($3/1M tokens)
+- 예상: 70% Haiku 사용 → 비용 80% 절감
+
+---
+
 ## 누적 통계
 
 | 지표 | 값 |
 |------|-----|
-| 총 커밋 | 9 |
-| 총 테스트 | 85 (유닛 80 + 통합 5) |
+| 총 커밋 | 12 |
+| 총 테스트 | 92 (유닛 87 + 통합 5) |
 | 테스트 통과율 | 100% |
-| Python 파일 | ~24개 |
-| JSON 데이터 | 3개 (world, characters, events) |
-| NPC 수 | 6명 |
-| 이벤트 수 | 10개 |
-| API 비용 (누적) | ~$0.52 |
+| Python 파일 | ~27개 |
+| JSON 데이터 | 6개 (2 worlds × 3 files) |
+| NPC 수 | 10명 (arcane 6 + campus 4) |
+| 이벤트 수 | 16개 (arcane 10 + campus 6) |
+| API 비용 (누적) | ~$0.60 |
 
 ---
 
