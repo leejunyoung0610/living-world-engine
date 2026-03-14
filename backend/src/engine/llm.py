@@ -109,6 +109,11 @@ class ClaudeClient:
         2. tool 실행 + tool_result 생성
         3. 2차 호출 → 최종 텍스트 응답
 
+        Args:
+            user_input: 현재 턴의 사용자 입력
+            system_prompt: 시스템 프롬프트
+            conversation_history: 최적화된 대화 히스토리 (user_input 이미 포함됨)
+
         Returns:
             {
                 "response": str,           # NPC의 텍스트 응답
@@ -118,8 +123,8 @@ class ClaudeClient:
                 "output_tokens": int,
             }
         """
+        # conversation_history에 이미 user_input이 포함되어 있음
         messages = conversation_history or []
-        messages.append({"role": "user", "content": user_input})
         system_messages = [
             {
                 "type": "text",
@@ -211,15 +216,18 @@ class ClaudeClient:
             "content": "Success",
         }
 
-        # 2차 호출 (tool_use 블록만 포함)
+        # 2차 호출용 메시지 (기존 messages 복사 + tool_use/tool_result 추가)
+        # 기존 messages를 수정하지 않고 새 리스트 생성
+        messages_for_2nd = messages.copy()
+        
         tool_use_payload = {
             "type": "tool_use",
             "id": tool_use_block.id,
             "name": tool_use_block.name,
             "input": tool_use_block.input,
         }
-        messages.append({"role": "assistant", "content": [tool_use_payload]})
-        messages.append({"role": "user", "content": [tool_result]})
+        messages_for_2nd.append({"role": "assistant", "content": [tool_use_payload]})
+        messages_for_2nd.append({"role": "user", "content": [tool_result]})
 
         logger.debug("LLM 2차 호출 (Tool Result 포함)...")
 
@@ -228,7 +236,7 @@ class ClaudeClient:
             max_tokens=self.max_tokens,
             system=system_messages,
             tools=tools,
-            messages=messages,
+            messages=messages_for_2nd,
         )
         usage_2 = getattr(final_response, "usage", None)
         if usage_2:
