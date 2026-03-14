@@ -52,8 +52,10 @@ class SystemPromptOptimizer:
 {self._format_memories(key_memories)}
 
 ## 응답 규칙
+- **반드시 첫 줄에 말하는 NPC 이름을 명시하세요**: "**[NPC이름]** (행동)"
+- 예시: "**김서연** (미소를 지으며)" 또는 "**이준호** (고개를 끄덕이며)"
 - 2~3문장, 대화 중심
-- 행동은 괄호 (미소), (고개 끄덕)
+- 행동은 괄호로 표시: (미소), (고개 끄덕)
 
 ## Tool 사용 규칙
 **기본적으로 update_game_state를 사용하세요.**
