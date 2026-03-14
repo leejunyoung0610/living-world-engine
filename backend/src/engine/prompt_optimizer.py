@@ -73,25 +73,72 @@ Tool을 사용하지 않는 경우 (매우 제한적):
         return prompt
 
     def _format_compact_npcs(self, npcs: list[dict[str, Any]]) -> str:
+        """세계관에 관계없이 NPC 정보를 포맷팅"""
         lines: list[str] = []
         for npc in npcs:
             name = npc.get("name", "Unknown")
             role = npc.get("role", "")
-            major = npc.get("major", "")
-            personality = npc.get("personality", "")
             
             # 기본 정보
-            if major:
-                info = f"- {name} ({role}, {major})"
-            else:
-                info = f"- {name} ({role})" if role else f"- {name}"
+            info_parts = [name]
+            if role:
+                info_parts.append(f"({role})")
             
-            # 성격 추가
-            if personality:
-                info += f"\n  성격: {personality}"
+            # 세계관별 핵심 정보 추가
+            # 1. 학과 (campus)
+            if "major" in npc:
+                info_parts.append(f"- {npc['major']}")
             
+            # 2. 위치 (arcane_academy)
+            if "location" in npc:
+                info_parts.append(f"위치: {npc['location']}")
+            
+            info = " ".join(info_parts)
             lines.append(info)
-        return "\n".join(lines)
+            
+            # 상세 정보
+            details = []
+            
+            # 3. 성격 (campus)
+            if "personality" in npc:
+                details.append(f"  성격: {npc['personality']}")
+            
+            # 4. Persona (arcane_academy)
+            if "persona" in npc:
+                persona = npc["persona"]
+                if "traits" in persona:
+                    traits = ", ".join(persona["traits"])
+                    details.append(f"  특성: {traits}")
+                if "drive" in persona:
+                    details.append(f"  동기: {persona['drive']}")
+            
+            # 5. 스킬 (arcane_academy)
+            if "skills" in npc:
+                skills = ", ".join(npc["skills"])
+                details.append(f"  스킬: {skills}")
+            
+            # 6. 관심사 (campus)
+            if "interests" in npc:
+                interests = ", ".join(npc["interests"])
+                details.append(f"  관심사: {interests}")
+            
+            # 7. 말투 (공통, 간단히)
+            if "speaking_style" in npc:
+                style = npc["speaking_style"]
+                if isinstance(style, str):
+                    details.append(f"  말투: {style}")
+                elif isinstance(style, dict):
+                    formality = style.get("formality", "")
+                    mood = style.get("default_mood", "")
+                    if formality or mood:
+                        details.append(f"  말투: {formality}, {mood}")
+            
+            if details:
+                lines.extend(details)
+            
+            lines.append("")  # 빈 줄 추가
+        
+        return "\n".join(lines).strip()
 
     def _select_key_memories(self, memories: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return sorted(
