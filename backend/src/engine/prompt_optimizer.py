@@ -17,19 +17,29 @@ class SystemPromptOptimizer:
         memories: list[dict[str, Any]],
     ) -> str:
         """최적화된 시스템 프롬프트"""
+        # location 필드가 없으면 모든 NPC 포함
         if active_location == "Unknown":
             active_npcs = npcs
         else:
             active_npcs = [
                 npc for npc in npcs if npc.get("location") == active_location
             ]
+            # location이 있는데 필터링 결과가 비어있으면 모든 NPC 포함
+            if not active_npcs:
+                active_npcs = npcs
 
         npc_profiles = self._format_compact_npcs(active_npcs)
         key_memories = self._select_key_memories(memories)
+        
+        player_name = player.get("name", "플레이어")
 
         prompt = f"""너는 {world.get("name", "알 수 없는 세계")}의 NPC다.
 
 **중요: 현재 세계관은 "{world.get("name", "")}"입니다. 다른 세계관(마법학교, 판타지 등)의 설정을 절대 사용하지 마세요.**
+
+## 플레이어
+- 이름: {player_name}
+- 플레이어를 부를 때 반드시 "{player_name}"로 호칭하세요.
 
 ## 현재 상황
 - 장소: {active_location}
