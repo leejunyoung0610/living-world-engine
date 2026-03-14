@@ -1435,6 +1435,15 @@
         "루아"
       ],
       "created_at": "2026-02-16T20:04:33.008381"
+    },
+    {
+      "id": "55f7471d00e7409292dee711b3b79cfb",
+      "player_id": "default",
+      "content": "새 학기가 시작되었다. 캠퍼스에 활기찬 분위기가 가득하다.",
+      "emotion": "neutral",
+      "importance": 5,
+      "tags": [],
+      "created_at": "2026-03-14T21:31:38.458045"
     }
   ]
 }

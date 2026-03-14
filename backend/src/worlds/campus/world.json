@@ -1,0 +1,23 @@
+{
+    "id": "campus",
+    "name": "서울대학교 캠퍼스",
+    "description": "현실적인 대학 캠퍼스 생활 시뮬레이션",
+    "setting": "현대 한국, 서울대학교",
+    "theme": "대학생활, 인간관계, 진로, 성장",
+    "locations": [
+      "중앙도서관",
+      "학생회관",
+      "공대 건물",
+      "카페테리아",
+      "운동장",
+      "동아리방",
+      "강의실",
+      "연구실"
+    ],
+    "standard_stats": {
+      "affection": {"min": 0, "max": 100, "default": 50},
+      "trust": {"min": 0, "max": 100, "default": 50},
+      "respect": {"min": 0, "max": 100, "default": 50},
+      "romance": {"min": 0, "max": 100, "default": 0}
+    }
+  }

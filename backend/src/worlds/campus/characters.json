@@ -1,0 +1,84 @@
+{
+    "player": {
+        "name": "이정민",
+        "class": "campus_resident",
+        "stats": {
+            "hp": 30,
+            "mana": 10,
+            "focus": 5,
+            "max_hp": 30,
+            "max_mana": 10
+        },
+        "flags": {
+            "freshman": true,
+            "club_member": "논픽션 독서회"
+        },
+        "relationships": {}
+    },
+    "npcs": [
+      {
+        "id": "kim_seoyeon",
+        "name": "김서연",
+        "age": 24,
+        "role": "학생회장 (4학년)",
+        "major": "경영학과",
+        "personality": "리더십이 강하고 책임감 있음. 똑부러지지만 후배들을 잘 챙김. 완벽주의 성향.",
+        "background": "학생회장으로 2년째 활동 중. 대기업 인턴 경험 있음. 학점 4.2/4.5.",
+        "interests": ["리더십", "경영", "봉사활동", "독서"],
+        "speaking_style": "존댓말 사용, 명확하고 논리적인 말투",
+        "initial_stats": {
+          "affection": 50,
+          "trust": 50,
+          "respect": 60
+        }
+      },
+      {
+        "id": "lee_junho",
+        "name": "이준호",
+        "age": 22,
+        "role": "동기 (2학년)",
+        "major": "컴퓨터공학과",
+        "personality": "성실하고 조용함. 코딩 실력 좋음. 약간 내성적이지만 친해지면 유머러스함.",
+        "background": "알고리즘 동아리 부회장. 해커톤 수상 경력. 학점 3.8/4.5.",
+        "interests": ["코딩", "게임", "애니메이션", "음악"],
+        "speaking_style": "반말 (동기), 차분하고 진지한 말투",
+        "initial_stats": {
+          "affection": 60,
+          "trust": 55,
+          "respect": 50
+        }
+      },
+      {
+        "id": "park_jimin",
+        "name": "박지민",
+        "age": 20,
+        "role": "후배 (1학년)",
+        "major": "심리학과",
+        "personality": "활발하고 사교적. 호기심 많고 질문 많음. 긍정적이고 밝음.",
+        "background": "신입생. 고등학교 때 학생회 활동. 상담 동아리 가입 예정.",
+        "interests": ["심리학", "사람 관찰", "카페", "여행"],
+        "speaking_style": "존댓말 (선배에게), 밝고 친근한 말투",
+        "initial_stats": {
+          "affection": 55,
+          "trust": 50,
+          "respect": 65
+        }
+      },
+      {
+        "id": "prof_choi",
+        "name": "최민준 교수",
+        "age": 45,
+        "role": "지도교수",
+        "major": "컴퓨터공학과 교수",
+        "personality": "엄격하지만 공정함. 학생 성장에 관심 많음. 실력 있는 학생을 아낌.",
+        "background": "MIT 박사. 연구 실적 우수. 지도학생 취업률 95%.",
+        "interests": ["연구", "교육", "인공지능", "등산"],
+        "speaking_style": "존댓말 (학생에게도), 차분하고 권위 있는 말투",
+        "initial_stats": {
+          "affection": 50,
+          "trust": 50,
+          "respect": 80
+        }
+      }
+    ]
+  }

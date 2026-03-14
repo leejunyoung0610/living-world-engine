@@ -278,3 +278,7 @@ class GameEngine:
         save_path = SAVES_DIR / f"{save_name}.json"
         self.state.save_to_file(save_path)
         return str(save_path)
+
+    def print_performance_report(self) -> None:
+        """성능 모니터링 리포트 출력"""
+        self.performance.print_report()

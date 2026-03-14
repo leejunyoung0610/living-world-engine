@@ -1,0 +1,47 @@
+{
+    "events": [
+      {
+        "id": "group_project",
+        "name": "조별 과제 마감",
+        "description": "조별 과제 제출 기한이 다가오며 긴장감이 높아진다",
+        "trigger": "random",
+        "probability": 0.3
+      },
+      {
+        "id": "midterm",
+        "name": "중간고사 기간",
+        "description": "중간고사가 다가오며 학생들이 도서관에 모인다",
+        "trigger": "random",
+        "probability": 0.2
+      },
+      {
+        "id": "student_election",
+        "name": "학생회 선거",
+        "description": "학생회 선거 캠페인이 진행된다",
+        "trigger": "random",
+        "probability": 0.15
+      },
+      {
+        "id": "club_mt",
+        "name": "동아리 MT",
+        "description": "동아리 MT 준비가 시작된다",
+        "trigger": "random",
+        "probability": 0.2
+      },
+      {
+        "id": "career_week",
+        "name": "진로 상담 주간",
+        "description": "진로 상담 주간이 시작되어 교수님들이 바빠진다",
+        "trigger": "random",
+        "probability": 0.2
+      },
+      {
+        "id": "job_fair",
+        "name": "취업 박람회",
+        "description": "캠퍼스에서 취업 박람회가 열린다",
+        "trigger": "random",
+        "probability": 0.15
+      }
+    ]
+}
+  

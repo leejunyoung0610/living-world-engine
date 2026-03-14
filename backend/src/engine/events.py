@@ -50,7 +50,12 @@ class EventManager:
         with open(filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        self.event_templates = data
+        if isinstance(data, dict) and "events" in data:
+            self.event_templates = data["events"]
+        elif isinstance(data, list):
+            self.event_templates = data
+        else:
+            self.event_templates = []
 
     # ── 조건 체크 ──
 
