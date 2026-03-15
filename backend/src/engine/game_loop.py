@@ -39,6 +39,7 @@ class GameEngine:
         self.prompt_optimizer = SystemPromptOptimizer()
         self.performance = PerformanceMonitor()
         self.context_manager = ContextManager()
+        self.cache_reset_flag = None  # Cache 강제 초기화용
 
     def initialize(self, world_dir: str) -> None:
         """게임 초기화 - 세계관 디렉토리에서 world.json + characters.json + events.json 로드"""
@@ -81,6 +82,12 @@ class GameEngine:
                     min_importance=7,  # 5 → 7로 상향 (중요 사건만)
                     limit=10,          # 5 → 10으로 증가
                 )
+                
+                # Layer 3 로깅
+                logger.info(f"🧠 Layer 3 (LongTermMemory): {len(relevant_memories)}개 기억 검색")
+                if relevant_memories:
+                    for mem in relevant_memories[:3]:
+                        logger.info(f"   [{mem['importance']}] {mem['content'][:60]}...")
 
             with self.performance.measure("prompt_building"):
                 system_prompt = self._build_system_prompt(relevant_memories)
@@ -193,6 +200,7 @@ class GameEngine:
             active_location=self.state.player.get("location", "Unknown"),
             npcs=self.state.npcs,
             memories=relevant_memories,
+            cache_reset_flag=self.cache_reset_flag,  # Cache 초기화 플래그 전달
         )
 
         logger.debug(f"Optimized prompt length: {len(prompt)} chars (~{len(prompt)//4} tokens)")

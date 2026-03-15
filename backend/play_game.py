@@ -20,6 +20,16 @@ def parse_args() -> argparse.Namespace:
         default="campus",
         help="로드할 world 디렉토리 이름 (기본: campus)",
     )
+    parser.add_argument(
+        "--reset",
+        action="store_true",
+        help="완전한 게임 초기화 (memories.json 삭제 + 안내)",
+    )
+    parser.add_argument(
+        "--force-cache-reset",
+        action="store_true",
+        help="Prompt Cache 강제 초기화 (System Prompt에 타임스탬프 추가)",
+    )
     return parser.parse_args()
 
 
@@ -54,6 +64,29 @@ def main():
     print("Type 'quit' or 'q' to exit")
     print_separator()
 
+    # --reset 옵션 처리: 완전한 게임 초기화
+    if args.reset:
+        print("🗑️  게임 초기화 중...")
+        
+        # 1. LongTermMemory 초기화
+        memory_path = Path(__file__).parent / "data" / "memories.json"
+        if memory_path.exists():
+            memory_path.unlink()
+            print("   ✅ 장기 기억 삭제: memories.json")
+            logger.info(f"Memory reset: {memory_path} deleted")
+        
+        # 2. 대화 히스토리는 자동으로 새로 시작 (메모리 초기화)
+        print("   ✅ 대화 히스토리 초기화")
+        
+        # 3. Prompt Cache 안내
+        print("\n💡 Prompt Cache 초기화 방법:")
+        print("   • Option 1: 5분 대기 (자동 만료)")
+        print("   • Option 2: 다른 world 선택 (--world arcane_academy)")
+        print("   • Option 3: System Prompt 수정 시 자동 무효화")
+        print("\n🎮 완전히 새로운 게임으로 시작합니다!")
+        logger.info(f"Full game reset initiated for world: {args.world}")
+        print_separator()
+
     world_dir = Path(__file__).parent / "src/worlds" / args.world
     if not world_dir.exists():
         logger.error(f"World directory {world_dir} not found")
@@ -61,6 +94,15 @@ def main():
         return 1
 
     engine = GameEngine()
+    
+    # Cache 강제 초기화 옵션 전달
+    if args.force_cache_reset:
+        import time
+        cache_reset_flag = f"_reset_{int(time.time())}"
+        engine.cache_reset_flag = cache_reset_flag
+        print("🔄 Prompt Cache 강제 초기화: System Prompt 변경됨")
+        logger.info(f"Force cache reset: {cache_reset_flag}")
+    
     try:
         engine.initialize(str(world_dir))
         logger.info("Game engine initialized")

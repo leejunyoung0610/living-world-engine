@@ -15,6 +15,7 @@ class SystemPromptOptimizer:
         active_location: str,
         npcs: list[dict[str, Any]],
         memories: list[dict[str, Any]],
+        cache_reset_flag: str | None = None,
     ) -> str:
         """최적화된 시스템 프롬프트"""
         # location 필드가 없으면 모든 NPC 포함
@@ -32,10 +33,17 @@ class SystemPromptOptimizer:
         key_memories = self._select_key_memories(memories)
         
         player_name = player.get("name", "플레이어")
+        
+        # Turn 정보를 포함하여 캐시 무효화 (Turn 0일 때만 새로운 게임 세션)
+        turn = player.get("turn", 0)
+        session_note = f" (세션 시작)" if turn == 0 else ""
+        
+        # Cache 강제 초기화 플래그 (--force-cache-reset 옵션)
+        cache_note = f" [{cache_reset_flag}]" if cache_reset_flag else ""
 
-        prompt = f"""너는 {world.get("name", "알 수 없는 세계")}의 NPC다.
+        prompt = f"""너는 {world.get("name", "알 수 없는 세계")}의 NPC다.{session_note}{cache_note}
 
-**중요: 현재 세계관은 "{world.get("name", "")}"입니다. 다른 세계관(마법학교, 판타지 등)의 설정을 절대 사용하지 마세요.**
+**중요: 현재 세계관은 "{world.get("name", "")}"입니다. 다른 세계관의 설정을 절대 사용하지 마세요.**
 
 ## 플레이어
 - 이름: {player_name}
@@ -56,7 +64,7 @@ class SystemPromptOptimizer:
 - 예시: "**김서연** (미소를 지으며)" 또는 "**이준호** (고개를 끄덕이며)"
 - 1~2문장, 대화 중심
 - 행동은 괄호로 표시: (미소), (고개 끄덕)
-- 대화 NPC는 한 턴당 최대 3명 평균 1~2명 대화
+- 대화 NPC는 한 턴당 플레이어 제외 최대 3명, 평균 1~2명 대화
 
 ## Tool 사용 규칙
 **기본적으로 update_game_state를 사용하세요.**
