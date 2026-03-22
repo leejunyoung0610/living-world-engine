@@ -104,6 +104,8 @@ poetry run python -m backend.play_game
 # 유닛 테스트 (통합 테스트는 API 키·마커 필요할 수 있음)
 poetry run pytest backend/tests/unit -q --no-cov
 
+# 참고: 장기 기억은 실행 시 `data/memories.json`에 생성됩니다(저장소에는 포함하지 않음).
+
 # API 서버 (구성에 따라)
 poetry run uvicorn backend.src.main:app --reload
 ```
