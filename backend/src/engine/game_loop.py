@@ -24,18 +24,47 @@ from .context_manager import ContextManager
 
 logger = get_logger(__name__)
 
+
+def _summarize_api_usage(segments: list[dict[str, Any]]) -> dict[str, Any]:
+    """Anthropic Messages 응답 `usage` 필드 기준 합산 (추정이 아닌 API 집계)."""
+    by_call: list[dict[str, Any]] = []
+    for i, s in enumerate(segments, start=1):
+        by_call.append(
+            {
+                "call_index": i,
+                "input_tokens": int(s.get("input_tokens", 0)),
+                "output_tokens": int(s.get("output_tokens", 0)),
+                "cache_creation_input_tokens": int(
+                    s.get("cache_creation_tokens", 0)
+                ),
+                "cache_read_input_tokens": int(s.get("cache_read_tokens", 0)),
+            }
+        )
+    totals = {
+        "input_tokens": sum(x["input_tokens"] for x in by_call),
+        "output_tokens": sum(x["output_tokens"] for x in by_call),
+        "cache_creation_input_tokens": sum(
+            x["cache_creation_input_tokens"] for x in by_call
+        ),
+        "cache_read_input_tokens": sum(
+            x["cache_read_input_tokens"] for x in by_call
+        ),
+    }
+    return {"by_call": by_call, "totals": totals}
+
+
 class GameEngine:
     """메인 게임 엔진 - 한 턴의 전체 플로우를 관리"""
 
     def __init__(self) -> None:
         self.state = WorldState()
-        self.memory = LongTermMemory(storage_path="data/memories.json")
+        self.memory = LongTermMemory()
         self.llm = ClaudeClient()
         self.validator = StateChangeValidator()
         self.loop_detector = LoopDetector()
         self.event_manager = EventManager()
         self.conversation_history: list[dict[str, Any]] = []
-        self.usage_tracker = UsageTracker()
+        self.usage_tracker = UsageTracker(llm_model=self.llm.model)
         self.prompt_optimizer = SystemPromptOptimizer()
         self.performance = PerformanceMonitor()
         self.context_manager = ContextManager()
@@ -67,7 +96,8 @@ class GameEngine:
             self.event_manager.load_events_from_file(events_path)
             logger.info(f"이벤트 {len(self.event_manager.event_templates)}개 로딩 완료")
 
-        logger.info(f"게임 초기화 완료: {world_dir}")
+        logger.info("게임 초기화 완료: %s", world_dir)
+        logger.info("🤖 LLM: %s (max_tokens=%s)", self.llm.model, self.llm.max_tokens)
 
     def process_turn(self, user_input: str) -> dict[str, Any]:
         logger.info(f"=== Turn {self.state.turn + 1} ===")
@@ -83,14 +113,18 @@ class GameEngine:
                     limit=10,          # 5 → 10으로 증가
                 )
                 
-                # Layer 3 로깅
-                logger.info(f"🧠 Layer 3 (LongTermMemory): {len(relevant_memories)}개 기억 검색")
+                # Layer 3: 요약만 INFO, 미리보기는 DEBUG (터미널 스팸 방지)
+                logger.info(f"🧠 Layer 3 (LongTermMemory): {len(relevant_memories)}개 검색")
                 if relevant_memories:
                     for mem in relevant_memories[:3]:
-                        logger.info(f"   [{mem['importance']}] {mem['content'][:60]}...")
+                        logger.debug(
+                            "   L3 [%s] %s...",
+                            mem.get("importance", "?"),
+                            (mem.get("content") or "")[:60],
+                        )
 
             with self.performance.measure("prompt_building"):
-                system_prompt = self._build_system_prompt(relevant_memories)
+                system_blocks = self._build_system_blocks(relevant_memories)
 
             with self.performance.measure("llm_call"):
                 full_history = self.conversation_history.copy()
@@ -104,17 +138,33 @@ class GameEngine:
                 )
                 llm_result = self.llm.process_turn(
                     user_input=user_input,
-                    system_prompt=system_prompt,
+                    system_prompt=system_blocks,
                     conversation_history=optimized_history,
+                    enable_single_pass=True,
                 )
 
+            _calls = int(llm_result.get("llm_api_calls", 1))
+            logger.info("📡 LLM API 호출 수: %s회", _calls)
+            if _calls == 1 and llm_result.get("tool_used"):
+                logger.info("✅ Single-Pass (1회 호출, 툴+대사 동시)")
+            elif _calls == 2:
+                logger.info("⚠️ Tool Use → 2차 호출 (Fallback)")
+
             with self.performance.measure("usage_logging"):
-                turn_cost = self.usage_tracker.log_call(
-                    input_tokens=llm_result.get("input_tokens", 0),
-                    output_tokens=llm_result.get("output_tokens", 0),
-                    cache_creation_tokens=llm_result.get("cache_creation_tokens", 0),
-                    cache_read_tokens=llm_result.get("cache_read_tokens", 0),
-                )
+                segments = llm_result.get("usage_segments")
+                if not segments:
+                    segments = [
+                        {
+                            "input_tokens": llm_result.get("input_tokens", 0),
+                            "output_tokens": llm_result.get("output_tokens", 0),
+                            "cache_creation_tokens": llm_result.get(
+                                "cache_creation_tokens", 0
+                            ),
+                            "cache_read_tokens": llm_result.get("cache_read_tokens", 0),
+                        }
+                    ]
+                turn_cost = self.usage_tracker.log_turn_anthropic(segments)
+                api_usage = _summarize_api_usage(segments)
                 logger.debug(f"Turn cost: ${turn_cost:.6f}")
 
             with self.performance.measure("state_update"):
@@ -182,9 +232,26 @@ class GameEngine:
             "events_triggered": events_triggered,
             "turn_cost": round(turn_cost, 6),
             "input_tokens": llm_result.get("input_tokens", 0),
+            "input_tokens_first": llm_result.get("input_tokens_first", 0),
+            "input_tokens_second": llm_result.get("input_tokens_second", 0),
             "output_tokens": llm_result.get("output_tokens", 0),
+            "cache_creation_tokens": llm_result.get("cache_creation_tokens", 0),
+            "cache_read_tokens": llm_result.get("cache_read_tokens", 0),
+            # Anthropic Messages 응답 usage 기준 (호출별 + 합계). 추정 토큰 아님.
+            "api_usage": api_usage,
+            "llm_api_calls": int(llm_result.get("llm_api_calls", 1)),
         }
 
+        _tot = api_usage["totals"]
+        logger.info(
+            "📡 API usage: input=%s output=%s cache_write=%s cache_read=%s | "
+            "추정 비용(단가표)=$%.6f",
+            _tot["input_tokens"],
+            _tot["output_tokens"],
+            _tot["cache_creation_input_tokens"],
+            _tot["cache_read_input_tokens"],
+            turn_cost,
+        )
         logger.info(f"NPC: {response_text[:100]}...")
         logger.info(
             f"Tool Used: {result['tool_used']}, "
@@ -193,18 +260,29 @@ class GameEngine:
 
         return result
 
-    def _build_system_prompt(self, relevant_memories: list[dict[str, Any]]) -> str:
-        prompt = self.prompt_optimizer.build_optimized_prompt(
+    def _build_system_blocks(
+        self, relevant_memories: list[dict[str, Any]]
+    ) -> tuple[str, str]:
+        """(static, dynamic) 시스템 블록 — static만 Anthropic 프롬프트 캐시 대상."""
+        static, dynamic = self.prompt_optimizer.build_system_blocks(
             world=self.state.world,
             player=self.state.player,
             active_location=self.state.player.get("location", "Unknown"),
             npcs=self.state.npcs,
             memories=relevant_memories,
-            cache_reset_flag=self.cache_reset_flag,  # Cache 초기화 플래그 전달
+            cache_reset_flag=self.cache_reset_flag,
+            llm_model=self.llm.model,
         )
+        total = len(static) + len(dynamic)
+        logger.debug(
+            "System blocks: static=%s dynamic=%s total=%s chars (~%s tokens)",
+            len(static),
+            len(dynamic),
+            total,
+            total // 4,
+        )
+        return static, dynamic
 
-        logger.debug(f"Optimized prompt length: {len(prompt)} chars (~{len(prompt)//4} tokens)")
-        return prompt
     def _format_npc_profiles(self, snapshot: dict[str, Any]) -> str:
         """전체 NPC 데이터에서 상세 프로필 텍스트 생성"""
         profiles: list[str] = []

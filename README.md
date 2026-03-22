@@ -1,88 +1,156 @@
 # Living World Engine
 
-> AI 기반 동적 세계 시뮬레이션 RPG 엔진
+> **AI 기반 동적 세계 시뮬레이션 RPG 엔진** — Anthropic Claude Tool Use로 NPC 대화·관계·장기 기억을 구조화해 관리합니다.
 
-Character.AI와 Replika의 한계를 넘어서는 차세대 대화형 게임 엔진입니다.
+[![Status](https://img.shields.io/badge/status-in%20development-yellow)]()
+[![Python](https://img.shields.io/badge/python-3.11+-blue)]()
+[![Tests](https://img.shields.io/badge/tests-pytest-success)]()
 
-## 핵심 기능
+**포트폴리오·기업/부트캠프 지원용 개인 프로젝트**입니다. 핵심 루프와 비용 최적화는 동작하며, **UI·배포·상용화는 진행 중**입니다.
 
-| 기존 챗봇의 문제 | Living World의 해결책 |
-|---|---|
-| 장기 기억 부족 | 키워드 기반 메모리 검색 + 중요도 관리 |
-| 초기 프롬프트 루프 | 동적 성격 변화 + 경험 기반 성장 |
-| 새 이벤트 없음 | 조건 기반 이벤트 + LLM 즉석 생성 |
-| 상태 변화 없음 | Tool Use 기반 자동 상태 관리 |
+---
+
+## ⚠️ 현재 상태 (개발 중)
+
+| 구분 | 상태 |
+|------|------|
+| 게임 엔진 · CLI 플레이 (`play_game`) | ✅ 동작 |
+| Claude Tool Use · 상태 검증 · 장기 기억 | ✅ 동작 |
+| 프롬프트 캐시 분리 · Single-Pass 툴 경로 | ✅ 적용 |
+| FastAPI 서버 | 부분 / 확장 예정 |
+| React 프론트 | 미구현 (예정) |
+| 프로덕션 배포 · 인증 | 미구현 |
+
+새 기능·리팩터는 **테스트(`pytest`)와 함께** 추가하는 것을 원칙으로 합니다.
+
+---
+
+## 지원·포트폴리오용 한 줄 요약
+
+**“LangChain 없이 Anthropic Messages API로 Tool Use 2단(필요 시 1단) 파이프라인을 직접 구현하고, 시스템 프롬프트 캐시·턴 비용 추적으로 운영 비용을 줄인 대화형 게임 엔진.”**
+
+- 지원서/자소서에 붙이기 좋은 **역할·성과·기술 스택 요약**은 [`docs/PORTFOLIO.md`](docs/PORTFOLIO.md)를 참고하세요.
+
+---
+
+## 최근에 반영한 개선 (요약)
+
+- **프롬프트 캐시(Phase 1):** 시스템 프롬프트를 `static` / `dynamic` 블록으로 분리, Anthropic 프롬프트 캐시가 static에만 적용되도록 구성.
+- **Single-Pass Tool Use (Phase 1.5):** 1차 응답에 NPC 대사(text)와 `tool_use`가 함께 있으면 **2차 API 호출 생략** → 지연·비용 절감 (텍스트 없을 때만 기존 2차 폴백).
+- **Usage / 비용:** API `usage` 기반 턴 비용·캐시 read/write 로깅, 캐시 할인 반영 추정.
+- **컨텍스트:** `ContextManager`로 대화 히스토리·NPC 샘플링, `LongTermMemory`로 중요도·검색 기반 장기 기억.
+
+---
+
+## 핵심 기능 (설계 의도)
+
+| 기존 챗봇의 한계 | 이 프로젝트의 접근 |
+|------------------|-------------------|
+| 장기 기억 부족 | JSON 기반 `LongTermMemory` + 중요도·태그·쿼리 관련도 검색 |
+| 상태가 텍스트에만 존재 | `update_game_state` Tool → 검증 후 `WorldState`·기억 반영 |
+| 비용·지연 | Static/Dynamic 캐시 + Single-Pass(조건부) + 컨텍스트 상한 |
+
+---
 
 ## 기술 스택
 
-- **Backend**: Python 3.11+, FastAPI
-- **AI**: Anthropic Claude API (Sonnet 4.5) - Tool Use 직접 구현
-- **Frontend**: React (예정)
-- **의존성 관리**: Poetry
-
-## 비용 효율성
-
-| 항목 | 예측 |
+| 영역 | 기술 |
 |------|------|
-| Turn당 비용 (Day 6) | $0.036 (~$10.80/월 @10턴, $54/월 @50턴) |
-| 최적화 목표 (Week 3) | $0.006 (~$1.80/월 @10턴, $9/월 @50턴, 83% 절감) |
+| Runtime | Python 3.11+ |
+| LLM | Anthropic Claude (Sonnet 4.5 등), **Tool Use 직접 연동** (LangChain 미사용) |
+| API | FastAPI (확장 예정) |
+| 테스트 | pytest, Mock 기반 LLM 유닛 테스트 |
+| 의존성 | Poetry |
 
-| 경쟁사 | 비용 | 품질 | 비고 |
-|--------|------|------|------|
-| Character.AI | 무료 | 6-7/10 | 대화형 챗봇 집중 |
-| Replika | $5.83/월 | 7-8/10 | 감정형 대화 + 음성 |
-| Living World Engine | $1.8-9/월 | 9/10 | 대화 + 게임 + Tool Use 기반 상태 변화 |
+---
+
+## 아키텍처 하이라이트
+
+1. **`GameEngine.process_turn`:** 메모리 검색 → 시스템 블록(static/dynamic) → `ClaudeClient.process_turn` → 사용량 기록 → `StateChangeValidator` → 상태·장기기억 반영.
+2. **`llm.py`:** `stop_reason == tool_use` 시 `tool_use.input`을 `state_changes`로 사용; Single-Pass 시 1차 텍스트가 있으면 2차 생략.
+3. **`prompt_optimizer.py`:** 세계관·규칙·툴 지침은 static, 장소·NPC·기억은 dynamic.
+
+---
+
+## 추가 구현 계획 (로드맵)
+
+우선순위는 실제 일정에 따라 바뀔 수 있습니다.
+
+| 단계 | 내용 |
+|------|------|
+| 단기 | FastAPI 엔드포인트 정리, 세션·환경 설정 분리, `enable_single_pass` 설정 파일화 |
+| 중기 | React(또는 단일 페이지) UI, 스트리밍 응답 검토, 통합 테스트 보강 |
+| 중기 | 루프 감지 재활성화·튜닝, 이벤트 시스템 고도화 |
+| 장기 | 기억 저장소 PostgreSQL 등 마이그레이션, 멀티 유저·관측(로그/메트릭) |
+
+---
 
 ## 빠른 시작
 
 ```bash
-# 1. 의존성 설치
+# 의존성
 poetry install
 
-# 2. 환경 변수 설정
+# 환경 변수
 cp .env.example .env
-# .env 파일에 ANTHROPIC_API_KEY 입력
+# ANTHROPIC_API_KEY 설정
 
-# 3. API 키 테스트
+# Claude 연결 스모크 테스트
 poetry run python backend/scripts/test_claude_api.py
 
-# 4. 서버 실행 (Week 3~)
+# 터미널에서 플레이 (세계관 경로는 프로젝트에 맞게)
+poetry run python -m backend.play_game
+
+# 유닛 테스트 (통합 테스트는 API 키·마커 필요할 수 있음)
+poetry run pytest backend/tests/unit -q --no-cov
+
+# API 서버 (구성에 따라)
 poetry run uvicorn backend.src.main:app --reload
 ```
 
-## 프로젝트 구조
+---
+
+## 프로젝트 구조 (요약)
 
 ```
-living-world-engine/
-├── pyproject.toml              # 의존성 (Poetry)
-├── .env.example                # 환경 변수 템플릿
+engine/
+├── pyproject.toml
+├── README.md
+├── DEVELOPMENT.md              # 개발 일지·의사결정
+├── docs/
+│   └── PORTFOLIO.md            # 지원서용 요약
 ├── backend/
 │   ├── src/
-│   │   ├── engine/             # 핵심 게임 엔진
-│   │   │   ├── state.py        # 상태 관리 (WorldState)
-│   │   │   ├── memory.py       # 메모리 시스템
-│   │   │   ├── llm.py          # Claude API 통합
-│   │   │   ├── validator.py    # 상태 변경 검증
-│   │   │   ├── loop_detector.py# 루프 감지
-│   │   │   └── game_loop.py    # 메인 게임 루프
-│   │   ├── api/                # REST API (FastAPI)
-│   │   ├── worlds/             # 세계관 데이터
-│   │   └── utils/              # 유틸리티
-│   ├── tests/                  # 테스트
-│   └── scripts/                # 개발 스크립트
-├── frontend/                   # React UI (Week 4)
-└── docs/                       # 문서
+│   │   ├── engine/
+│   │   │   ├── game_loop.py    # 메인 루프
+│   │   │   ├── llm.py          # Claude + Tool Use + Single-Pass
+│   │   │   ├── prompt_optimizer.py
+│   │   │   ├── state.py
+│   │   │   ├── validator.py
+│   │   │   ├── long_term_memory.py
+│   │   │   ├── context_manager.py
+│   │   │   ├── events.py
+│   │   │   └── loop_detector.py
+│   │   ├── api/
+│   │   ├── utils/              # config, logger, usage_tracker …
+│   │   └── worlds/
+│   ├── tests/
+│   ├── scripts/
+│   └── play_game.py
+└── frontend/                   # 예정
 ```
 
-## 개발 일정
+---
 
-| 주차 | 목표 | 상태 |
-|------|------|------|
-| Week 1 (2/15~) | 핵심 엔진 + LLM 통합 | 진행중 |
-| Week 2 | 이벤트 + 루프 방지 | 예정 |
-| Week 3 | 세계관 + API | 예정 |
-| Week 4 | UI + 문서 + 데모 | 예정 |
+## 문서
 
-## 라이선스
+| 파일 | 설명 |
+|------|------|
+| [docs/PORTFOLIO.md](docs/PORTFOLIO.md) | 기업·부트캠프 지원용 요약 (복붙용) |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | 일자별 개발 기록 |
 
-학교 과제 + 포트폴리오 프로젝트
+---
+
+## 라이선스 · 문의
+
+개인 학습 및 **포트폴리오 목적** 프로젝트입니다. 상업적 이용 시 별도 정리가 필요할 수 있습니다.

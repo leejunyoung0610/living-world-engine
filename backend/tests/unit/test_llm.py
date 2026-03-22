@@ -128,6 +128,97 @@ class TestToolUseHandling:
 
         # 2번 호출되었는지 확인
         assert claude_client.client.messages.create.call_count == 2
+        assert result["llm_api_calls"] == 2
+
+    def test_single_pass_skips_second_call_when_text_and_tool(
+        self, claude_client: ClaudeClient
+    ) -> None:
+        """1차에 text + tool_use 동시 → Single-Pass로 2차 스킵"""
+        tool_input = {
+            "relationship_changes": [
+                {"character": "엘레나", "stat": "affection", "change": 5, "reason": "선물"}
+            ],
+            "new_memories": [
+                {"content": "꽃을 선물 받았다", "emotion": "joy", "importance": 7}
+            ],
+        }
+        first_response = FakeResponse(
+            content=[
+                FakeTextBlock(text="고마워, 선배."),
+                FakeToolUseBlock(input=tool_input),
+            ],
+            stop_reason="tool_use",
+        )
+        claude_client.client.messages.create = MagicMock(return_value=first_response)
+
+        result = claude_client.process_turn(
+            user_input="선물한다",
+            system_prompt="너는 NPC야.",
+            enable_single_pass=True,
+        )
+
+        assert claude_client.client.messages.create.call_count == 1
+        assert result["llm_api_calls"] == 1
+        assert result["tool_used"] is True
+        assert result["response"] == "고마워, 선배."
+        assert result["state_changes"] == tool_input
+        assert result["input_tokens_second"] == 0
+
+    def test_enable_single_pass_false_always_second_call_despite_first_text(
+        self, claude_client: ClaudeClient
+    ) -> None:
+        """Single-Pass 끄면 1차에 대사가 있어도 2차 호출"""
+        tool_input = {
+            "relationship_changes": [],
+            "new_memories": [],
+        }
+        first_response = FakeResponse(
+            content=[
+                FakeTextBlock(text="1차 대사"),
+                FakeToolUseBlock(input=tool_input),
+            ],
+            stop_reason="tool_use",
+        )
+        second_response = FakeResponse(
+            content=[FakeTextBlock(text="2차 대사")],
+            stop_reason="end_turn",
+        )
+        claude_client.client.messages.create = MagicMock(
+            side_effect=[first_response, second_response]
+        )
+
+        result = claude_client.process_turn(
+            user_input="테스트",
+            system_prompt="시스템",
+            enable_single_pass=False,
+        )
+
+        assert claude_client.client.messages.create.call_count == 2
+        assert result["llm_api_calls"] == 2
+        assert result["response"] == "2차 대사"
+        assert result["tool_used"] is True
+
+    def test_tuple_system_prompt_cache_only_on_static_block(
+        self, claude_client: ClaudeClient
+    ) -> None:
+        """(static, dynamic)이면 첫 system 블록에만 cache_control"""
+        claude_client.client.messages.create = MagicMock(
+            return_value=FakeResponse(
+                content=[FakeTextBlock(text="응.")], stop_reason="end_turn"
+            )
+        )
+        claude_client.process_turn(
+            user_input="hi",
+            system_prompt=("STATIC_CACHED", "DYNAMIC_SUFFIX"),
+        )
+        assert claude_client.client.messages.create.call_count == 1
+        kwargs = claude_client.client.messages.create.call_args.kwargs
+        system = kwargs["system"]
+        assert len(system) == 2
+        assert system[0]["text"] == "STATIC_CACHED"
+        assert system[0].get("cache_control") == {"type": "ephemeral"}
+        assert system[1]["text"] == "DYNAMIC_SUFFIX"
+        assert "cache_control" not in system[1]
 
     def test_tool_use_returns_state_changes(self, claude_client: ClaudeClient) -> None:
         """Tool Use 시 state_changes가 올바르게 반환되는지"""
@@ -241,10 +332,16 @@ class TestToolUseHandling:
         second_call_kwargs = claude_client.client.messages.create.call_args_list[1]
         messages = second_call_kwargs.kwargs.get("messages") or second_call_kwargs[1].get("messages")
 
-        # assistant 메시지에 원래 content가 들어있는지 확인
+        # assistant 메시지에 API 형식(dict)의 tool_use가 들어있는지 확인
         assistant_msg = messages[-2]
         assert assistant_msg["role"] == "assistant"
-        assert assistant_msg["content"] == first_response.content
+        assert isinstance(assistant_msg["content"], list)
+        assert assistant_msg["content"][0] == {
+            "type": "tool_use",
+            "id": tool_block.id,
+            "name": tool_block.name,
+            "input": tool_block.input,
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -393,7 +490,7 @@ class TestEdgeCases:
         assert claude_client.client.messages.create.call_count == 1
 
     def test_conversation_history_passed_correctly(self, claude_client: ClaudeClient) -> None:
-        """대화 히스토리가 올바르게 전달되는지"""
+        """대화 히스토리가 그대로 messages로 전달되는지 (이미 현재 user 턴 포함)"""
         response = FakeResponse(
             content=[FakeTextBlock(text="네!")],
             stop_reason="end_turn",
@@ -403,6 +500,7 @@ class TestEdgeCases:
         history = [
             {"role": "user", "content": "이전 대화"},
             {"role": "assistant", "content": "이전 응답"},
+            {"role": "user", "content": "새 입력"},
         ]
 
         claude_client.process_turn(
@@ -414,7 +512,6 @@ class TestEdgeCases:
         call_kwargs = claude_client.client.messages.create.call_args
         messages = call_kwargs.kwargs.get("messages") or call_kwargs[1].get("messages")
 
-        # 히스토리 + 새 입력 = 3개
         assert len(messages) == 3
         assert messages[0]["content"] == "이전 대화"
         assert messages[1]["content"] == "이전 응답"

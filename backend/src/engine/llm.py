@@ -2,7 +2,7 @@
 ClaudeClient - Anthropic Claude API 통합
 
 LangChain 없이 Claude API를 직접 사용합니다.
-올바른 Tool Use 2단계 호출을 구현합니다.
+Tool Use: 기본 2단계 호출 + Single-Pass(1차에 텍스트 있으면 2차 생략).
 
 TODO: Week 1 Day 5-7에 구현 완성
 """
@@ -26,7 +26,8 @@ GAME_STATE_TOOL = {
     "description": (
         "플레이어의 행동에 따른 게임 상태 변경을 제안합니다. "
         "관계 변화, 새 기억, 성격 변화 등을 포함합니다. "
-        "반드시 이 도구를 사용하여 상태 변경을 제안하세요."
+        "반드시 이 도구를 사용하여 상태 변경을 제안하세요. "
+        "도구를 사용할 때도 NPC 대사(텍스트)는 같은 assistant 응답에 반드시 함께 포함하세요."
     ),
     "input_schema": {
         "type": "object",
@@ -95,37 +96,36 @@ class ClaudeClient:
         self.model = settings.llm_model
         self.max_tokens = settings.llm_max_tokens
 
-    def process_turn(
-        self,
-        user_input: str,
-        system_prompt: str,
-        conversation_history: list[dict[str, Any]] | None = None,
-    ) -> dict[str, Any]:
-        """
-        사용자 입력을 처리하고 응답 + 상태 변경을 반환합니다.
-
-        올바른 2단계 Tool Use 처리:
-        1. 1차 호출 → tool_use 응답
-        2. tool 실행 + tool_result 생성
-        3. 2차 호출 → 최종 텍스트 응답
-
-        Args:
-            user_input: 현재 턴의 사용자 입력
-            system_prompt: 시스템 프롬프트
-            conversation_history: 최적화된 대화 히스토리 (user_input 이미 포함됨)
-
-        Returns:
-            {
-                "response": str,           # NPC의 텍스트 응답
-                "state_changes": dict,     # 상태 변경 데이터
-                "tool_used": bool,         # Tool Use 발생 여부
-                "input_tokens": int,
-                "output_tokens": int,
-            }
-        """
-        # conversation_history에 이미 user_input이 포함되어 있음
-        messages = conversation_history or []
-        system_messages = [
+    @staticmethod
+    def _system_messages_from_prompt(
+        system_prompt: str | tuple[str, str],
+    ) -> list[dict[str, Any]]:
+        """Anthropic system 파라미터 구성. (static, dynamic)이면 static에만 프롬프트 캐시."""
+        if isinstance(system_prompt, tuple):
+            static, dynamic = system_prompt
+            st = (static or "").strip()
+            dy = (dynamic or "").strip()
+            blocks: list[dict[str, Any]] = []
+            if st:
+                blocks.append(
+                    {
+                        "type": "text",
+                        "text": st,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                )
+            if dy:
+                blocks.append({"type": "text", "text": dy})
+            if not blocks:
+                blocks.append(
+                    {
+                        "type": "text",
+                        "text": "",
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                )
+            return blocks
+        return [
             {
                 "type": "text",
                 "text": system_prompt,
@@ -133,11 +133,54 @@ class ClaudeClient:
             }
         ]
 
+    def process_turn(
+        self,
+        user_input: str,
+        system_prompt: str | tuple[str, str],
+        conversation_history: list[dict[str, Any]] | None = None,
+        *,
+        enable_single_pass: bool = True,
+    ) -> dict[str, Any]:
+        """
+        사용자 입력을 처리하고 응답 + 상태 변경을 반환합니다.
+
+        Tool Use 시 기본(2단계):
+        1. 1차 호출 → tool_use 응답
+        2. tool_result 전달
+        3. 2차 호출 → 최종 텍스트 응답
+
+        Single-Pass (``enable_single_pass=True``): 1차 응답에 텍스트가 있으면 2차 생략.
+
+        Args:
+            enable_single_pass: True면 1차에 NPC 대사 텍스트가 있을 때 2차 API 호출 생략.
+
+        Returns:
+            기존 필드 + ``llm_api_calls`` (1 또는 2).
+        """
+        # conversation_history에 이미 user_input이 포함되어 있음
+        messages = conversation_history or []
+        system_messages = self._system_messages_from_prompt(system_prompt)
+
         tools = self._get_tools()
         tools_str = json.dumps(tools, ensure_ascii=False)
         logger.debug(f"Tools definition: {len(tools_str)} chars (~{len(tools_str)//4} tokens)")
 
-        logger.debug(f"System prompt: {len(system_prompt)} chars (~{len(system_prompt)//4} tokens)")
+        if isinstance(system_prompt, tuple):
+            s_len = len(system_prompt[0] or "")
+            d_len = len(system_prompt[1] or "")
+            logger.debug(
+                "System prompt (split): static=%s dynamic=%s chars (~%s / ~%s tokens)",
+                s_len,
+                d_len,
+                s_len // 4,
+                d_len // 4,
+            )
+        else:
+            logger.debug(
+                "System prompt: %s chars (~%s tokens)",
+                len(system_prompt),
+                len(system_prompt) // 4,
+            )
         logger.debug(f"User input: {len(user_input)} chars (~{len(user_input)//4} tokens)")
         logger.debug(f"History messages: {len(messages)}")
         logger.debug(f"LLM 1차 호출: {user_input[:50]}...")
@@ -162,19 +205,30 @@ class ClaudeClient:
 
         # Tool Use 체크
         if response.stop_reason == "tool_use":
-            return self._handle_tool_use(response, messages, system_messages, tools)
+            return self._handle_tool_use(
+                response,
+                messages,
+                system_messages,
+                tools,
+                enable_single_pass=enable_single_pass,
+            )
         else:
             # Tool Use 없이 텍스트만 온 경우
             text = self._extract_text(response)
             in_tokens, out_tokens = self._extract_usage(response)
+            seg = self._usage_segment_from_response(response)
             return {
                 "response": text,
                 "state_changes": {},
                 "tool_used": False,
                 "input_tokens": in_tokens,
+                "input_tokens_first": in_tokens,
+                "input_tokens_second": 0,
                 "output_tokens": out_tokens,
-                "cache_creation_tokens": 0,
-                "cache_read_tokens": 0,
+                "cache_creation_tokens": seg["cache_creation_tokens"],
+                "cache_read_tokens": seg["cache_read_tokens"],
+                "usage_segments": [seg],
+                "llm_api_calls": 1,
             }
 
     def _handle_tool_use(
@@ -183,8 +237,10 @@ class ClaudeClient:
         messages: list[dict[str, Any]],
         system_messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
+        *,
+        enable_single_pass: bool = True,
     ) -> dict[str, Any]:
-        """Tool Use 응답을 처리하고 2차 호출 수행"""
+        """Tool Use 응답을 처리하고, 필요 시 2차 호출 수행."""
         # Tool Use 블록 추출
         tool_use_block = None
         state_changes: dict[str, Any] = {}
@@ -197,10 +253,20 @@ class ClaudeClient:
 
         if not tool_use_block:
             logger.warning("tool_use stop_reason이지만 tool_use 블록을 찾을 수 없음")
+            in0, out0 = self._extract_usage(response)
+            seg = self._usage_segment_from_response(response)
             return {
                 "response": self._extract_text(response),
                 "state_changes": {},
                 "tool_used": False,
+                "input_tokens": in0,
+                "input_tokens_first": in0,
+                "input_tokens_second": 0,
+                "output_tokens": out0,
+                "cache_creation_tokens": seg["cache_creation_tokens"],
+                "cache_read_tokens": seg["cache_read_tokens"],
+                "usage_segments": [seg],
+                "llm_api_calls": 1,
             }
 
         logger.debug(f"Tool Use 감지: {tool_use_block.name}")
@@ -208,6 +274,29 @@ class ClaudeClient:
 
         # 1차 응답에 텍스트가 있으면 fallback으로 보관
         first_text = self._extract_text(response)
+
+        # Single-Pass: 같은 응답에 NPC 대사가 있으면 2차 호출 생략
+        if enable_single_pass and first_text.strip():
+            logger.info(
+                "✅ 1차 응답에 text 있음 → 2차 스킵 (Single-Pass Tool Use)"
+            )
+            in1, out1 = self._extract_usage(response)
+            seg = self._usage_segment_from_response(response)
+            return {
+                "response": first_text.strip(),
+                "state_changes": state_changes,
+                "tool_used": True,
+                "input_tokens": in1,
+                "input_tokens_first": in1,
+                "input_tokens_second": 0,
+                "output_tokens": out1,
+                "cache_creation_tokens": seg["cache_creation_tokens"],
+                "cache_read_tokens": seg["cache_read_tokens"],
+                "usage_segments": [seg],
+                "llm_api_calls": 1,
+            }
+
+        logger.info("⚠️ 1차 응답에 text 없음 → 2차 호출 (Fallback)")
 
         # Tool Result 생성 (간소하게)
         tool_result = {
@@ -275,22 +364,57 @@ class ClaudeClient:
         read1 = getattr(response.usage, "cache_read_input_tokens", 0) if getattr(response, "usage", None) else 0
         read2 = getattr(final_response.usage, "cache_read_input_tokens", 0) if getattr(final_response, "usage", None) else 0
 
+        seg1 = {
+            "input_tokens": in1,
+            "output_tokens": out1,
+            "cache_creation_tokens": creation1,
+            "cache_read_tokens": read1,
+        }
+        seg2 = {
+            "input_tokens": in2,
+            "output_tokens": out2,
+            "cache_creation_tokens": creation2,
+            "cache_read_tokens": read2,
+        }
         return {
             "response": final_text,
             "state_changes": state_changes,
             "tool_used": True,
             "input_tokens": in1 + in2,
+            "input_tokens_first": in1,
+            "input_tokens_second": in2,
             "output_tokens": out1 + out2,
             "cache_creation_tokens": creation1 + creation2,
             "cache_read_tokens": read1 + read2,
+            "usage_segments": [seg1, seg2],
+            "llm_api_calls": 2,
+        }
+
+    @staticmethod
+    def _usage_segment_from_response(response: Any) -> dict[str, int]:
+        """Messages API usage → UsageTracker.log_turn_anthropic용 세그먼트."""
+        u = getattr(response, "usage", None)
+        if not u:
+            return {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "cache_creation_tokens": 0,
+                "cache_read_tokens": 0,
+            }
+        return {
+            "input_tokens": getattr(u, "input_tokens", 0) or 0,
+            "output_tokens": getattr(u, "output_tokens", 0) or 0,
+            "cache_creation_tokens": getattr(u, "cache_creation_input_tokens", 0) or 0,
+            "cache_read_tokens": getattr(u, "cache_read_input_tokens", 0) or 0,
         }
 
     def _extract_text(self, response: Any) -> str:
-        """응답에서 텍스트 블록 추출"""
+        """응답에서 모든 text 블록을 순서대로 이어 붙임 (Single-Pass 대비)."""
+        parts: list[str] = []
         for block in response.content:
-            if block.type == "text":
-                return block.text
-        return ""
+            if block.type == "text" and getattr(block, "text", None):
+                parts.append(block.text)
+        return "\n\n".join(parts) if parts else ""
 
     def _extract_usage(self, response: Any) -> tuple[int, int]:
         """응답에서 사용된 토큰 수 추출"""

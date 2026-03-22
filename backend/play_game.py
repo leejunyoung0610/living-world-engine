@@ -4,10 +4,12 @@ Living World Engine - CLI Game Interface
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
 from src.engine.game_loop import GameEngine
+from src.utils.config import MEMORIES_JSON_PATH, PROJECT_ROOT, get_settings
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -30,6 +32,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Prompt Cache 강제 초기화 (System Prompt에 타임스탬프 추가)",
     )
+    parser.add_argument(
+        "--llm",
+        default=None,
+        metavar="MODEL",
+        help="LLM 일회성 지정 (.env 보다 우선). 예: sonnet, haiku, claude-sonnet-4-5-20250929",
+    )
     return parser.parse_args()
 
 
@@ -42,6 +50,7 @@ def print_game_state(engine: GameEngine):
     state = engine.state
 
     print(f"🌍 World: {state.world.get('name', 'Unknown')}")
+    print(f"🧠 LLM: {engine.llm.model}")
     print(f"👤 Player: {state.player.get('name', 'Unknown')}")
     print(f"🔄 Turn: {state.turn}")
     print(f"📍 Location: {state.player.get('location', 'Unknown')}")
@@ -68,11 +77,11 @@ def main():
     if args.reset:
         print("🗑️  게임 초기화 중...")
         
-        # 1. LongTermMemory 초기화
-        memory_path = Path(__file__).parent / "data" / "memories.json"
+        # 1. LongTermMemory 초기화 (엔진과 동일 경로: PROJECT_ROOT/data/memories.json)
+        memory_path = MEMORIES_JSON_PATH
         if memory_path.exists():
             memory_path.unlink()
-            print("   ✅ 장기 기억 삭제: memories.json")
+            print(f"   ✅ 장기 기억 삭제: {memory_path}")
             logger.info(f"Memory reset: {memory_path} deleted")
         
         # 2. 대화 히스토리는 자동으로 새로 시작 (메모리 초기화)
@@ -87,11 +96,22 @@ def main():
         logger.info(f"Full game reset initiated for world: {args.world}")
         print_separator()
 
-    world_dir = Path(__file__).parent / "src/worlds" / args.world
+    world_dir = Path(__file__).parent / "src" / "worlds" / args.world
     if not world_dir.exists():
         logger.error(f"World directory {world_dir} not found")
         print(f"❌ World '{args.world}' 폴더를 찾을 수 없습니다.")
         return 1
+
+    env_file = PROJECT_ROOT / ".env"
+    if args.llm:
+        os.environ["LLM_MODEL"] = args.llm.strip()
+        print(f"📌 --llm 적용: LLM_MODEL={args.llm.strip()} (.env보다 우선)\n")
+    shell_llm = os.environ.get("LLM_MODEL")
+    print(f"📌 .env 경로: {env_file}")
+    if shell_llm and not args.llm:
+        print(f"   (환경변수 LLM_MODEL={shell_llm!r} 가 있으면 .env 기본값을 덮어씁니다)")
+    _cfg = get_settings()
+    print(f"📌 실제 사용 모델: {_cfg.llm_model}\n")
 
     engine = GameEngine()
     
@@ -130,11 +150,32 @@ def main():
             response = result["response"]
 
             print(f"🎭 {response}")
-            print(f"\n💰 Turn Cost: ${result['turn_cost']:.6f}")
-            print(f"   Input: {result['input_tokens']:,} tokens | "
-                  f"Output: {result['output_tokens']:,} tokens")
+            api_usage = result.get("api_usage") or {}
+            by_call = api_usage.get("by_call") or []
+            totals = api_usage.get("totals") or {}
+            print("\n📡 Anthropic API 실제 토큰 (응답 usage, 추정 아님)")
+            if by_call:
+                for c in by_call:
+                    idx = c.get("call_index", 0)
+                    print(
+                        f"   호출 {idx}: input={c.get('input_tokens', 0):,}  "
+                        f"output={c.get('output_tokens', 0):,}  "
+                        f"cache_write={c.get('cache_creation_input_tokens', 0):,}  "
+                        f"cache_read={c.get('cache_read_input_tokens', 0):,}"
+                    )
+            if totals:
+                print(
+                    f"   ─ 합계: input={totals.get('input_tokens', 0):,}  "
+                    f"output={totals.get('output_tokens', 0):,}  "
+                    f"cache_write={totals.get('cache_creation_input_tokens', 0):,}  "
+                    f"cache_read={totals.get('cache_read_input_tokens', 0):,}"
+                )
+            print(
+                f"\n💰 추정 비용 (UsageTracker 단가표 기준, 턴 합산): "
+                f"${result['turn_cost']:.6f}"
+            )
             stats = engine.usage_tracker.get_stats()
-            print(f"   Total Spent: ${stats['total_cost']:.6f}")
+            print(f"   누적 추정 비용: ${stats['total_cost']:.6f}")
 
             print_separator()
             print_game_state(engine)

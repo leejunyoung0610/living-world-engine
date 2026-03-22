@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import List, Dict, Optional
 import logging
 
+from ..utils.config import MEMORIES_JSON_PATH
+
 logger = logging.getLogger(__name__)
 
 
@@ -45,8 +47,9 @@ def normalize_query(query: str, npc_names: List[str] = None) -> List[str]:
 class LongTermMemory:
     """장기 기억 시스템 - JSON 기반 (Week 3에 PostgreSQL 전환)"""
     
-    def __init__(self, storage_path: str = "data/memories.json"):
-        self.storage_path = Path(storage_path)
+    def __init__(self, storage_path: str | Path | None = None):
+        """storage_path 미지정 시 프로젝트 루트 data/memories.json (config.MEMORIES_JSON_PATH)."""
+        self.storage_path = Path(storage_path) if storage_path is not None else MEMORIES_JSON_PATH
         self.memories: List[Dict] = []
         self.npc_names: List[str] = []  # 동적으로 설정됨
         self._load()

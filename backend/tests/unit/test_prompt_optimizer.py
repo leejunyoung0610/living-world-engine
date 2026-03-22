@@ -28,7 +28,25 @@ def test_prompt_length():
         memories=memories,
     )
 
-    assert len(prompt) < 2000, f"Prompt too long: {len(prompt)} chars"
+    # 공통 코어만 (Sonnet 경로) — 슬림 유지
+    assert len(prompt) < 3500, f"Prompt too long: {len(prompt)} chars"
+    assert "[Haiku·경량 모델 전용" not in prompt
+
+
+def test_haiku_model_gets_supplement_prefix():
+    """Haiku 모델 ID면 전용 보강 블록이 앞에 붙는다"""
+    optimizer = SystemPromptOptimizer()
+    prompt = optimizer.build_optimized_prompt(
+        world={"name": "Test World"},
+        player={"turn": 1, "name": "P", "location": "x"},
+        active_location="x",
+        npcs=[],
+        memories=[],
+        llm_model="claude-haiku-4-5-20251001",
+    )
+    assert "[Haiku·경량 모델 전용" in prompt
+    assert prompt.index("[Haiku·경량 모델 전용") < prompt.index("너는 Test World")
+    assert len(prompt) < 5500
 
 
 def test_only_active_location_npcs():
@@ -50,6 +68,35 @@ def test_only_active_location_npcs():
 
     assert "Here" in prompt
     assert "There" not in prompt
+
+
+def test_build_system_blocks_split_for_cache():
+    """static / dynamic 분리 — dynamic에만 상황·NPC·기억"""
+    optimizer = SystemPromptOptimizer()
+    memories = [{"content": "Secret", "importance": 8}]
+    npcs = [
+        {
+            "id": "n1",
+            "name": "OnlyHere",
+            "location": "A",
+            "role": "R",
+            "persona": {"traits": ["t"]},
+        }
+    ]
+    static, dynamic = optimizer.build_system_blocks(
+        world={"name": "W"},
+        player={"turn": 2, "name": "P", "location": "A"},
+        active_location="A",
+        npcs=npcs,
+        memories=memories,
+    )
+    assert "## 현재 상황" in dynamic
+    assert "OnlyHere" in dynamic
+    assert "Secret" in dynamic
+    assert "## 현재 상황" not in static
+    assert "OnlyHere" not in static
+    assert "## Tool (update_game_state)" in static
+    assert "## 응답 규칙" in static
 
 
 def test_only_important_memories():

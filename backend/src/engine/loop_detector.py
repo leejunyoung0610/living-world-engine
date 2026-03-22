@@ -18,7 +18,7 @@ logger = logging.getLogger("living_world")
 class LoopDetector:
     """대화 루프 감지 및 방지"""
 
-    STAGNATION_THRESHOLD = 0.05  # 상태 변화 최소값
+    STAGNATION_THRESHOLD = 0.001  # 상태 변화 최소값 (0.05 → 0.001로 완화)
     SIMILARITY_THRESHOLD = 0.8  # 대사 유사도 임계값
     MIN_STATES_FOR_DETECTION = 5  # 감지 최소 턴 수
 
