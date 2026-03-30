@@ -33,8 +33,8 @@ def test_prompt_length():
     assert "[Haiku·경량 모델 전용" not in prompt
 
 
-def test_haiku_model_gets_supplement_prefix():
-    """Haiku 모델 ID면 전용 보강 블록이 앞에 붙는다"""
+def test_no_haiku_supplement_in_prompt():
+    """Sonnet 단일 경로 — Haiku 전용 접두 없음"""
     optimizer = SystemPromptOptimizer()
     prompt = optimizer.build_optimized_prompt(
         world={"name": "Test World"},
@@ -42,11 +42,10 @@ def test_haiku_model_gets_supplement_prefix():
         active_location="x",
         npcs=[],
         memories=[],
-        llm_model="claude-haiku-4-5-20251001",
     )
-    assert "[Haiku·경량 모델 전용" in prompt
-    assert prompt.index("[Haiku·경량 모델 전용") < prompt.index("너는 Test World")
-    assert len(prompt) < 5500
+    assert "[Haiku·경량 모델 전용" not in prompt
+    assert "너는 Test World" in prompt
+    assert len(prompt) < 4500
 
 
 def test_only_active_location_npcs():

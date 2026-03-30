@@ -8,9 +8,9 @@ import os
 import sys
 from pathlib import Path
 
-from src.engine.game_loop import GameEngine
-from src.utils.config import MEMORIES_JSON_PATH, PROJECT_ROOT, get_settings
-from src.utils.logger import get_logger
+from backend.src.engine.game_loop import GameEngine
+from backend.src.utils.config import MEMORIES_JSON_PATH, PROJECT_ROOT, get_settings
+from backend.src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -36,7 +36,7 @@ def parse_args() -> argparse.Namespace:
         "--llm",
         default=None,
         metavar="MODEL",
-        help="LLM 일회성 지정 (.env 보다 우선). 예: sonnet, haiku, claude-sonnet-4-5-20250929",
+        help="LLM 일회성 지정 (.env 보다 우선). 예: sonnet, claude-sonnet-4-5-20250929",
     )
     return parser.parse_args()
 

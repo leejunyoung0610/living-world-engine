@@ -16,6 +16,7 @@ from anthropic import Anthropic
 
 from ..utils.config import get_settings
 from ..utils.logger import get_logger
+from .context_manager import ContextManager
 
 logger = get_logger(__name__)
 
@@ -305,10 +306,8 @@ class ClaudeClient:
             "content": "Success",
         }
 
-        # 2차 호출용 메시지 구성
-        # 핵심 최적화: 2차 호출 시 Layer 1 (최근 4턴 = 8개) + Tool Use만 전송
-        # Layer 2 (NPC Sampling)는 1차에서만 필요, 2차는 즉각 응답 생성용
-        recent_count = 8  # 최근 4턴 = 8개 메시지
+        # 2차 호출용 메시지 구성 — Layer 1과 동일한 최근 턴 수 (ContextManager.KEEP_RECENT_TURNS)
+        recent_count = ContextManager.KEEP_RECENT_TURNS * 2
         messages_recent = messages[-recent_count:] if len(messages) > recent_count else messages.copy()
         
         messages_for_2nd = messages_recent.copy()

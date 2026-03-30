@@ -134,7 +134,7 @@ class GameEngine:
                 optimized_history = self.context_manager.build_context(
                     user_input,
                     full_history,
-                    max_tokens=2000,  # 3000 → 2000 (보수적)
+                    max_tokens=ContextManager.MAX_CONTEXT_TOKENS,
                 )
                 llm_result = self.llm.process_turn(
                     user_input=user_input,
@@ -271,7 +271,6 @@ class GameEngine:
             npcs=self.state.npcs,
             memories=relevant_memories,
             cache_reset_flag=self.cache_reset_flag,
-            llm_model=self.llm.model,
         )
         total = len(static) + len(dynamic)
         logger.debug(

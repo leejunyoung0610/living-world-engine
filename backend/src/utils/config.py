@@ -51,9 +51,10 @@ class Settings(BaseSettings):
     # 게임
     default_world: str = "arcane_academy"
     max_turns_per_session: int = 100
-    # 기본: Sonnet 4.5 (품질). 비용 절감 시 .env 에 LLM_MODEL=haiku 또는 hikaru
+    # 기본: Sonnet 4.5. (선택) .env 에서만 Haiku 등 다른 ID 지정 가능 — 단가는 UsageTracker가 모델명으로 구분
     llm_model: str = CLAUDE_MODEL_SONNET_45
-    llm_max_tokens: int = 2000
+    # 출력 상한 — 낮출수록 비용↓ (툴 JSON+대사 동시 응답 고려, 너무 낮으면 잘림)
+    llm_max_tokens: int = 768
 
     @field_validator("llm_model", mode="before")
     @classmethod

@@ -9,16 +9,18 @@ logger = get_logger(__name__)
 
 class ContextManager:
     """3-Layer Memory Architecture - Context Window 최적화
-    
-    Layer 1 (Immediate): 최근 4턴 - 즉각적인 대화 흐름
-    Layer 2 (NPC Relationship): 중기 범위(최근 30턴)에서 NPC별 샘플링 - 관계 맥락
-    Layer 3 (Critical Events): LongTermMemory가 담당 - 중요 사건 기억
+
+    Layer 1 (Immediate): 최근 N턴(KEEP_RECENT_TURNS) — 즉각 대화
+    Layer 2 (NPC Relationship): 중기 윈도에서 NPC별 샘플링 — 관계 맥락
+    Layer 3 (Critical Events): LongTermMemory + 시스템 프롬프트 — 중요 사건
     """
 
-    MAX_CONTEXT_TOKENS = 2000  # 보수적 설정
-    KEEP_RECENT_TURNS = 4      # Layer 1: 최근 4턴 무조건 유지
-    NPC_SAMPLING_WINDOW = 30   # Layer 2: 최근 30턴 범위에서 샘플링
-    NPC_RECENT_TURNS = 2       # Layer 2: NPC별 최근 2턴씩 (3→2 최적화)
+    # Phase 2: 컨텍스트 예산 축소 (입력 토큰·비용 절감, 품질는 플레이로 검증)
+    MAX_CONTEXT_TOKENS = 1600
+    KEEP_RECENT_TURNS = 3      # Layer 1: 최근 N턴 (메시지 2N개)
+    NPC_SAMPLING_WINDOW = 20   # Layer 2: 샘플링 윈도(턴 단위 ×2는 build에서 처리)
+    NPC_RECENT_TURNS = 1       # Layer 2: NPC별 최근 N턴 (2N개 메시지까지)
+    OTHER_CAP = 1              # Layer 2: NPC 미포함(other) 메시지 최대 개수
 
     def __init__(self):
         self.npc_names = []  # 동적으로 설정됨
@@ -34,42 +36,71 @@ class ContextManager:
         full_history: List[Dict[str, str]],
         max_tokens: int = MAX_CONTEXT_TOKENS,
     ) -> List[Dict[str, str]]:
-        """3-Layer Context 구성
-        
-        Layer 1: 최근 4턴 무조건 유지 (즉각 흐름)
-        Layer 2: 중기 범위(최근 30턴)에서 NPC별 샘플링 (관계 맥락)
-        Layer 3: LongTermMemory가 System Prompt에 제공 (중요 사건)
+        """3-Layer Context 구성.
+
+        Layer 1·2는 본 클래스. Layer 3는 LongTermMemory + 시스템 프롬프트.
         """
         if not full_history:
             return []
 
-        # Layer 1: 최근 4턴 무조건 유지
+        # Layer 1: 최근 N턴
         recent_messages = self._keep_recent(full_history, self.KEEP_RECENT_TURNS)
-        
+
         # Layer 2: 중기 범위에서 NPC별 샘플링
         sampling_window_start = max(
-            0, 
-            len(full_history) - len(recent_messages) - self.NPC_SAMPLING_WINDOW * 2
+            0,
+            len(full_history) - len(recent_messages) - self.NPC_SAMPLING_WINDOW * 2,
         )
-        sampling_window = full_history[sampling_window_start:-len(recent_messages)]
-        
-        npc_sampled = self._sample_by_npc(sampling_window, self.NPC_RECENT_TURNS)
-        
-        # 조합 (시간 순서 유지됨)
+        sampling_window = full_history[sampling_window_start : -len(recent_messages)]
+
+        layer2_turns = self.NPC_RECENT_TURNS
+        npc_sampled = (
+            self._sample_by_npc(sampling_window, layer2_turns)
+            if sampling_window and layer2_turns > 0
+            else []
+        )
         optimized = npc_sampled + recent_messages
-        
-        # 토큰 확인
         total_tokens = self._count_tokens(optimized)
-        
-        # 초과 시 NPC당 턴 수 줄이기
-        if total_tokens > max_tokens:
-            logger.warning(f"Token budget exceeded ({total_tokens} > {max_tokens}), reducing NPC turns")
-            npc_sampled = self._sample_by_npc(sampling_window, 2)  # 3턴 → 2턴
+
+        # 예산 초과 → Layer2부터 턴 수 단계적 감소
+        while total_tokens > max_tokens and layer2_turns > 0:
+            logger.warning(
+                "Token budget exceeded (%s > %s), Layer2 turns %s → %s",
+                total_tokens,
+                max_tokens,
+                layer2_turns,
+                layer2_turns - 1,
+            )
+            layer2_turns -= 1
+            npc_sampled = (
+                self._sample_by_npc(sampling_window, layer2_turns)
+                if sampling_window and layer2_turns > 0
+                else []
+            )
             optimized = npc_sampled + recent_messages
             total_tokens = self._count_tokens(optimized)
-        
+
+        # 여전히 초과 → Layer 1(최근 턴)만 줄임 (최소 1턴 = 2메시지)
+        keep = self.KEEP_RECENT_TURNS
+        while total_tokens > max_tokens and keep > 1:
+            logger.warning(
+                "Token budget exceeded (%s > %s), Layer1 turns %s → %s",
+                total_tokens,
+                max_tokens,
+                keep,
+                keep - 1,
+            )
+            keep -= 1
+            recent_messages = self._keep_recent(full_history, keep)
+            optimized = npc_sampled + recent_messages
+            total_tokens = self._count_tokens(optimized)
+
         logger.info(
-            f"Context: Layer1({len(recent_messages)}) + Layer2({len(npc_sampled)}) = {len(optimized)} ({total_tokens} tokens)"
+            "Context: Layer1(%s) + Layer2(%s) = %s msgs (~%s tok est.)",
+            len(recent_messages),
+            len(npc_sampled),
+            len(optimized),
+            total_tokens,
         )
         return optimized
 
@@ -111,9 +142,9 @@ class ContextManager:
         # 각 NPC별 최근 N턴 선택
         selected = []
         for npc, msgs in npc_messages.items():
-            if npc == 'other':
-                # 환경/독백은 최근 2개만
-                selected.extend(msgs[-2:] if len(msgs) > 2 else msgs)
+            if npc == "other":
+                cap = self.OTHER_CAP
+                selected.extend(msgs[-cap:] if len(msgs) > cap else msgs)
             else:
                 # NPC별 최근 N턴 (2N messages)
                 n_messages = n_turns_per_npc * 2

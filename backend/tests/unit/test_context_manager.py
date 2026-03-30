@@ -5,7 +5,9 @@ from backend.src.engine.context_manager import ContextManager
 
 @pytest.fixture
 def context_manager():
-    return ContextManager()
+    cm = ContextManager()
+    cm.set_npc_names(["루아", "엘레나"])
+    return cm
 
 
 @pytest.fixture
@@ -44,25 +46,6 @@ def test_build_context_with_sampling(context_manager):
     assert optimized[-1] == history[-1]
 
 
-def test_importance_calculation(context_manager):
-    msg_with_tool = {
-        "content": [
-            {"type": "text", "text": "response"},
-            {"type": "tool_use", "name": "update_game_state"},
-        ]
-    }
-    score1 = context_manager._calculate_importance(msg_with_tool, "test")
-    assert score1 >= 5.0
-
-    msg_with_npc = {"content": "루아와 대화했다"}
-    score2 = context_manager._calculate_importance(msg_with_npc, "루아 기억나?")
-    assert score2 >= 2.0
-
-    msg_normal = {"content": "test"}
-    score3 = context_manager._calculate_importance(msg_normal, "other")
-    assert score3 >= 0.0
-
-
 def test_token_counting(context_manager):
     messages = [{"content": "a" * 400}, {"content": "b" * 400}]
     tokens = context_manager._count_tokens(messages)
@@ -74,11 +57,22 @@ def test_empty_history(context_manager):
     assert optimized == []
 
 
-def test_sample_important_with_budget(context_manager):
-    old_messages = [
-        {"content": "a" * 400},
-        {"content": "b" * 400},
-        {"content": "c" * 400},
+def test_budget_trims_layer2_then_fits(context_manager):
+    """예산 초과 시 Layer2 턴 수·필요 시 Layer1을 줄인다."""
+    history = []
+    for i in range(25):
+        history.append({"role": "user", "content": f"Turn {i} 루아에게 말함"})
+        history.append({"role": "assistant", "content": "x" * 300})
+    optimized = context_manager.build_context("루아", history, max_tokens=400)
+    assert len(optimized) < len(history)
+    assert optimized[-1] == history[-1]
+
+
+def test_layer2_empty_when_no_sampling_window(context_manager):
+    """히스토리가 짧으면 Layer1만으로 구성"""
+    history = [
+        {"role": "user", "content": "hi"},
+        {"role": "assistant", "content": "hello"},
     ]
-    selected = context_manager._sample_important(old_messages, "test", token_budget=150)
-    assert 1 <= len(selected) <= 2
+    optimized = context_manager.build_context("test", history, max_tokens=3000)
+    assert optimized == history

@@ -6,38 +6,10 @@ from typing import Any
 
 
 class SystemPromptOptimizer:
-    """시스템 프롬프트 최적화 — 필요 정보만 추려 토큰 절약
+    """시스템 프롬프트 — 토큰 절약·static/dynamic 분리(프롬프트 캐시).
 
-    모델 스위칭: **공통 프롬프트(슬림)** + Haiku 등 경량 모델에만 **추가 지침** 접두.
-    Sonnet은 공통만 사용해 토큰·과잉 설명을 줄인다.
+    기본 모델: Claude Sonnet 계열 한 가지 경로만 유지 (경량 모델 전용 접두 제거).
     """
-
-    # Sonnet에는 넣지 않음. llm_model 에 "haiku" 가 있을 때만 앞에 붙는다.
-    HAIKU_SUPPLEMENT = """
-## [Haiku·경량 모델 전용 추가 지침]
-아래는 공통 지시를 지키기 어려울 때만 보강하는 규칙이다. 세계관·역할은 공통 프롬프트와 동일.
-
-⚠️ 위반 금지:
-1) **NPC만 연기한다.** 진행 안내·고객지원·메타 해설이 아니다.
-   - 금지: "플레이어님", "플레이어", "사용자님", "스토리를 진행", "현재 상황:" 목록 후 사용자에게 지시
-   - 금지 문패: "질문이 명확하지 않습니다", "죄송하지만 맥락이", "명확히 알려주세요", "다음 행동을 정해주시면"
-
-2) 플레이어 호칭은 공통의 "## 플레이어" 이름만 사용한다.
-
-3) **애매한 한 마디**는 직전 맥락으로 추론해 NPC로 반응. 여러 갈래면 짧게 되물음 (예: "어, 누구 말이야? 방금 헤어진 이준호?"). 메타로 되묻지 말 것.
-
-4) 예시:
-   🚫 "플레이어님, 질문이 명확하지 않습니다…"
-   ✅ "**이준호** (뒤돌아보며) 어, 나? 도서관 가는 중인데, 왜?"
-
-5) **update_game_state**: 관계·감정이 조금이라도 바뀌면 가급적 매 턴 호출. 중요 전환은 new_memories importance 7+. "응" 한 마디만이면 생략 가능. 툴을 쓸 때도 **같은 응답에 NPC 대사 텍스트를 반드시 함께** 출력한다.
-"""
-
-    @staticmethod
-    def _is_haiku_model(llm_model: str | None) -> bool:
-        if not llm_model:
-            return False
-        return "haiku" in llm_model.lower()
 
     @staticmethod
     def _active_npcs_for_location(
@@ -56,7 +28,6 @@ class SystemPromptOptimizer:
         npcs: list[dict[str, Any]],
         memories: list[dict[str, Any]],
         cache_reset_flag: str | None = None,
-        llm_model: str | None = None,
     ) -> tuple[str, str]:
         """시스템 프롬프트를 Anthropic 프롬프트 캐시용으로 분리.
 
@@ -85,7 +56,7 @@ class SystemPromptOptimizer:
 
 ## 응답 규칙
 - 첫 줄: **NPC이름** (짧은 행동) 후 대사. 행동은 (괄호).
-- 1~3문장 위주, 한 턴 NPC 1~3명.
+- 1~3문장 위주, 한 턴 NPC 1~3명(가능하면 1~2명). 장황한 묘사·반복 금지 — **출력 토큰 예산 내**에서 끝낸다.
 - 진행 안내·플레이어님·시스템 톤 금지.
 - **중요: `update_game_state` 툴을 사용하는 경우에도 반드시 같은 응답에 NPC 대사(텍스트)를 포함하세요.**
   - 툴만 보내지 마세요.
@@ -98,13 +69,7 @@ class SystemPromptOptimizer:
 관계 변화는 상황에 맞게. new_memories importance: 1~3 일상, 4~6 의미, 7+ 중요 사건.
 감정 태그: joy, sadness, anger, fear, surprise, trust, neutral
 """
-        static_body = static_body.strip()
-        if self._is_haiku_model(llm_model):
-            static = (
-                f"{self.HAIKU_SUPPLEMENT.strip()}\n\n---\n\n{static_body}"
-            ).strip()
-        else:
-            static = static_body
+        static = static_body.strip()
 
         prefix_lines: list[str] = []
         if turn == 0:
@@ -133,13 +98,8 @@ class SystemPromptOptimizer:
         npcs: list[dict[str, Any]],
         memories: list[dict[str, Any]],
         cache_reset_flag: str | None = None,
-        llm_model: str | None = None,
     ) -> str:
-        """최적화된 시스템 프롬프트 (단일 문자열, 테스트·로깅용).
-
-        Args:
-            llm_model: 설정된 API 모델 ID. 이름에 'haiku' 포함 시 HAIKU_SUPPLEMENT 접두.
-        """
+        """최적화된 시스템 프롬프트 (단일 문자열, 테스트·로깅용)."""
         static, dynamic = self.build_system_blocks(
             world=world,
             player=player,
@@ -147,7 +107,6 @@ class SystemPromptOptimizer:
             npcs=npcs,
             memories=memories,
             cache_reset_flag=cache_reset_flag,
-            llm_model=llm_model,
         )
         parts = [p for p in (static, dynamic) if p]
         return "\n\n".join(parts)

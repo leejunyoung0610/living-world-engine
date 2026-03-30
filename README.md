@@ -38,7 +38,8 @@
 - **프롬프트 캐시(Phase 1):** 시스템 프롬프트를 `static` / `dynamic` 블록으로 분리, Anthropic 프롬프트 캐시가 static에만 적용되도록 구성.
 - **Single-Pass Tool Use (Phase 1.5):** 1차 응답에 NPC 대사(text)와 `tool_use`가 함께 있으면 **2차 API 호출 생략** → 지연·비용 절감 (텍스트 없을 때만 기존 2차 폴백).
 - **Usage / 비용:** API `usage` 기반 턴 비용·캐시 read/write 로깅, 캐시 할인 반영 추정.
-- **컨텍스트:** `ContextManager`로 대화 히스토리·NPC 샘플링, `LongTermMemory`로 중요도·검색 기반 장기 기억.
+- **컨텍스트 (Phase 2):** `ContextManager` — 예산 `MAX_CONTEXT_TOKENS=1600`, 최근 3턴 + NPC 샘플링 1턴/윈도 20턴, 초과 시 Layer2→Layer1 순 축소. 2차 LLM 호출 히스토리 길이는 Layer1과 동기화.
+- **장기 기억:** `LongTermMemory` — 중요도·검색 기반.
 
 ---
 
@@ -69,6 +70,30 @@
 1. **`GameEngine.process_turn`:** 메모리 검색 → 시스템 블록(static/dynamic) → `ClaudeClient.process_turn` → 사용량 기록 → `StateChangeValidator` → 상태·장기기억 반영.
 2. **`llm.py`:** `stop_reason == tool_use` 시 `tool_use.input`을 `state_changes`로 사용; Single-Pass 시 1차 텍스트가 있으면 2차 생략.
 3. **`prompt_optimizer.py`:** 세계관·규칙·툴 지침은 static, 장소·NPC·기억은 dynamic.
+
+---
+
+## 비용 목표까지의 거리 (추정)
+
+측정 조건(세션·모델·프롬프트)에 따라 변동합니다. 아래는 **한 세션 기준 참고치**입니다.
+
+| 항목 | 값 |
+|------|-----|
+| **현재 (참고)** | ~$0.013 / turn |
+| **목표** | ~$0.002 / turn |
+| **추가 필요 절감** | 약 **84%** (목표 대비) |
+
+**남은 최적화 (로드맵과 연계)**
+
+| Phase | 내용 |
+|-------|------|
+| **Phase 1** | 프롬프트 캐시 분리(static/dynamic) — 적용됨 |
+| **Phase 1.5** | Single-Pass Tool Use — 적용됨 |
+| **Phase 2** | Context 관리 — 예산 1600tok, Layer1 3턴, Layer2 NPC당 1턴·윈도 20턴, 예산 초과 시 단계적 축소 (**적용됨**) |
+| **Phase 3** | Output 제한 — 기본 `LLM_MAX_TOKENS=768` (`.env`), 필요 시 조정 |
+| **Phase 4** | DialogueRouter 등 **선택적 경량 모델** (미구현 가능, 품질·검증 비용 고려) |
+
+> **참고:** $0.002/턴은 Sonnet 단일 모델·현재 툴 스키마를 유지한 채로는 **매우 공격적인 목표**일 수 있습니다. 달성에는 **입력 토큰 대폭 절감**, **캐시 적중 극대화**, 또는 **일부 턴의 모델 다운그레이드** 등이 겹쳐야 할 수 있으며, 그때마다 **품질 회귀 테스트**가 필요합니다.
 
 ---
 
