@@ -2,6 +2,7 @@
 
 > 4주 개발 과정을 기록하는 문서
 > 시작일: 2025-02-15 (토) / 마감일: 2025-03-15 (토)
+> 최적화·상수 정본: **2026-03-30** 섹션 + 저장소 코드
 
 ---
 
@@ -13,6 +14,63 @@
 | **Week 2** (2/22~2/28) | 이벤트 + 루프 방지 | ⬜ 예정 | - |
 | **Week 3** (3/1~3/7) | 세계관 + API | ⬜ 예정 | - |
 | **Week 4** (3/8~3/14) | UI + 문서 + 데모 | ⬜ 예정 | - |
+
+---
+
+## 2026-03-30 코드 기준: 성능 최적화 스냅샷 (Phase 1–2)
+
+이 절은 **저장소 코드와 동기화된 정본**이다. 아래 Day 13 일지에 적힌 숫자(예: `NPC_RECENT_TURNS=3`, `MAX_CONTEXT_TOKENS=2000`)는 과거 스냅샷이므로, 충돌 시 **항상 코드**를 따른다.
+
+### Phase 1 — 프롬프트 캐시 (`SystemPromptOptimizer` + `ClaudeClient`)
+
+- 시스템 프롬프트를 **static / dynamic** 튜플로 분리 (`backend/src/engine/prompt_optimizer.py`, `game_loop._build_system_blocks`).
+- `ClaudeClient`에서 static 블록에 `cache_control: ephemeral` 적용 가능한 구조.
+- **Dynamic**: 턴, 장소, NPC(컴팩트 프로필), `## 중요 기억`.
+- **장소 필터**: `_active_npcs_for_location()` — `active_location`과 `npc["location"]`이 같을 때만 프로필 주입. 매칭 NPC가 없으면 **전체 NPC**로 폴백. `active_location == "Unknown"`이면 전체.
+
+### Phase 1.5 — Single-Pass Tool Use (`backend/src/engine/llm.py`)
+
+- `enable_single_pass=True`(기본): 1차 응답에 **텍스트가 있으면** 2차 API 호출 생략.
+- 텍스트 없이 `tool_use`만 오면 **2차 폴백** (Tool Result 후 재호출).
+- **2차 호출 히스토리**: `ContextManager.KEEP_RECENT_TURNS * 2`개 메시지만 전송 — Layer 1과 동일 깊이 (현재 6개).
+
+### Phase 2 — 컨텍스트 3-Layer (`backend/src/engine/context_manager.py`)
+
+| 상수 | 값 | 설명 |
+|------|-----|------|
+| `MAX_CONTEXT_TOKENS` | **1600** | 대화 히스토리 추정 예산 |
+| `KEEP_RECENT_TURNS` | **3** | Layer 1: 최근 3턴(메시지 최대 6개), 예산 초과 시 2→1턴까지 축소 |
+| `NPC_SAMPLING_WINDOW` | **20** | Layer 2 샘플링 구간(턴×2 메시지 길이로 윈도 계산) |
+| `NPC_RECENT_TURNS` | **1** | NPC당 Layer 2에서 최근 1턴(메시지 최대 2개) |
+| `OTHER_CAP` | **1** | NPC 이름 미포함(other) 메시지 상한 |
+
+**예산 초과 시**: Layer 2의 `NPC_RECENT_TURNS`를 1씩 줄이다 0이 되면, Layer 1의 `KEEP_RECENT_TURNS`를 1씩 줄임(최소 1턴 = 2메시지).
+
+**토큰 추정** (`_count_tokens`): 문자열은 `len / 1.2`, 메시지 내 tool 블록(dict)은 `len(str(block)) * 1.5` 후 합산에 포함.
+
+### Layer 3 — 장기 기억 (`backend/src/engine/long_term_memory.py` + `game_loop.py`)
+
+- **파일**: 런타임 장기 기억은 `LongTermMemory` (`long_term_memory.py`). `memory.py`의 `KeywordMemorySearch`는 별도(주로 테스트·레거시 경로).
+- **검색** (`search`): `player_id`로 필터 → `min_importance`(게임 루프에서 **7**) → 쿼리 있으면 키워드·태그·내용 매칭 점수(`_calculate_relevance`), 없으면 중요도·시간 정렬. **BM25 미사용**.
+- **게임 루프 호출**: `min_importance=7`, `limit=10`.
+- **프롬프트 주입**: `SystemPromptOptimizer._select_key_memories`는 `importance >= 6`으로 한 번 더 걸러 중요도 내림차순 → `_format_memories`는 **최대 5줄**만 `## 중요 기억`에 출력.
+- **중복 억제** (`add_memory` → `_is_duplicate`): 전역 `self.memories`의 **최근 10개**와 `SequenceMatcher.ratio() > 0.95`면 스킵.
+
+### 출력·설정 (`backend/src/utils/config.py`, `.env.example`)
+
+- 기본 **`llm_max_tokens` = 768** (출력 상한; `.env`로 조정).
+- 모델 별칭: `sonnet`, `sonnet45`, `haiku`, `hikaru` 등 → `config.LLM_MODEL_ALIASES`.
+
+### Usage / 비용 (`backend/src/utils/usage_tracker.py`)
+
+- 턴마다 세그먼트별 `input` / `output` / `cache_creation` / `cache_read` 기록.
+- `standard_input_billable()`: 캐시 토큰과 표준 입력의 **이중 과금을 피하는** 휴리스틱.
+
+### 검증·다음 작업 (문서화만)
+
+- [ ] 동일 세션에서 Single-Pass 성공률·평균 턴 비용 **실측** (README의 참고치는 측정 조건 의존).
+- [ ] Phase 3: `llm_max_tokens` A/B (예: 640 / 768 / 1024) 품질·비용.
+- [ ] 필요 시 `MAX_CONTEXT_TOKENS`, `KEEP_RECENT_TURNS`, `NPC_RECENT_TURNS`, Layer3 `limit` / `min_importance` 미세 조정.
 
 ---
 
@@ -754,6 +812,8 @@ Loop Detection: severity 0-5 (정상) ✅
 
 ## Day 13+ (2/15 일 저녁) - 3-Layer Memory Architecture 구현 ⭐
 
+> **참고 (2026-03-30):** 이하 Day 13+ 절은 당시 실험 기록이다. **현재 상수·분기(예: `MAX_CONTEXT_TOKENS`, `NPC_RECENT_TURNS`, 2차 호출 히스토리 길이)는 위 「2026-03-30 코드 기준」 섹션과 저장소 코드가 정본이다.**
+
 ### 🎯 핵심 문제 인식
 **문제:**
 - ContextManager와 LongTermMemory 역할 중복
@@ -1076,15 +1136,15 @@ logger.debug(f"2차 호출 (Layer 1만: {len(messages_recent)}개)")
 
 | 지표 | 값 |
 |------|-----|
-| 총 커밋 | 13 |
-| 총 테스트 | 92 (유닛 87 + 통합 5) |
-| 테스트 통과율 | 100% |
+| 총 커밋 | 13+ (2026-03-30 이후 증가) |
+| 총 테스트 | 유닛·통합·e2e 합산 **약 130+** 함수 (`pytest backend/tests/` 로 확인) |
+| 테스트 통과율 | 100% (마지막 로컬 실행 기준) |
 | Python 파일 | ~27개 |
 | JSON 데이터 | 6개 (2 worlds × 3 files) |
 | NPC 수 | 10명 (arcane 6 + campus 4) |
 | 이벤트 수 | 16개 (arcane 10 + campus 6) |
-| API 비용 (누적) | ~$1.10 |
-| 장기 기억 | ~200개 (Turn 56 기준) |
+| API 비용 (누적) | ~$1.10 (초기 기록; 이후 별도 집계 권장) |
+| 장기 기억 | ~200개 (Turn 56 기준 스냅샷) |
 
 ---
 
