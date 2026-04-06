@@ -133,6 +133,9 @@ poetry run pytest backend/tests/unit -q --no-cov
 
 # 참고: 장기 기억은 실행 시 `data/memories.json`에 생성됩니다(저장소에는 포함하지 않음).
 
+# 의존성 동기화 (pull 후 또는 ModuleNotFoundError 시)
+poetry install
+
 # API 서버 (UGC MVP — 터미널 1)
 poetry run uvicorn backend.src.main:app --reload --host 127.0.0.1 --port 8000
 

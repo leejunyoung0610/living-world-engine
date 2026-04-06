@@ -24,8 +24,7 @@ ENV/
 # Environment
 .env
 
-# Poetry
-poetry.lock
+# Poetry — lock 파일은 커밋하여 동일 의존성 보장
 
 # Test / Coverage
 .pytest_cache/
