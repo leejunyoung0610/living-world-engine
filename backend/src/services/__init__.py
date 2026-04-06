@@ -1,1 +1,1 @@
-"""Application services (auth store, etc.)."""
+"""Application services."""

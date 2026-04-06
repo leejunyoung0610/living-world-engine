@@ -54,6 +54,9 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60 * 24 * 7  # 7일
 
+    # PostgreSQL (로컬: .env.example 참고). 비우면 API DB 접속 시 오류 — 테스트는 SQLite 오버라이드
+    database_url: str = ""
+
     # 게임
     default_world: str = "arcane_academy"
     max_turns_per_session: int = 100

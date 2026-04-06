@@ -1,18 +1,43 @@
-"""인증 API — 인메모리 저장소 + JWT."""
+"""인증 API — SQLite(테스트) + JWT."""
 
 from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
+from backend.src.db.base import Base
+from backend.src.db.models import User  # noqa: F401 — Base.metadata에 users 테이블 등록
+from backend.src.db.session import get_db
 from backend.src.main import create_app
-from backend.src.services import auth_store
 
 
 @pytest.fixture
 def client() -> TestClient:
-    auth_store.clear()
-    return TestClient(create_app())
+    # :memory: 는 연결마다 별도 DB → 풀/스레드에서 테이블 소실 방지
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    def override_get_db():
+        db = TestSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app = create_app()
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.clear()
 
 
 def test_health(client: TestClient) -> None:

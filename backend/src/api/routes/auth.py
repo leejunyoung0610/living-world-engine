@@ -1,4 +1,4 @@
-"""회원가입·로그인 MVP — DB 전 인메모리 + JWT."""
+"""회원가입·로그인 MVP — PostgreSQL + JWT."""
 
 from __future__ import annotations
 
@@ -8,8 +8,11 @@ import bcrypt
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from ...services import auth_store
+from ...db.models import User
+from ...db.session import get_db
 from ...utils.config import get_settings
 from ..deps import get_current_user_email
 
@@ -50,22 +53,25 @@ def _create_access_token(email: str) -> str:
 
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
-def signup(body: SignupBody) -> dict[str, str]:
+def signup(body: SignupBody, db: Session = Depends(get_db)) -> dict[str, str]:
     """`invite_code` 필드는 수용만 함 (검증은 Week 2에서 연결 가능)."""
-    hashed = bcrypt.hashpw(body.password.encode("utf-8"), bcrypt.gensalt())
-    try:
-        auth_store.add_user(body.email.lower(), body.username, hashed)
-    except ValueError:
+    email = body.email.lower()
+    existing = db.scalars(select(User).where(User.email == email)).first()
+    if existing is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email already registered",
-        ) from None
-    return {"message": "created", "email": body.email.lower()}
+        )
+    hashed = bcrypt.hashpw(body.password.encode("utf-8"), bcrypt.gensalt())
+    db.add(User(email=email, username=body.username, password_hash=hashed))
+    db.commit()
+    return {"message": "created", "email": email}
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(body: LoginBody) -> TokenResponse:
-    user = auth_store.get_user(body.email.lower())
+def login(body: LoginBody, db: Session = Depends(get_db)) -> TokenResponse:
+    email = body.email.lower()
+    user = db.scalars(select(User).where(User.email == email)).first()
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -73,19 +79,22 @@ def login(body: LoginBody) -> TokenResponse:
         )
     if not bcrypt.checkpw(
         body.password.encode("utf-8"),
-        user["password_hash"],
+        user.password_hash,
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
-    token = _create_access_token(body.email.lower())
+    token = _create_access_token(email)
     return TokenResponse(access_token=token)
 
 
 @router.get("/me", response_model=UserPublic)
-def me(email: str = Depends(get_current_user_email)) -> UserPublic:
-    user = auth_store.get_user(email)
+def me(
+    email: str = Depends(get_current_user_email),
+    db: Session = Depends(get_db),
+) -> UserPublic:
+    user = db.scalars(select(User).where(User.email == email)).first()
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    return UserPublic(email=email, username=user["username"])
+    return UserPublic(email=email, username=user.username)
