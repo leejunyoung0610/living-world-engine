@@ -72,6 +72,14 @@
 - [ ] Phase 3: `llm_max_tokens` A/B (예: 640 / 768 / 1024) 품질·비용.
 - [ ] 필요 시 `MAX_CONTEXT_TOKENS`, `KEEP_RECENT_TURNS`, `NPC_RECENT_TURNS`, Layer3 `limit` / `min_importance` 미세 조정.
 
+### UGC 플랫폼 MVP (2026-04 기획 통합)
+
+엔진을 **멀티 유저·UGC·BYOK·배포**까지 확장하는 **4주 MVP** 범위·주차·비용·체크리스트는 코드가 아닌 기획 문서로만 관리한다:
+
+- **[`docs/UGC_MVP_PLAN.md`](docs/UGC_MVP_PLAN.md)** — 단일 정본 (정책 상한 vs 1차 베타 코호트 구분, Ready but Gated, Phase 2 경계)
+
+구현이 시작되면 해당 문서의 체크리스트를 갱신하고, 아키텍처 다이어그램은 `docs/ARCHITECTURE.md`에 UGC 흐름을 반영할 예정이다.
+
 ---
 
 ## Week 1: 핵심 엔진 구축

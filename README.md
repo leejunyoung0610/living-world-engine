@@ -21,6 +21,8 @@
 | React 프론트 | 미구현 (예정) |
 | 프로덕션 배포 · 인증 | 미구현 |
 
+**UGC 플랫폼 MVP(베타) 계획**은 [`docs/UGC_MVP_PLAN.md`](docs/UGC_MVP_PLAN.md)에 통합해 두었다. (정책 상한 vs 1차 초대 인원, 4주 범위, 비용·배포 원칙)
+
 새 기능·리팩터는 **테스트(`pytest`)와 함께** 추가하는 것을 원칙으로 합니다.
 
 ---
@@ -145,7 +147,9 @@ engine/
 ├── README.md
 ├── DEVELOPMENT.md              # 개발 일지·의사결정
 ├── docs/
-│   └── PORTFOLIO.md            # 지원서용 요약
+│   ├── PORTFOLIO.md            # 지원서용 요약
+│   ├── UGC_MVP_PLAN.md         # UGC 베타 MVP 기획 (통합본)
+│   └── …
 ├── backend/
 │   ├── src/
 │   │   ├── engine/
@@ -173,8 +177,9 @@ engine/
 
 | 파일 | 설명 |
 |------|------|
+| [docs/UGC_MVP_PLAN.md](docs/UGC_MVP_PLAN.md) | **UGC MVP·베타** 기획 통합본 (범위·주차·비용·배포·체크리스트) |
 | [docs/PORTFOLIO.md](docs/PORTFOLIO.md) | 기업·부트캠프 지원용 요약 (복붙용) |
-| [DEVELOPMENT.md](DEVELOPMENT.md) | 일자별 개발 기록 |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | 일자별 개발 기록 · 코드 기준 최적화 스냅샷 |
 
 ---
 
