@@ -72,20 +72,30 @@ class WorldState:
         with open(characters_path, "r", encoding="utf-8") as f:
             characters_data = json.load(f)
 
-        # ── 필수 필드 검증 ──
+        return cls.load_from_dicts(world_data, characters_data, world_label=str(world_path))
+
+    @classmethod
+    def load_from_dicts(
+        cls,
+        world_data: dict[str, Any],
+        characters_data: dict[str, Any],
+        *,
+        world_label: str = "world",
+        characters_label: str = "characters",
+    ) -> WorldState:
+        """이미 파싱된 world / characters dict로 WorldState 생성 (UGC·API용)."""
         for field in ("id", "name"):
             if field not in world_data:
                 raise ValueError(
-                    f"world.json에 필수 필드 '{field}'가 누락되었습니다: {world_path}"
+                    f"{world_label}에 필수 필드 '{field}'가 누락되었습니다."
                 )
 
         for field in ("player", "npcs"):
             if field not in characters_data:
                 raise ValueError(
-                    f"characters.json에 필수 필드 '{field}'가 누락되었습니다: {characters_path}"
+                    f"{characters_label}에 필수 필드 '{field}'가 누락되었습니다."
                 )
 
-        # ── WorldState 생성 ──
         state = cls()
         state.world = world_data
         state.player = characters_data["player"]

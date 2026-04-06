@@ -23,6 +23,10 @@ class World(Base):
         nullable=False,
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
+    #: ``"private"`` | ``"public"`` — 공개 시 탐색·타유저 플레이 허용
+    visibility: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="private", default="private"
+    )
     world_data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     characters_data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     events_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)

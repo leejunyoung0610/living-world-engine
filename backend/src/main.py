@@ -11,6 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.requests import Request
 
 from .api.routes import auth as auth_routes
+from .api.routes import play as play_routes
 from .api.routes import worlds as worlds_routes
 from .utils.config import get_settings
 
@@ -21,8 +22,8 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
         title="Living World Engine API",
-        version="0.3.0",
-        description="UGC MVP: auth, worlds CRUD, (추후) play",
+        version="0.5.0",
+        description="UGC MVP: auth, worlds (private/public), explore, browser play (DB → GameEngine, session resume)",
     )
     origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
     app.add_middleware(
@@ -34,6 +35,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(auth_routes.router, prefix="/api/auth", tags=["auth"])
     app.include_router(worlds_routes.router, prefix="/api/worlds", tags=["worlds"])
+    app.include_router(play_routes.router, prefix="/api/play", tags=["play"])
 
     @app.exception_handler(SQLAlchemyError)
     async def sqlalchemy_exception_handler(_request: Request, exc: SQLAlchemyError) -> JSONResponse:

@@ -1,8 +1,11 @@
 import { apiFetch } from "./client";
 
+export type WorldVisibility = "private" | "public";
+
 export type WorldSummary = {
   id: string;
   name: string;
+  visibility: WorldVisibility;
   world_id: string;
   created_at: string;
 };
@@ -10,9 +13,20 @@ export type WorldSummary = {
 export type WorldDetail = {
   id: string;
   name: string;
+  visibility: WorldVisibility;
   world: Record<string, unknown>;
   characters: Record<string, unknown>;
   events: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ExploreWorldSummary = {
+  id: string;
+  name: string;
+  world_id: string;
+  owner_username: string;
+  is_mine: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -59,6 +73,11 @@ export async function listWorlds(token: string): Promise<WorldSummary[]> {
   return readJson<WorldSummary[]>(res);
 }
 
+export async function exploreWorlds(token: string): Promise<ExploreWorldSummary[]> {
+  const res = await apiFetch("/api/worlds/explore", { headers: authHeaders(token) });
+  return readJson<ExploreWorldSummary[]>(res);
+}
+
 export async function getWorld(token: string, id: string): Promise<WorldDetail> {
   const res = await apiFetch(`/api/worlds/${id}`, { headers: authHeaders(token) });
   return readJson<WorldDetail>(res);
@@ -66,12 +85,22 @@ export async function getWorld(token: string, id: string): Promise<WorldDetail> 
 
 export async function createWorld(
   token: string,
-  body: { name: string; world: Record<string, unknown>; characters: Record<string, unknown>; events?: Record<string, unknown> | null },
+  body: {
+    name: string;
+    world: Record<string, unknown>;
+    characters: Record<string, unknown>;
+    events?: Record<string, unknown> | null;
+    visibility?: WorldVisibility;
+  },
 ): Promise<WorldDetail> {
   const res = await apiFetch("/api/worlds/", {
     method: "POST",
     headers: { ...authHeaders(token), "Content-Type": "application/json" },
-    body: JSON.stringify({ ...body, events: body.events ?? null }),
+    body: JSON.stringify({
+      ...body,
+      events: body.events ?? null,
+      visibility: body.visibility ?? "private",
+    }),
   });
   return readJson<WorldDetail>(res);
 }
@@ -79,12 +108,22 @@ export async function createWorld(
 export async function updateWorld(
   token: string,
   id: string,
-  body: { name: string; world: Record<string, unknown>; characters: Record<string, unknown>; events?: Record<string, unknown> | null },
+  body: {
+    name: string;
+    world: Record<string, unknown>;
+    characters: Record<string, unknown>;
+    events?: Record<string, unknown> | null;
+    visibility?: WorldVisibility;
+  },
 ): Promise<WorldDetail> {
   const res = await apiFetch(`/api/worlds/${id}`, {
     method: "PUT",
     headers: { ...authHeaders(token), "Content-Type": "application/json" },
-    body: JSON.stringify({ ...body, events: body.events ?? null }),
+    body: JSON.stringify({
+      ...body,
+      events: body.events ?? null,
+      visibility: body.visibility ?? "private",
+    }),
   });
   return readJson<WorldDetail>(res);
 }

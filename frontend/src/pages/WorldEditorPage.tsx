@@ -8,6 +8,7 @@ import {
   getWorld,
   SESSION_EXPIRED,
   updateWorld,
+  type WorldVisibility,
 } from "../api/worlds";
 import { LoggedInNav } from "../components/LoggedInNav";
 
@@ -29,6 +30,7 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
   const [apiError, setApiError] = useState<string | null>(null);
   const [loading, setLoading] = useState(!isCreate);
   const [saving, setSaving] = useState(false);
+  const [visibility, setVisibility] = useState<WorldVisibility>("private");
 
   useEffect(() => {
     const t = localStorage.getItem(TOKEN_KEY);
@@ -45,7 +47,7 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
 
     const id = worldId;
     if (!id) {
-      nav("/worlds");
+      nav("/my");
       return;
     }
 
@@ -53,6 +55,7 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
       try {
         const w = await getWorld(t, id);
         setName(w.name);
+        setVisibility(w.visibility === "public" ? "public" : "private");
         setWorldText(stringifyJson(w.world));
         setCharsText(stringifyJson(w.characters));
         setEventsText(w.events ? stringifyJson(w.events) : "");
@@ -132,6 +135,7 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
           world: parsed.world,
           characters: parsed.characters,
           events: parsed.events,
+          visibility,
         });
       } else if (worldId) {
         await updateWorld(token, worldId, {
@@ -139,9 +143,10 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
           world: parsed.world,
           characters: parsed.characters,
           events: parsed.events,
+          visibility,
         });
       }
-      nav("/worlds");
+      nav("/my");
     } catch (err) {
       if (err instanceof Error && err.message === SESSION_EXPIRED) {
         localStorage.removeItem(TOKEN_KEY);
@@ -163,8 +168,8 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
       <LoggedInNav />
       <div className="mx-auto max-w-4xl px-4 py-8">
         <div className="mb-6 flex items-center gap-4">
-          <Link to="/worlds" className="text-sm text-slate-400 hover:text-white">
-            ← 목록
+          <Link to="/my" className="text-sm text-slate-400 hover:text-white">
+            ← 마이페이지
           </Link>
           <h1 className="text-xl font-semibold text-white">
             {isCreate ? "새 월드" : "월드 편집"}
@@ -185,6 +190,40 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
                 placeholder="목록에 보이는 이름"
               />
             </div>
+
+            <fieldset className="rounded-lg border border-slate-800 bg-slate-900/40 px-4 py-3">
+              <legend className="px-1 text-sm font-medium text-slate-300">공개 범위</legend>
+              <label className="mt-2 flex cursor-pointer items-start gap-2 text-sm text-slate-300">
+                <input
+                  type="radio"
+                  name="visibility"
+                  checked={visibility === "private"}
+                  onChange={() => setVisibility("private")}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="font-medium text-white">비공개</span>
+                  <span className="mt-0.5 block text-xs text-slate-500">
+                    나만 플레이·편집할 수 있습니다.
+                  </span>
+                </span>
+              </label>
+              <label className="mt-3 flex cursor-pointer items-start gap-2 text-sm text-slate-300">
+                <input
+                  type="radio"
+                  name="visibility"
+                  checked={visibility === "public"}
+                  onChange={() => setVisibility("public")}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="font-medium text-white">공개 (탐색)</span>
+                  <span className="mt-0.5 block text-xs text-slate-500">
+                    탐색에 노출되며, 로그인한 다른 유저도 플레이할 수 있습니다. 편집은 여전히 나만 가능합니다.
+                  </span>
+                </span>
+              </label>
+            </fieldset>
 
             <div className="flex flex-wrap gap-2">
               <button
@@ -252,7 +291,7 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
                 {saving ? "저장 중…" : "저장"}
               </button>
               <Link
-                to="/worlds"
+                to="/my"
                 className="rounded-lg border border-slate-600 px-5 py-2 text-sm text-slate-300 hover:bg-slate-800"
               >
                 취소

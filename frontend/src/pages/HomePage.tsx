@@ -53,12 +53,12 @@ export function HomePage() {
         <p className="mt-4 text-slate-300">
           안녕하세요, <strong>{me.username}</strong>님 ({me.email})
         </p>
-        <p className="mt-2 text-sm text-slate-500">UGC MVP — 인증 + 월드 편집</p>
+        <p className="mt-2 text-sm text-slate-500">UGC MVP — 인증 + 월드 · 플레이</p>
         <Link
-          to="/worlds"
+          to="/my"
           className="mt-8 inline-flex rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
         >
-          내 월드 관리
+          마이페이지
         </Link>
         <button
           type="button"

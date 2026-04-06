@@ -8,6 +8,7 @@ TODO: Week 2 Day 13-14에 구현 완성
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from .state import WorldState
@@ -98,6 +99,37 @@ class GameEngine:
 
         logger.info("게임 초기화 완료: %s", world_dir)
         logger.info("🤖 LLM: %s (max_tokens=%s)", self.llm.model, self.llm.max_tokens)
+
+    def initialize_from_dicts(
+        self,
+        world_data: dict[str, Any],
+        characters_data: dict[str, Any],
+        events_data: dict[str, Any] | list[dict[str, Any]] | None = None,
+        *,
+        memory_storage_path: Path | str | None = None,
+    ) -> None:
+        """DB·UGC JSON으로 초기화. `memory_storage_path`가 있으면 세션별 장기기억 파일 사용."""
+        self.state = WorldState.load_from_dicts(world_data, characters_data)
+        self.validator.set_valid_characters(self.state.get_all_character_names())
+
+        npc_names = [npc.get("name") for npc in self.state.npcs if npc.get("name")]
+        self.context_manager.set_npc_names(npc_names)
+
+        if memory_storage_path is not None:
+            self.memory = LongTermMemory(storage_path=Path(memory_storage_path))
+        self.memory.set_npc_names(npc_names)
+
+        self.event_manager = EventManager()
+        if events_data:
+            if isinstance(events_data, list):
+                self.event_manager.load_events(events_data)
+            elif isinstance(events_data, dict) and "events" in events_data:
+                ev = events_data["events"]
+                if isinstance(ev, list):
+                    self.event_manager.load_events(ev)
+
+        self.conversation_history = []
+        logger.info("게임 초기화 완료 (dict 소스), memory=%s", memory_storage_path or "default")
 
     def process_turn(self, user_input: str) -> dict[str, Any]:
         logger.info(f"=== Turn {self.state.turn + 1} ===")

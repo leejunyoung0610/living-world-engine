@@ -101,6 +101,7 @@ def test_worlds_crud_flow(client: TestClient) -> None:
     lst = r.json()
     assert len(lst) == 1
     assert lst[0]["world_id"] == "ugc_test"
+    assert lst[0].get("visibility") == "private"
 
     r = client.get(f"/api/worlds/{wid}", headers=h)
     assert r.status_code == 200
@@ -155,4 +156,53 @@ def test_worlds_limit_and_isolation(client: TestClient) -> None:
 
 def test_worlds_unauthenticated(client: TestClient) -> None:
     r = client.get("/api/worlds/")
+    assert r.status_code == 401
+
+
+def test_worlds_explore_public_only(client: TestClient) -> None:
+    t_a = _signup_login(client, "pub_a@example.com")
+    t_b = _signup_login(client, "pub_b@example.com")
+    h_a = {"Authorization": f"Bearer {t_a}"}
+    h_b = {"Authorization": f"Bearer {t_b}"}
+
+    r = client.get("/api/worlds/explore", headers=h_b)
+    assert r.status_code == 200
+    assert r.json() == []
+
+    client.post(
+        "/api/worlds/",
+        headers=h_a,
+        json={
+            "name": "비공개",
+            "world": {**MIN_WORLD, "id": "priv_w"},
+            "characters": MIN_CHARS,
+            "visibility": "private",
+        },
+    )
+    client.post(
+        "/api/worlds/",
+        headers=h_a,
+        json={
+            "name": "공개",
+            "world": {**MIN_WORLD, "id": "pub_w"},
+            "characters": MIN_CHARS,
+            "visibility": "public",
+        },
+    )
+
+    r = client.get("/api/worlds/explore", headers=h_b)
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "공개"
+    assert data[0]["world_id"] == "pub_w"
+    assert data[0]["owner_username"] == "W"
+    assert data[0]["is_mine"] is False
+
+    r = client.get("/api/worlds/explore", headers=h_a)
+    assert r.json()[0]["is_mine"] is True
+
+
+def test_worlds_explore_unauthenticated(client: TestClient) -> None:
+    r = client.get("/api/worlds/explore")
     assert r.status_code == 401

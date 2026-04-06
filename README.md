@@ -17,10 +17,10 @@
 | 게임 엔진 · CLI 플레이 (`play_game`, 디스크 `backend/src/worlds/*`) | ✅ 동작 |
 | Claude Tool Use · 상태 검증 · 장기 기억 | ✅ 동작 |
 | 프롬프트 캐시 분리 · Single-Pass 툴 경로 | ✅ 적용 |
-| FastAPI + PostgreSQL | ✅ `users`·`worlds` 테이블, SQLAlchemy, Alembic (`migrations/`) |
-| API | ✅ `/api/auth/*`, `/api/worlds/*` (JWT, 계정당 월드 3개 상한), `/health` |
-| React 프론트 | ✅ 로그인/가입, **내 월드** 목록·JSON 편집·삭제 (`/worlds`, Vite proxy `/api`→8000) |
-| 웹에서 인게임 플레이 (엔진 턴) | ⏳ 미연동 (Week 3 계획 — DB 월드 → `GameEngine`) |
+| FastAPI + PostgreSQL | ✅ `users`·`worlds`(공개/비공개 `visibility`), Alembic `0001`–`0003` |
+| API | ✅ `/api/auth/*`, `/api/worlds/*`, **`GET /api/worlds/explore`**, `/api/play/*`, `/health` |
+| React 프론트 | ✅ **`/my` 마이페이지**(진행 중 플레이 + 내 월드), **`/explore` 탐색**, `/play/:sessionId`, `/worlds/new`·`/worlds/:id` (Vite → `/api` :8000) |
+| 웹 플레이 | ✅ 세션 **이어하기**(월드당 1세션), 히스토리·NPC 블록 UI, `force_new`·`GET .../history`; 세션은 **프로세스 메모리**(재시작 시 소실) |
 | 프로덕션 배포 | 미구현 |
 
 **UGC 플랫폼 MVP(베타) 계획**은 [`docs/UGC_MVP_PLAN.md`](docs/UGC_MVP_PLAN.md)에 통합해 두었다. (정책 상한 vs 1차 초대 인원, 4주 범위, 비용·배포 원칙)
@@ -39,6 +39,7 @@
 
 ## 최근에 반영한 개선 (요약)
 
+- **웹 UGC (마이페이지·플레이·탐색):** `/my`에서 내 월드와 활성 플레이 세션을 한 화면에 표시. 월드는 **비공개 / 공개(탐색)** 선택; 공개 월드는 `/explore`에 노출되며 다른 유저도 플레이 가능(편집은 소유자만). `POST /api/play/start`는 같은 월드에 대해 기존 세션을 재사용(`resumed`). `GET /api/play/sessions`, `GET .../history`, `response_segments`(NPC별 말풍선) 지원.
 - **프롬프트 캐시(Phase 1):** 시스템 프롬프트를 `static` / `dynamic` 블록으로 분리, Anthropic 프롬프트 캐시가 static에만 적용되도록 구성.
 - **Single-Pass Tool Use (Phase 1.5):** 1차 응답에 NPC 대사(text)와 `tool_use`가 함께 있으면 **2차 API 호출 생략** → 지연·비용 절감 (텍스트 없을 때만 기존 2차 폴백).
 - **Usage / 비용:** API `usage` 기반 턴 비용·캐시 read/write 로깅, 캐시 할인 반영 추정.
@@ -139,7 +140,7 @@ poetry run pytest backend/tests/unit -q --no-cov
 poetry install
 
 # DB: .env 에 DATABASE_URL (예: postgresql://…/living_world)
-# 스키마 적용 (pull 후 또는 worlds 500 시 필수)
+# 스키마 적용 (pull 후 필수 — worlds.visibility 등)
 poetry run python -m alembic upgrade head
 
 # API 서버 (UGC MVP — 터미널 1)

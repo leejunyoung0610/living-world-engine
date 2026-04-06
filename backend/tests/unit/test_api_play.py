@@ -1,0 +1,269 @@
+"""플레이 API — Stub GameEngine (LLM 없음)."""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from backend.src.db.base import Base
+from backend.src.db.models import User, World  # noqa: F401
+from backend.src.db.session import get_db
+from backend.src.main import create_app
+from backend.src.services.play_sessions import clear_all_sessions
+
+MIN_WORLD = {
+    "id": "p_test",
+    "name": "P",
+    "description": "",
+    "time": "t",
+    "regions": [],
+    "facts": [],
+    "world_variables": {},
+}
+MIN_CHARS = {
+    "player": {"name": "P", "class": "c", "stats": {"hp": 10, "mana": 5, "focus": 5}},
+    "npcs": [],
+}
+
+
+class StubGameEngine:
+    def __init__(self) -> None:
+        self.state = SimpleNamespace(turn=0, day=1, npcs=[])
+        self.conversation_history: list[dict[str, str]] = []
+
+    def initialize_from_dicts(self, *args: object, **kwargs: object) -> None:
+        self.conversation_history = []
+        self.state.turn = 0
+        self.state.day = 1
+
+    def process_turn(self, msg: str) -> dict:
+        self.conversation_history.append({"role": "user", "content": msg})
+        reply = f"stub:{msg}"
+        self.conversation_history.append({"role": "assistant", "content": reply})
+        self.state.turn = 2
+        return {
+            "turn": 2,
+            "day": 1,
+            "response": reply,
+            "events_triggered": [{"event_id": "e1", "description": "이벤트", "narrative_hint": ""}],
+        }
+
+
+@pytest.fixture
+def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    monkeypatch.setattr("backend.src.api.routes.play.GameEngine", StubGameEngine)
+
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    def override_get_db():
+        db = TestSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app = create_app()
+    app.dependency_overrides[get_db] = override_get_db
+    clear_all_sessions()
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.clear()
+        clear_all_sessions()
+
+
+def _signup_token(client: TestClient, email: str = "p@example.com") -> str:
+    assert client.post(
+        "/api/auth/signup",
+        json={
+            "email": email,
+            "username": "P",
+            "password": "password123",
+            "invite_code": "",
+        },
+    ).status_code == 201
+    r = client.post("/api/auth/login", json={"email": email, "password": "password123"})
+    assert r.status_code == 200
+    return r.json()["access_token"]
+
+
+def _create_world(client: TestClient, token: str) -> str:
+    r = client.post(
+        "/api/worlds/",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "W", "world": MIN_WORLD, "characters": MIN_CHARS},
+    )
+    assert r.status_code == 201, r.text
+    return r.json()["id"]
+
+
+def test_play_start_and_turn(client: TestClient) -> None:
+    token = _signup_token(client)
+    wid = _create_world(client, token)
+    h = {"Authorization": f"Bearer {token}"}
+
+    r = client.post("/api/play/start", headers=h, json={"world_id": wid})
+    assert r.status_code == 201, r.text
+    data = r.json()
+    assert "session_id" in data
+    assert data["world_name"] == "W"
+    sid = data["session_id"]
+
+    r = client.post(
+        f"/api/play/{sid}/turn",
+        headers=h,
+        json={"message": "안녕"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["response"] == "stub:안녕"
+    assert body["turn"] == 2
+    assert len(body["events_triggered"]) >= 1
+    assert "response_segments" in body
+    assert len(body["response_segments"]) >= 1
+
+
+def test_play_history_after_turn(client: TestClient) -> None:
+    token = _signup_token(client)
+    wid = _create_world(client, token)
+    h = {"Authorization": f"Bearer {token}"}
+
+    r = client.post("/api/play/start", headers=h, json={"world_id": wid})
+    sid = r.json()["session_id"]
+
+    r = client.post(f"/api/play/{sid}/turn", headers=h, json={"message": "hi"})
+    assert r.status_code == 200
+
+    r = client.get(f"/api/play/{sid}/history", headers=h)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["turn"] == 2
+    assert data["world_name"] == "W"
+    assert len(data["messages"]) == 2
+    assert data["messages"][0]["role"] == "user"
+    assert data["messages"][1]["role"] == "assistant"
+
+
+def test_play_start_not_owner(client: TestClient) -> None:
+    t_a = _signup_token(client, "a@example.com")
+    t_b = _signup_token(client, "b@example.com")
+    wid = _create_world(client, t_a)
+
+    r = client.post(
+        "/api/play/start",
+        headers={"Authorization": f"Bearer {t_b}"},
+        json={"world_id": wid},
+    )
+    assert r.status_code == 404
+
+
+def test_play_start_public_world_other_user(client: TestClient) -> None:
+    t_a = _signup_token(client, "owner_pub@example.com")
+    t_b = _signup_token(client, "player_pub@example.com")
+    h_a = {"Authorization": f"Bearer {t_a}"}
+    h_b = {"Authorization": f"Bearer {t_b}"}
+
+    r = client.post(
+        "/api/worlds/",
+        headers=h_a,
+        json={
+            "name": "공개월드",
+            "world": {**MIN_WORLD, "id": "open_ugc"},
+            "characters": MIN_CHARS,
+            "visibility": "public",
+        },
+    )
+    assert r.status_code == 201, r.text
+    wid = r.json()["id"]
+
+    r = client.post(
+        "/api/play/start",
+        headers=h_b,
+        json={"world_id": wid},
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["world_name"] == "공개월드"
+
+
+def test_play_turn_wrong_session(client: TestClient) -> None:
+    import uuid
+
+    token = _signup_token(client)
+    r = client.post(
+        f"/api/play/{uuid.uuid4()}/turn",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"message": "x"},
+    )
+    assert r.status_code == 404
+
+
+def test_play_resume_same_world(client: TestClient) -> None:
+    token = _signup_token(client)
+    wid = _create_world(client, token)
+    h = {"Authorization": f"Bearer {token}"}
+
+    r1 = client.post("/api/play/start", headers=h, json={"world_id": wid})
+    assert r1.status_code == 201
+    sid1 = r1.json()["session_id"]
+    assert r1.json().get("resumed") is False
+
+    r2 = client.post("/api/play/start", headers=h, json={"world_id": wid})
+    assert r2.status_code == 200
+    assert r2.json()["session_id"] == sid1
+    assert r2.json().get("resumed") is True
+
+
+def test_play_force_new_different_session(client: TestClient) -> None:
+    token = _signup_token(client)
+    wid = _create_world(client, token)
+    h = {"Authorization": f"Bearer {token}"}
+
+    r1 = client.post("/api/play/start", headers=h, json={"world_id": wid})
+    sid1 = r1.json()["session_id"]
+
+    r2 = client.post("/api/play/start", headers=h, json={"world_id": wid, "force_new": True})
+    assert r2.status_code == 201
+    sid2 = r2.json()["session_id"]
+    assert sid2 != sid1
+
+
+def test_play_list_sessions(client: TestClient) -> None:
+    token = _signup_token(client)
+    wid = _create_world(client, token)
+    h = {"Authorization": f"Bearer {token}"}
+
+    r = client.get("/api/play/sessions", headers=h)
+    assert r.status_code == 200
+    assert r.json() == []
+
+    client.post("/api/play/start", headers=h, json={"world_id": wid})
+    r = client.get("/api/play/sessions", headers=h)
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data) == 1
+    assert data[0]["world_name"] == "W"
+    assert "session_id" in data[0]
+
+
+def test_play_delete_session(client: TestClient) -> None:
+    token = _signup_token(client)
+    wid = _create_world(client, token)
+    h = {"Authorization": f"Bearer {token}"}
+
+    sid = client.post("/api/play/start", headers=h, json={"world_id": wid}).json()["session_id"]
+    r = client.delete(f"/api/play/{sid}", headers=h)
+    assert r.status_code == 204
+
+    r = client.post(f"/api/play/{sid}/turn", headers=h, json={"message": "x"})
+    assert r.status_code == 404

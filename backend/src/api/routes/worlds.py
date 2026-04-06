@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, ConfigDict, Field
@@ -18,11 +18,14 @@ from ..deps import get_current_user
 
 router = APIRouter()
 
+WorldVisibility = Literal["private", "public"]
+
 
 def world_to_detail(w: World) -> WorldDetail:
     return WorldDetail(
         id=w.id,
         name=w.name,
+        visibility=w.visibility if w.visibility in ("private", "public") else "private",
         world=w.world_data,
         characters=w.characters_data,
         events=w.events_data,
@@ -51,6 +54,7 @@ class WorldCreateBody(BaseModel):
     world: dict[str, Any]
     characters: dict[str, Any]
     events: dict[str, Any] | None = None
+    visibility: WorldVisibility = "private"
 
 
 class WorldUpdateBody(BaseModel):
@@ -58,6 +62,7 @@ class WorldUpdateBody(BaseModel):
     world: dict[str, Any]
     characters: dict[str, Any]
     events: dict[str, Any] | None = None
+    visibility: WorldVisibility = "private"
 
 
 class WorldSummary(BaseModel):
@@ -65,6 +70,7 @@ class WorldSummary(BaseModel):
 
     id: uuid.UUID
     name: str
+    visibility: WorldVisibility
     world_slug: str = Field(serialization_alias="world_id")
     created_at: datetime
 
@@ -73,7 +79,16 @@ class WorldSummary(BaseModel):
         slug = w.world_data.get("id", "")
         if not isinstance(slug, str):
             slug = str(slug)
-        return cls(id=w.id, name=w.name, world_slug=slug, created_at=w.created_at)
+        vis: WorldVisibility = (
+            w.visibility if w.visibility in ("private", "public") else "private"
+        )
+        return cls(
+            id=w.id,
+            name=w.name,
+            visibility=vis,
+            world_slug=slug,
+            created_at=w.created_at,
+        )
 
 
 class WorldDetail(BaseModel):
@@ -81,9 +96,24 @@ class WorldDetail(BaseModel):
 
     id: uuid.UUID
     name: str
+    visibility: WorldVisibility
     world: dict[str, Any]
     characters: dict[str, Any]
     events: dict[str, Any] | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ExploreWorldSummary(BaseModel):
+    """탐색 — 공개 월드만."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    world_slug: str = Field(serialization_alias="world_id")
+    owner_username: str
+    is_mine: bool
     created_at: datetime
     updated_at: datetime
 
@@ -103,6 +133,37 @@ def list_worlds(
     return [WorldSummary.from_orm_world(w) for w in rows]
 
 
+@router.get("/explore", response_model=list[ExploreWorldSummary])
+def explore_worlds(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[ExploreWorldSummary]:
+    rows = db.execute(
+        select(World, User.username)
+        .join(User, World.owner_id == User.id)
+        .where(World.visibility == "public")
+        .order_by(World.updated_at.desc())
+        .limit(100)
+    ).all()
+    out: list[ExploreWorldSummary] = []
+    for w, owner_username in rows:
+        slug = w.world_data.get("id", "")
+        if not isinstance(slug, str):
+            slug = str(slug)
+        out.append(
+            ExploreWorldSummary(
+                id=w.id,
+                name=w.name,
+                world_slug=slug,
+                owner_username=str(owner_username),
+                is_mine=w.owner_id == user.id,
+                created_at=w.created_at,
+                updated_at=w.updated_at,
+            )
+        )
+    return out
+
+
 @router.post("/", response_model=WorldDetail, status_code=status.HTTP_201_CREATED)
 def create_world(
     body: WorldCreateBody,
@@ -120,6 +181,7 @@ def create_world(
     w = World(
         owner_id=user.id,
         name=body.name.strip(),
+        visibility=body.visibility,
         world_data=body.world,
         characters_data=body.characters,
         events_data=body.events,
@@ -154,6 +216,7 @@ def update_world(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="World not found")
     _validate_payload(body.world, body.characters)
     w.name = body.name.strip()
+    w.visibility = body.visibility
     w.world_data = body.world
     w.characters_data = body.characters
     w.events_data = body.events

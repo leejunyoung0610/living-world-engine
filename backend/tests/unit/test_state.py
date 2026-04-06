@@ -151,6 +151,17 @@ class TestLoadFromFile:
         assert state.day == 1
         assert state.memories == []
 
+    def test_load_from_dicts_matches_file_load(self, arcane_academy_path: Path) -> None:
+        world_json = arcane_academy_path / "world.json"
+        characters_json = arcane_academy_path / "characters.json"
+        with open(world_json, encoding="utf-8") as f:
+            w = json.load(f)
+        with open(characters_json, encoding="utf-8") as f:
+            c = json.load(f)
+        state = WorldState.load_from_dicts(w, c)
+        assert state.world["id"] == "arcane_academy"
+        assert len(state.npcs) == 6
+
     def test_load_from_file_not_found(self, tmp_path: Path) -> None:
         """파일 없음: FileNotFoundError와 명확한 메시지"""
         fake_world = tmp_path / "nonexistent_world.json"
