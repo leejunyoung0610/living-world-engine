@@ -14,12 +14,14 @@
 
 | 구분 | 상태 |
 |------|------|
-| 게임 엔진 · CLI 플레이 (`play_game`) | ✅ 동작 |
+| 게임 엔진 · CLI 플레이 (`play_game`, 디스크 `backend/src/worlds/*`) | ✅ 동작 |
 | Claude Tool Use · 상태 검증 · 장기 기억 | ✅ 동작 |
 | 프롬프트 캐시 분리 · Single-Pass 툴 경로 | ✅ 적용 |
-| FastAPI 서버 | ✅ 인증 MVP (`/api/auth/*`, `/health`) |
-| React 프론트 | ✅ Vite+Tailwind, 로그인/가입 (Week 1 슬라이스) |
-| 프로덕션 배포 · 인증 | 미구현 |
+| FastAPI + PostgreSQL | ✅ `users`·`worlds` 테이블, SQLAlchemy, Alembic (`migrations/`) |
+| API | ✅ `/api/auth/*`, `/api/worlds/*` (JWT, 계정당 월드 3개 상한), `/health` |
+| React 프론트 | ✅ 로그인/가입, **내 월드** 목록·JSON 편집·삭제 (`/worlds`, Vite proxy `/api`→8000) |
+| 웹에서 인게임 플레이 (엔진 턴) | ⏳ 미연동 (Week 3 계획 — DB 월드 → `GameEngine`) |
+| 프로덕션 배포 | 미구현 |
 
 **UGC 플랫폼 MVP(베타) 계획**은 [`docs/UGC_MVP_PLAN.md`](docs/UGC_MVP_PLAN.md)에 통합해 두었다. (정책 상한 vs 1차 초대 인원, 4주 범위, 비용·배포 원칙)
 
@@ -136,12 +138,16 @@ poetry run pytest backend/tests/unit -q --no-cov
 # 의존성 동기화 (pull 후 또는 ModuleNotFoundError 시)
 poetry install
 
+# DB: .env 에 DATABASE_URL (예: postgresql://…/living_world)
+# 스키마 적용 (pull 후 또는 worlds 500 시 필수)
+poetry run python -m alembic upgrade head
+
 # API 서버 (UGC MVP — 터미널 1)
 poetry run uvicorn backend.src.main:app --reload --host 127.0.0.1 --port 8000
 
-# 웹 UI (터미널 2)
+# 웹 UI (터미널 2 — 5173은 이 프로세스가 켜져 있어야 함)
 cd frontend && npm install && npm run dev
-# → http://localhost:5173 (API는 vite proxy로 /api → :8000)
+# → http://127.0.0.1:5173 (API는 Vite proxy로 /api → :8000)
 ```
 
 ---
@@ -151,6 +157,8 @@ cd frontend && npm install && npm run dev
 ```
 engine/
 ├── pyproject.toml
+├── alembic.ini
+├── migrations/                 # Alembic (폴더명 alembic 아님 — 패키지명 충돌 방지)
 ├── README.md
 ├── DEVELOPMENT.md              # 개발 일지·의사결정
 ├── docs/
@@ -169,9 +177,10 @@ engine/
 │   │   │   ├── context_manager.py
 │   │   │   ├── events.py
 │   │   │   └── loop_detector.py
-│   │   ├── api/
+│   │   ├── api/                # FastAPI 라우트
+│   │   ├── db/                 # SQLAlchemy Base, session, User·World 모델
 │   │   ├── utils/              # config, logger, usage_tracker …
-│   │   └── worlds/
+│   │   └── worlds/             # CLI용 내장 세계관 JSON (campus, arcane_academy)
 │   ├── tests/
 │   ├── scripts/
 │   └── play_game.py

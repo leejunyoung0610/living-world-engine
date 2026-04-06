@@ -80,6 +80,16 @@
 
 구현이 시작되면 해당 문서의 체크리스트를 갱신하고, 아키텍처 다이어그램은 `docs/ARCHITECTURE.md`에 UGC 흐름을 반영할 예정이다.
 
+#### UGC 수직 슬라이스 구현 브리핑 (2026-03 ~ 04, 코드 기준)
+
+- **인증·저장소:** 인메모리 `auth_store` 제거 → PostgreSQL `users`, `DATABASE_URL`, `get_db`, JWT 동일.
+- **마이그레이션:** Alembic 루트 `migrations/` + `alembic.ini`; 리비전 `0001` users, `0002` worlds. 로컬은 `poetry run python -m alembic upgrade head` (`.env`의 `DATABASE_URL`; Alembic `env.py`는 프로젝트 `.env` 우선 로드).
+- **월드 API:** `World` 모델(JSON `world_data` / `characters_data` / `events_data`), 소유자만 CRUD, `max_worlds_per_user`(기본 3, 설정 `MAX_WORLDS_PER_USER`).
+- **프론트:** `/worlds` 목록·삭제, `/worlds/new`·`/worlds/:id` JSON 편집, 공통 `LoggedInNav`; Vite 5173 + API 8000 병행 필요.
+- **내장 세계관:** `backend/src/worlds/campus`(서울대 캠퍼스)·`arcane_academy`는 **CLI `play_game` 전용** — 웹 UGC DB와 아직 미연동.
+- **운영 메모:** DB 스키마 누락 시 `SQLAlchemyError` 핸들러가 마이그레이션 안내 `detail` 반환(`DEBUG` 시 `orig` 포함).
+- **다음(플랜 Week 3):** 플레이 API·세션·DB 월드 → `GameEngine` 주입, 웹 채팅 UI.
+
 ---
 
 ## Week 1: 핵심 엔진 구축
