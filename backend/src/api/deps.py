@@ -5,7 +5,11 @@ from __future__ import annotations
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from ..db.models import User
+from ..db.session import get_db
 from ..utils.config import get_settings
 
 security = HTTPBearer(auto_error=False)
@@ -39,3 +43,13 @@ def get_current_user_email(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
         ) from None
+
+
+def get_current_user(
+    email: str = Depends(get_current_user_email),
+    db: Session = Depends(get_db),
+) -> User:
+    user = db.scalars(select(User).where(User.email == email)).first()
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return user

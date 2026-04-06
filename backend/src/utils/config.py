@@ -56,6 +56,8 @@ class Settings(BaseSettings):
 
     # PostgreSQL (로컬: .env.example 참고). 비우면 API DB 접속 시 오류 — 테스트는 SQLite 오버라이드
     database_url: str = ""
+    # UGC 월드 수 상한 (정책·플랜과 맞출 것)
+    max_worlds_per_user: int = 3
 
     # 게임
     default_world: str = "arcane_academy"

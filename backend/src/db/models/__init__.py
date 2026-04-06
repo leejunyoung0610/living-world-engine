@@ -1,3 +1,4 @@
 from .user import User
+from .world import World
 
-__all__ = ["User"]
+__all__ = ["User", "World"]

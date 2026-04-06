@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api.routes import auth as auth_routes
+from .api.routes import worlds as worlds_routes
 from .utils.config import get_settings
 
 
@@ -13,8 +14,8 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
         title="Living World Engine API",
-        version="0.2.0",
-        description="UGC MVP: auth + (추후) worlds, play",
+        version="0.3.0",
+        description="UGC MVP: auth, worlds CRUD, (추후) play",
     )
     origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
     app.add_middleware(
@@ -25,6 +26,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(auth_routes.router, prefix="/api/auth", tags=["auth"])
+    app.include_router(worlds_routes.router, prefix="/api/worlds", tags=["worlds"])
 
     @app.get("/health")
     def health() -> dict[str, str]:
