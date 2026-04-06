@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     debug: bool = True
+    # CORS — 콤마 구분 (Vite 기본 http://localhost:5173)
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    # JWT (프로덕션에서는 JWT_SECRET 필수 변경)
+    jwt_secret: str = "dev-only-change-me-32bytes-min!!"  # ≥32바이트 권장 (HS256)
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 60 * 24 * 7  # 7일
 
     # 게임
     default_world: str = "arcane_academy"

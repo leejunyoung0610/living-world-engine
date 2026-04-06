@@ -8,6 +8,12 @@ import os
 import sys
 from pathlib import Path
 
+# `poetry run python backend/play_game.py` 시 CWD는 루트지만 스크립트 경로 기준 path에
+# 프로젝트 루트가 없어 `backend` 패키지를 못 찾는 문제 방지
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
 from backend.src.engine.game_loop import GameEngine
 from backend.src.utils.config import MEMORIES_JSON_PATH, PROJECT_ROOT, get_settings
 from backend.src.utils.logger import get_logger

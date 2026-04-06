@@ -17,8 +17,8 @@
 | 게임 엔진 · CLI 플레이 (`play_game`) | ✅ 동작 |
 | Claude Tool Use · 상태 검증 · 장기 기억 | ✅ 동작 |
 | 프롬프트 캐시 분리 · Single-Pass 툴 경로 | ✅ 적용 |
-| FastAPI 서버 | 부분 / 확장 예정 |
-| React 프론트 | 미구현 (예정) |
+| FastAPI 서버 | ✅ 인증 MVP (`/api/auth/*`, `/health`) |
+| React 프론트 | ✅ Vite+Tailwind, 로그인/가입 (Week 1 슬라이스) |
 | 프로덕션 배포 · 인증 | 미구현 |
 
 **UGC 플랫폼 MVP(베타) 계획**은 [`docs/UGC_MVP_PLAN.md`](docs/UGC_MVP_PLAN.md)에 통합해 두었다. (정책 상한 vs 1차 초대 인원, 4주 범위, 비용·배포 원칙)
@@ -133,8 +133,12 @@ poetry run pytest backend/tests/unit -q --no-cov
 
 # 참고: 장기 기억은 실행 시 `data/memories.json`에 생성됩니다(저장소에는 포함하지 않음).
 
-# API 서버 (구성에 따라)
-poetry run uvicorn backend.src.main:app --reload
+# API 서버 (UGC MVP — 터미널 1)
+poetry run uvicorn backend.src.main:app --reload --host 127.0.0.1 --port 8000
+
+# 웹 UI (터미널 2)
+cd frontend && npm install && npm run dev
+# → http://localhost:5173 (API는 vite proxy로 /api → :8000)
 ```
 
 ---
@@ -168,7 +172,7 @@ engine/
 │   ├── tests/
 │   ├── scripts/
 │   └── play_game.py
-└── frontend/                   # 예정
+└── frontend/                   # Vite + React (UGC MVP UI)
 ```
 
 ---
