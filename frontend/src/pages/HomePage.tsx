@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiFetch, TOKEN_KEY } from "../api/client";
+import { LoggedInNav } from "../components/LoggedInNav";
 
 type Me = { email: string; username: string };
 
@@ -45,23 +46,28 @@ export function HomePage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-16">
-      <h1 className="text-2xl font-semibold text-white">Living World Engine</h1>
-      <p className="mt-4 text-slate-300">
-        안녕하세요, <strong>{me.username}</strong>님 ({me.email})
-      </p>
-      <p className="mt-2 text-sm text-slate-500">UGC MVP Week 1 — 인증 수직 슬라이스</p>
-      <button
-        type="button"
-        onClick={logout}
-        className="mt-8 rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800"
-      >
-        로그아웃
-      </button>
-      <p className="mt-6 text-sm text-slate-500">
-        다음: <Link to="/signup" className="text-indigo-400 underline">회원가입</Link> /{" "}
-        <Link to="/login" className="text-indigo-400 underline">로그인</Link>
-      </p>
+    <div className="min-h-screen">
+      <LoggedInNav />
+      <div className="mx-auto max-w-lg px-4 py-16">
+        <h1 className="text-2xl font-semibold text-white">Living World Engine</h1>
+        <p className="mt-4 text-slate-300">
+          안녕하세요, <strong>{me.username}</strong>님 ({me.email})
+        </p>
+        <p className="mt-2 text-sm text-slate-500">UGC MVP — 인증 + 월드 편집</p>
+        <Link
+          to="/worlds"
+          className="mt-8 inline-flex rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+        >
+          내 월드 관리
+        </Link>
+        <button
+          type="button"
+          onClick={logout}
+          className="mt-4 ml-0 block rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 sm:ml-4 sm:inline-block"
+        >
+          로그아웃
+        </button>
+      </div>
     </div>
   );
 }
