@@ -85,12 +85,12 @@
 - **인증·저장소:** 인메모리 `auth_store` 제거 → PostgreSQL `users`, `DATABASE_URL`, `get_db`, JWT 동일.
 - **마이그레이션:** Alembic 루트 `migrations/` + `alembic.ini`. 리비전 `0001` users, `0002` worlds, **`0003` `worlds.visibility`** (`private` \| `public`, 기본 `private`, 인덱스). 로컬·배포 후 **반드시** `poetry run python -m alembic upgrade head`. 스키마 누락 시(예: `column worlds.visibility does not exist`) 동일 명령으로 해결.
 - **월드 API:** `World` 모델(JSON `world_data` / `characters_data` / `events_data` + `visibility`). 소유자만 CRUD·편집. **`GET /api/worlds/explore`** — 로그인 유저 기준 공개 월드 목록(`owner_username`, `is_mine`), 최대 100건·`updated_at` 내림차순.
-- **플레이 API:** `POST /api/play/start` — 바디 `world_id`, 선택 `force_new`. **소유 월드 또는 `public` 월드**만 시작 가능. 동일 `(user_id, world_id)`에 활성 세션이 있으면 **기존 `session_id` 반환**(HTTP 200, `resumed: true`), 없으면 생성(201). `GET /api/play/sessions`, `GET /api/play/{id}/history`, `POST .../turn`, `DELETE /api/play/{id}`. 엔진 장기기억 파일: `data/play_sessions/{session_id}.json` (`.gitignore`).
+- **플레이 API:** `POST /api/play/start` — 바디 `world_id`, 선택 `force_new`. **소유 월드 또는 `public` 월드**만 시작 가능. 동일 `(user_id, world_id)`에 활성 세션이 있으면 **기존 `session_id` 반환**(HTTP 200, `resumed: true`), 없으면 생성(201). `GET /api/play/sessions`, `GET /api/play/{id}/history`, `POST .../turn`, `DELETE /api/play/{id}`. **엔진 스냅샷:** PostgreSQL `play_sessions`(마이그레이션 `0004`, `UNIQUE(user_id, world_id)`). **장기기억 파일:** `data/play_sessions/{session_id}.json` (`.gitignore`).
 - **대화 UI:** `dialogue_split` + 프롬프트 규칙으로 assistant 응답을 NPC별 세그먼트로 나눠 `response_segments`·히스토리에 반영.
 - **프론트 라우팅:** 네비 `홈 | 탐색 | 마이페이지`. **`/my`** — 플레이 중 세션 + 내 월드(공개/비공개 뱃지). **`/explore`** — 공개 월드(내 공개 / 다른 크리에이터 구역). **`/worlds`**·**`/play`**(허브)는 **`/my`로 리다이렉트**. **`/play/:sessionId`** — 채팅. **`/worlds/new`**, **`/worlds/:id`** — JSON 편집기에서 공개 범위 라디오. Vite 5173 + API 8000 병행.
 - **내장 세계관:** `backend/src/worlds/campus`·`arcane_academy`는 **CLI `play_game` 전용** — 웹은 DB UGC만 사용.
 - **운영 메모:** DB 오류 시 핸들러가 마이그레이션 안내( `DEBUG` 시 `orig` ).
-- **다음(로드맵):** 플레이 세션·상태 **DB 영속화**, 공유 링크, BYOK, 초대 검증, 탐색 페이지네이션·검색 등.
+- **다음(로드맵):** 공유 링크, BYOK, 초대 검증, 탐색 페이지네이션·검색, 장기기억·스냅샷 단일화, 관측·배포 등. (베타 범위: [`docs/UGC_MVP_PLAN.md`](docs/UGC_MVP_PLAN.md))
 
 ---
 

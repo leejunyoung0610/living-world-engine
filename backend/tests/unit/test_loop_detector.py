@@ -94,7 +94,7 @@ class TestDetectLoop:
         assert result["suggested_action"] == "inject_event"
 
     def test_detect_loop_repetition_moderate(self) -> None:
-        """대사 반복 감지 — severity 5 이상"""
+        """대사 반복 감지 — 유사 1건 매칭 시 severity 3 (_calculate_repetition_severity)"""
         detector = LoopDetector()
         repeated = "안녕하세요 반가워요 오늘 좋은 하루예요"
         detector.record_response(repeated)
@@ -103,7 +103,7 @@ class TestDetectLoop:
         result = detector.detect_loop(state, repeated)
         assert result["detected"] is True
         assert result["type"] == "repetition"
-        assert result["severity"] >= 5
+        assert result["severity"] >= 3
         assert result["suggested_action"] == "inject_event"
 
     def test_detect_loop_error_handling(self) -> None:

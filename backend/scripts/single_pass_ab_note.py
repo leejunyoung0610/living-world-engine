@@ -10,9 +10,9 @@
 
 턴 결과 dict에 ``llm_api_calls`` (1 또는 2) 포함.
 
-롤백:
-  - ``game_loop.py`` 의 ``process_turn(..., enable_single_pass=True)`` 를 ``False`` 로 변경
-  - 또는 환경 변수/설정으로 분기 추가 (미구현 시 위 한 줄 수정)
+롤백 / A/B:
+  - 프로젝트 루트 ``.env`` 에 ``ENABLE_SINGLE_PASS=false`` (기본은 ``true``)
+  - 또는 ``backend/src/utils/config.py`` 의 ``enable_single_pass`` 기본값 변경
 """
 
 if __name__ == "__main__":

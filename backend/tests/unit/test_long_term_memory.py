@@ -21,8 +21,10 @@ def temp_storage():
 
 @pytest.fixture
 def memory_system(temp_storage):
-    """LongTermMemory 인스턴스 fixture"""
-    return LongTermMemory(storage_path=temp_storage)
+    """LongTermMemory 인스턴스 fixture — 태그 추출 테스트용 NPC 이름 등록"""
+    m = LongTermMemory(storage_path=temp_storage)
+    m.set_npc_names(["벨라", "엘레나", "루아"])
+    return m
 
 
 def test_add_memory(memory_system):
@@ -45,9 +47,9 @@ def test_add_memory(memory_system):
 
 def test_extract_tags(memory_system):
     """자동 태그 추출 테스트"""
-    # NPC 이름 태그
+    # NPC 이름 태그 (동적 이름은 소문자로 저장)
     tags = memory_system._extract_tags("벨라에게 키스했다")
-    assert "bella" in tags or "벨라" in [t.lower() for t in tags]
+    assert "벨라" in tags
     assert "kiss" in tags
     
     # 행동 키워드
@@ -225,14 +227,14 @@ def test_multiple_tags_matching(memory_system):
     
     # 최소 2개 이상의 태그
     assert len(tags) >= 2
-    # 벨라 + 키스 관련 태그 포함
-    assert any("bella" in t.lower() or "벨라" in t for t in tags)
+    assert "벨라" in tags
     assert "kiss" in tags
+    assert any("결투장" in t or t.startswith("location_") for t in tags)
 
 
 def test_normalize_query():
-    keywords = normalize_query("루아 키스")
-    assert "루아" in keywords or "lua" in keywords
+    keywords = normalize_query("루아 키스", npc_names=["루아"])
+    assert "루아" in keywords
     assert "kiss" in keywords
     assert "romance" in keywords
 

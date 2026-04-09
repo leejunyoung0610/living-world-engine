@@ -188,17 +188,31 @@ class WorldState:
         if self.turn % 5 == 0:
             self.day += 1
 
-    def save_to_file(self, path: Path) -> None:
-        """현재 상태를 JSON 파일로 저장"""
-        data = {
-            "world": self.world,
-            "player": self.player,
-            "npcs": self.npcs,
-            "quests": self.quests,
+    def to_save_dict(self) -> dict[str, Any]:
+        """파일 저장과 동일한 구조의 dict (DB 스냅샷용)."""
+        return {
+            "world": deepcopy(self.world),
+            "player": deepcopy(self.player),
+            "npcs": deepcopy(self.npcs),
+            "quests": deepcopy(self.quests),
             "turn": self.turn,
             "day": self.day,
-            "memories": self.memories,
+            "memories": deepcopy(self.memories),
         }
+
+    def restore_from_save_dict(self, data: dict[str, Any]) -> None:
+        """`to_save_dict` / `save_to_file` 형식 dict로 상태 복원."""
+        self.world = deepcopy(data.get("world", {}))
+        self.player = deepcopy(data.get("player", {}))
+        self.npcs = deepcopy(data.get("npcs", []))
+        self.quests = deepcopy(data.get("quests", []))
+        self.turn = int(data.get("turn", 0))
+        self.day = int(data.get("day", 1))
+        self.memories = deepcopy(data.get("memories", []))
+
+    def save_to_file(self, path: Path) -> None:
+        """현재 상태를 JSON 파일로 저장"""
+        data = self.to_save_dict()
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 

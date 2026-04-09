@@ -26,13 +26,16 @@ def test_keep_recent(context_manager, sample_history):
 
 
 def test_build_context_recent_only(context_manager):
+    """Layer1(최근 3턴=6메시지) + Layer2(other 상한 1) — 전체 10메시지를 다 쓰지 않는다."""
     history = []
     for i in range(5):
         history.append({"role": "user", "content": f"Turn {i+1}"})
         history.append({"role": "assistant", "content": "Response"})
 
     optimized = context_manager.build_context("test", history, max_tokens=3000)
-    assert len(optimized) == len(history)
+    assert len(optimized) < len(history)
+    assert optimized[-1] == history[-1]
+    assert len(optimized) == 7  # other 샘플 1 + 최근 3턴 6
 
 
 def test_build_context_with_sampling(context_manager):
@@ -49,7 +52,8 @@ def test_build_context_with_sampling(context_manager):
 def test_token_counting(context_manager):
     messages = [{"content": "a" * 400}, {"content": "b" * 400}]
     tokens = context_manager._count_tokens(messages)
-    assert 180 <= tokens <= 220
+    # 한글 보정: chars / 1.2
+    assert int(800 / 1.2) - 2 <= tokens <= int(800 / 1.2) + 2
 
 
 def test_empty_history(context_manager):

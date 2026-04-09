@@ -11,9 +11,11 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.src.db.base import Base
-from backend.src.db.models import User, World  # noqa: F401
+from backend.src.db.models import PlaySession, User, World  # noqa: F401
 from backend.src.db.session import get_db
+from backend.src.engine.state import WorldState
 from backend.src.main import create_app
+from backend.src.services.play_session_db import delete_all_play_sessions
 from backend.src.services.play_sessions import clear_all_sessions
 
 MIN_WORLD = {
@@ -32,20 +34,36 @@ MIN_CHARS = {
 
 
 class StubGameEngine:
+    """스냅샷 직렬화(`to_save_dict` 등)에 맞추기 위해 `WorldState` 사용."""
+
     def __init__(self) -> None:
-        self.state = SimpleNamespace(turn=0, day=1, npcs=[])
+        self.state = WorldState.load_from_dicts(MIN_WORLD, MIN_CHARS)
         self.conversation_history: list[dict[str, str]] = []
+        self.event_manager = SimpleNamespace(triggered_events=[], cooldowns={})
+        self.validator = SimpleNamespace(set_valid_characters=lambda *_: None)
+        self.context_manager = SimpleNamespace(set_npc_names=lambda *_: None)
+        self.memory = SimpleNamespace(
+            set_npc_names=lambda *_: None,
+            memories=[],
+            _save=lambda: None,
+        )
 
     def initialize_from_dicts(self, *args: object, **kwargs: object) -> None:
+        world_data = args[0] if args else MIN_WORLD
+        chars_data = args[1] if len(args) > 1 else MIN_CHARS
+        self.state = WorldState.load_from_dicts(
+            world_data,  # type: ignore[arg-type]
+            chars_data,  # type: ignore[arg-type]
+        )
         self.conversation_history = []
-        self.state.turn = 0
-        self.state.day = 1
+        self.event_manager = SimpleNamespace(triggered_events=[], cooldowns={})
 
     def process_turn(self, msg: str) -> dict:
         self.conversation_history.append({"role": "user", "content": msg})
         reply = f"stub:{msg}"
         self.conversation_history.append({"role": "assistant", "content": reply})
         self.state.turn = 2
+        self.state.day = 1
         return {
             "turn": 2,
             "day": 1,
@@ -81,6 +99,11 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     finally:
         app.dependency_overrides.clear()
         clear_all_sessions()
+        cleanup = TestSessionLocal()
+        try:
+            delete_all_play_sessions(cleanup)
+        finally:
+            cleanup.close()
 
 
 def _signup_token(client: TestClient, email: str = "p@example.com") -> str:
@@ -222,6 +245,29 @@ def test_play_resume_same_world(client: TestClient) -> None:
     assert r2.status_code == 200
     assert r2.json()["session_id"] == sid1
     assert r2.json().get("resumed") is True
+
+
+def test_play_resume_from_db_after_memory_clear(client: TestClient) -> None:
+    """인메모리 캐시만 비운 뒤에도 DB 스냅샷으로 동일 세션·대화가 복구되는지."""
+    token = _signup_token(client)
+    wid = _create_world(client, token)
+    h = {"Authorization": f"Bearer {token}"}
+
+    r1 = client.post("/api/play/start", headers=h, json={"world_id": wid})
+    sid1 = r1.json()["session_id"]
+    client.post(f"/api/play/{sid1}/turn", headers=h, json={"message": "persist me"})
+
+    clear_all_sessions()
+
+    r2 = client.post("/api/play/start", headers=h, json={"world_id": wid})
+    assert r2.status_code == 200
+    assert r2.json()["session_id"] == sid1
+    assert r2.json().get("resumed") is True
+
+    rh = client.get(f"/api/play/{sid1}/history", headers=h)
+    assert rh.status_code == 200
+    contents = [m.get("content", "") for m in rh.json()["messages"]]
+    assert any("persist me" in c for c in contents)
 
 
 def test_play_force_new_different_session(client: TestClient) -> None:

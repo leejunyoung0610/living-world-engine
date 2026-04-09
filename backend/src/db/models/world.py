@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy import JSON, DateTime, ForeignKey, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -29,7 +29,7 @@ class World(Base):
     )
     world_data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     characters_data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
-    events_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    events_data: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

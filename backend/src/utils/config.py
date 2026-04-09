@@ -66,6 +66,8 @@ class Settings(BaseSettings):
     llm_model: str = CLAUDE_MODEL_SONNET_45
     # 출력 상한 — 낮출수록 비용↓ (툴 JSON+대사 동시 응답 고려, 너무 낮으면 잘림)
     llm_max_tokens: int = 768
+    # True: 1차 응답에 NPC 텍스트+tool_use가 같이 오면 2차 API 호출 생략 (game_loop → ClaudeClient)
+    enable_single_pass: bool = True
 
     @field_validator("llm_model", mode="before")
     @classmethod

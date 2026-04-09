@@ -1,9 +1,9 @@
-"""브라우저 플레이 — DB 월드로 GameEngine 세션."""
+"""브라우저 플레이 — DB 월드로 GameEngine 세션 (진행 DB 영속화)."""
 
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
@@ -17,7 +17,9 @@ from ...db.models import User, World
 from ...db.session import get_db
 from ...engine.dialogue_split import split_assistant_into_segments
 from ...engine.game_loop import GameEngine
+from ...engine.play_persistence import apply_play_payload, sync_engine_after_restore
 from ...services import play_sessions
+from ...services import play_session_db
 from ...utils.config import PROJECT_ROOT
 from ...utils.logger import get_logger
 from ..deps import get_current_user
@@ -140,35 +142,86 @@ def _last_message_preview(engine: Any) -> str:
     return (line[:100] + "…") if len(line) > 100 else line
 
 
+def _build_engine_from_world_row(world: World, row: Any) -> GameEngine:
+    mem_path = _memory_file(row.id)
+    eng = GameEngine()
+    eng.initialize_from_dicts(
+        world.world_data,
+        world.characters_data,
+        world.events_data,
+        memory_storage_path=mem_path,
+    )
+    apply_play_payload(eng, row.payload)
+    sync_engine_after_restore(eng)
+    return eng
+
+
+def _ensure_bundle(
+    db: Session, session_id: uuid.UUID, user_id: uuid.UUID
+) -> play_sessions.PlaySessionBundle | None:
+    b = play_sessions.take_session(session_id, user_id)
+    if b is not None:
+        return b
+    row = play_session_db.get_row_by_id_user(db, session_id, user_id)
+    if row is None:
+        return None
+    world = db.get(World, row.world_id)
+    if world is None:
+        return None
+    eng = _build_engine_from_world_row(world, row)
+    bundle = play_sessions.PlaySessionBundle(
+        engine=eng,
+        user_id=user_id,
+        world_id=row.world_id,
+        created_at=row.created_at,
+        last_active=datetime.now(timezone.utc),
+    )
+    play_sessions.put_session(session_id, bundle)
+    return play_sessions.take_session(session_id, user_id)
+
+
+def _persist_session(
+    db: Session,
+    session_id: uuid.UUID,
+    user_id: uuid.UUID,
+    world_id: uuid.UUID,
+    engine: Any,
+) -> None:
+    play_session_db.upsert_play_session(
+        db,
+        session_id,
+        user_id,
+        world_id,
+        engine,
+        last_preview=_last_message_preview(engine),
+    )
+
+
 @router.get("/sessions", response_model=list[SessionSummary])
 def list_play_sessions(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[SessionSummary]:
-    rows = play_sessions.list_sessions_for_user(user.id)
+    rows = play_session_db.list_rows_for_user(db, user.id)
     if not rows:
         return []
 
-    world_ids = {b.world_id for _, b in rows}
+    world_ids = {r.world_id for r in rows}
     worlds = db.scalars(select(World).where(World.id.in_(world_ids))).all()
     name_by_wid = {w.id: w.name for w in worlds}
 
     out: list[SessionSummary] = []
-    for sid, bundle in rows:
-        eng = bundle.engine
-        st = getattr(eng, "state", None)
-        turn = int(getattr(st, "turn", 0) or 0)
-        day = int(getattr(st, "day", 1) or 1)
+    for r in rows:
         out.append(
             SessionSummary(
-                session_id=sid,
-                world_id=bundle.world_id,
-                world_name=name_by_wid.get(bundle.world_id, ""),
-                turn=turn,
-                day=day,
-                last_message_preview=_last_message_preview(eng),
-                created_at=bundle.created_at,
-                last_active=bundle.last_active,
+                session_id=r.id,
+                world_id=r.world_id,
+                world_name=name_by_wid.get(r.world_id, ""),
+                turn=int(r.turn),
+                day=int(r.day),
+                last_message_preview=r.last_preview or "",
+                created_at=r.created_at,
+                last_active=r.updated_at,
             )
         )
     return out
@@ -178,11 +231,12 @@ def list_play_sessions(
 def play_delete_session(
     session_id: uuid.UUID,
     user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> Response:
-    b = play_sessions.take_session(session_id, user.id)
-    if b is None:
+    b = play_sessions.remove_session_by_id(session_id)
+    deleted_db = play_session_db.delete_row_by_id_user(db, session_id, user.id)
+    if b is None and not deleted_db:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
-    play_sessions.remove_session_by_id(session_id)
     _delete_memory_file(session_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -193,7 +247,7 @@ def play_history(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> PlayHistoryResponse:
-    bundle = play_sessions.take_session(session_id, user.id)
+    bundle = _ensure_bundle(db, session_id, user.id)
     if bundle is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
@@ -231,9 +285,10 @@ def play_start(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="World not found")
 
     if body.force_new:
-        old_sid = play_sessions.remove_session_for_world(user.id, w.id)
-        if old_sid is not None:
-            _delete_memory_file(old_sid)
+        db_sid = play_session_db.delete_row_by_user_world(db, user.id, w.id)
+        mem_sid = play_sessions.remove_session_for_world(user.id, w.id)
+        for sid in {x for x in (db_sid, mem_sid) if x is not None}:
+            _delete_memory_file(sid)
     else:
         existing_sid = play_sessions.find_session_for_world(user.id, w.id)
         if existing_sid is not None:
@@ -245,6 +300,24 @@ def play_start(
                     resumed=True,
                 ).model_dump(mode="json")
                 return JSONResponse(status_code=status.HTTP_200_OK, content=payload)
+
+        row = play_session_db.get_row_by_user_world(db, user.id, w.id)
+        if row is not None:
+            eng = _build_engine_from_world_row(w, row)
+            bundle = play_sessions.PlaySessionBundle(
+                engine=eng,
+                user_id=user.id,
+                world_id=w.id,
+                created_at=row.created_at,
+                last_active=datetime.now(timezone.utc),
+            )
+            play_sessions.put_session(row.id, bundle)
+            payload = PlayStartResponse(
+                session_id=row.id,
+                world_name=w.name,
+                resumed=True,
+            ).model_dump(mode="json")
+            return JSONResponse(status_code=status.HTTP_200_OK, content=payload)
 
     session_id = uuid.uuid4()
     PLAY_SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
@@ -272,6 +345,8 @@ def play_start(
             world_id=w.id,
         ),
     )
+    _persist_session(db, session_id, user.id, w.id, engine)
+
     payload = PlayStartResponse(
         session_id=session_id,
         world_name=w.name,
@@ -285,8 +360,9 @@ def play_turn(
     session_id: uuid.UUID,
     body: TurnBody,
     user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> TurnResponse:
-    bundle = play_sessions.take_session(session_id, user.id)
+    bundle = _ensure_bundle(db, session_id, user.id)
     if bundle is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
@@ -298,6 +374,8 @@ def play_turn(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="LLM 또는 엔진 처리 중 오류가 났습니다. API 키·네트워크를 확인하세요.",
         ) from exc
+
+    _persist_session(db, session_id, user.id, bundle.world_id, bundle.engine)
 
     ev = result.get("events_triggered") or []
     safe_events: list[dict[str, str]] = []

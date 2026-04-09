@@ -17,10 +17,10 @@
 | 게임 엔진 · CLI 플레이 (`play_game`, 디스크 `backend/src/worlds/*`) | ✅ 동작 |
 | Claude Tool Use · 상태 검증 · 장기 기억 | ✅ 동작 |
 | 프롬프트 캐시 분리 · Single-Pass 툴 경로 | ✅ 적용 |
-| FastAPI + PostgreSQL | ✅ `users`·`worlds`(공개/비공개 `visibility`), Alembic `0001`–`0003` |
+| FastAPI + PostgreSQL | ✅ `users`·`worlds`(`visibility`)·**`play_sessions`**, Alembic `0001`–`0004` |
 | API | ✅ `/api/auth/*`, `/api/worlds/*`, **`GET /api/worlds/explore`**, `/api/play/*`, `/health` |
 | React 프론트 | ✅ **`/my` 마이페이지**(진행 중 플레이 + 내 월드), **`/explore` 탐색**, `/play/:sessionId`, `/worlds/new`·`/worlds/:id` (Vite → `/api` :8000) |
-| 웹 플레이 | ✅ 세션 **이어하기**(월드당 1세션), 히스토리·NPC 블록 UI, `force_new`·`GET .../history`; 세션은 **프로세스 메모리**(재시작 시 소실) |
+| 웹 플레이 | ✅ 세션 **이어하기**(월드당 1세션), 히스토리·NPC 블록 UI, `force_new`·`GET .../history`; **엔진 스냅샷은 DB `play_sessions`에 영속화**(턴 후·시작 시 upsert, 인메모리는 캐시). 장기기억 파일은 `data/play_sessions/{session_id}.json` |
 | 프로덕션 배포 | 미구현 |
 
 **UGC 플랫폼 MVP(베타) 계획**은 [`docs/UGC_MVP_PLAN.md`](docs/UGC_MVP_PLAN.md)에 통합해 두었다. (정책 상한 vs 1차 초대 인원, 4주 범위, 비용·배포 원칙)
@@ -40,6 +40,7 @@
 ## 최근에 반영한 개선 (요약)
 
 - **웹 UGC (마이페이지·플레이·탐색):** `/my`에서 내 월드와 활성 플레이 세션을 한 화면에 표시. 월드는 **비공개 / 공개(탐색)** 선택; 공개 월드는 `/explore`에 노출되며 다른 유저도 플레이 가능(편집은 소유자만). `POST /api/play/start`는 같은 월드에 대해 기존 세션을 재사용(`resumed`). `GET /api/play/sessions`, `GET .../history`, `response_segments`(NPC별 말풍선) 지원.
+- **플레이 세션 DB:** `play_sessions` 테이블(Alembic `0004`)에 월드 상태·대화·이벤트 쿨다운 등 JSON 스냅샷 저장; API 워커 재시작 후에도 동일 `(user_id, world_id)`로 재개 가능.
 - **프롬프트 캐시(Phase 1):** 시스템 프롬프트를 `static` / `dynamic` 블록으로 분리, Anthropic 프롬프트 캐시가 static에만 적용되도록 구성.
 - **Single-Pass Tool Use (Phase 1.5):** 1차 응답에 NPC 대사(text)와 `tool_use`가 함께 있으면 **2차 API 호출 생략** → 지연·비용 절감 (텍스트 없을 때만 기존 2차 폴백).
 - **Usage / 비용:** API `usage` 기반 턴 비용·캐시 read/write 로깅, 캐시 할인 반영 추정.
@@ -104,14 +105,14 @@
 
 ## 추가 구현 계획 (로드맵)
 
-우선순위는 실제 일정에 따라 바뀔 수 있습니다.
+우선순위는 실제 일정에 따라 바뀔 수 있습니다. 세부·베타 범위는 [`docs/UGC_MVP_PLAN.md`](docs/UGC_MVP_PLAN.md)를 본다.
 
 | 단계 | 내용 |
 |------|------|
-| 단기 | FastAPI 엔드포인트 정리, 세션·환경 설정 분리, `enable_single_pass` 설정 파일화 |
-| 중기 | React(또는 단일 페이지) UI, 스트리밍 응답 검토, 통합 테스트 보강 |
-| 중기 | 루프 감지 재활성화·튜닝, 이벤트 시스템 고도화 |
-| 장기 | 기억 저장소 PostgreSQL 등 마이그레이션, 멀티 유저·관측(로그/메트릭) |
+| 단기 | `enable_single_pass` 등 엔진 플래그 **`.env`/설정 노출**, API 엔드포인트·에러 응답 정리 |
+| 중기 | 응답 **스트리밍(SSE 등)** 검토, 통합 테스트·E2E 보강(API 키·마커 분리) |
+| 중기 | **루프 감지** 재활성화·튜닝, **이벤트** 시스템 고도화 |
+| 장기 | **장기 기억**을 파일 외 **PostgreSQL(또는 객체 저장소)** 로 이전 시 일관성 설계, **관측**(구조화 로그·메트릭·알림), 프로덕션 배포·BYOK·쿼터( [`UGC_MVP_PLAN`](docs/UGC_MVP_PLAN.md) ) |
 
 ---
 
@@ -140,11 +141,12 @@ poetry run pytest backend/tests/unit -q --no-cov
 poetry install
 
 # DB: .env 에 DATABASE_URL (예: postgresql://…/living_world)
-# 스키마 적용 (pull 후 필수 — worlds.visibility 등)
+# 스키마 적용 (pull 후 필수 — visibility, play_sessions 등)
 poetry run python -m alembic upgrade head
 
 # API 서버 (UGC MVP — 터미널 1)
-poetry run uvicorn backend.src.main:app --reload --host 127.0.0.1 --port 8000
+# 전역 `uvicorn`이 Python 3.9를 물면 오류가 날 수 있음 → 아래처럼 `python -m` 권장
+poetry run python -m uvicorn backend.src.main:app --reload --host 127.0.0.1 --port 8000
 
 # 웹 UI (터미널 2 — 5173은 이 프로세스가 켜져 있어야 함)
 cd frontend && npm install && npm run dev
@@ -179,7 +181,7 @@ engine/
 │   │   │   ├── events.py
 │   │   │   └── loop_detector.py
 │   │   ├── api/                # FastAPI 라우트
-│   │   ├── db/                 # SQLAlchemy Base, session, User·World 모델
+│   │   ├── db/                 # SQLAlchemy Base, session, User·World·PlaySession
 │   │   ├── utils/              # config, logger, usage_tracker …
 │   │   └── worlds/             # CLI용 내장 세계관 JSON (campus, arcane_academy)
 │   ├── tests/

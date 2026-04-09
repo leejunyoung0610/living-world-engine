@@ -17,6 +17,7 @@ from .validator import StateChangeValidator
 from .loop_detector import LoopDetector
 from .events import EventManager
 from .prompt_optimizer import SystemPromptOptimizer
+from ..utils.config import get_settings
 from ..utils.logger import get_logger
 from ..utils.usage_tracker import UsageTracker
 from ..utils.performance import PerformanceMonitor
@@ -172,7 +173,7 @@ class GameEngine:
                     user_input=user_input,
                     system_prompt=system_blocks,
                     conversation_history=optimized_history,
-                    enable_single_pass=True,
+                    enable_single_pass=get_settings().enable_single_pass,
                 )
 
             _calls = int(llm_result.get("llm_api_calls", 1))
