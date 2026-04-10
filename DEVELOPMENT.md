@@ -17,6 +17,15 @@
 
 ---
 
+## 2026-03-29 — 베타 인프라·가입 게이트·문서
+
+- **Docker:** 루트 `docker-compose.yml`(PostgreSQL, api, web), `docker/Dockerfile.api` 및 엔트리포인트(Alembic `upgrade head` 후 uvicorn), `frontend/Dockerfile`·`nginx.conf`(`/api`·`/health` → API), 루트·`frontend/.dockerignore`.
+- **배포 문서·CI:** [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)(호스팅·HTTPS·시크릿·초대 코드 운영), [`.github/workflows/docker-build.yml`](.github/workflows/docker-build.yml)(API·웹 이미지 빌드 검증). 실행 체크리스트는 [`docs/BETA_DEV_EXECUTION.md`](docs/BETA_DEV_EXECUTION.md)(Epic A·B·C 등).
+- **가입 게이트(Epic C):** Alembic `0005` `invite_codes`, 설정 `REQUIRE_INVITE_CODE_FOR_SIGNUP`(기본 false)·`MAX_TOTAL_USERS`, `backend/scripts/create_invite_code.py`. 초대 코드는 **신규 `signup`만** 제한; 기존 계정 로그인과 무관.
+- **README:** Docker Compose 복붙 절차, 상태 표·문서 링크 갱신. **BYOK·월드별 API 키**는 [`docs/BETA_DEV_EXECUTION.md`](docs/BETA_DEV_EXECUTION.md) Epic G·기획 [`docs/UGC_MVP_PLAN.md`](docs/UGC_MVP_PLAN.md)에 계획만 있고 미구현(서버 `ANTHROPIC_API_KEY` 단일).
+
+---
+
 ## 2026-03-30 코드 기준: 성능 최적화 스냅샷 (Phase 1–2)
 
 이 절은 **저장소 코드와 동기화된 정본**이다. 아래 Day 13 일지에 적힌 숫자(예: `NPC_RECENT_TURNS=3`, `MAX_CONTEXT_TOKENS=2000`)는 과거 스냅샷이므로, 충돌 시 **항상 코드**를 따른다.
@@ -54,7 +63,9 @@
 - **검색** (`search`): `player_id`로 필터 → `min_importance`(게임 루프에서 **7**) → 쿼리 있으면 키워드·태그·내용 매칭 점수(`_calculate_relevance`), 없으면 중요도·시간 정렬. **BM25 미사용**.
 - **게임 루프 호출**: `min_importance=7`, `limit=10`.
 - **프롬프트 주입**: `SystemPromptOptimizer._select_key_memories`는 `importance >= 6`으로 한 번 더 걸러 중요도 내림차순 → `_format_memories`는 **최대 5줄**만 `## 중요 기억`에 출력.
-- **중복 억제** (`add_memory` → `_is_duplicate`): 전역 `self.memories`의 **최근 10개**와 `SequenceMatcher.ratio() > 0.95`면 스킵.
+- **중복 억제** (`add_memory` → `_is_duplicate`): **최근 10개** `content`와 `SequenceMatcher.ratio() > 0.80`이면 스킵.
+- **개수 기반 압축** (`maybe_compact_if_oversized`): 턴 말미 `new_memories` 반영 후, 전체 개수가 `ltm_compact_max_total`(기본 200) 초과이면 **`importance` &lt; `ltm_compact_importance_below`(50)** 이고 `summary` 태그가 아닌 것 중 **가장 오래된 것부터** `max(최소묶음 10, 초과분)`건을 태그 통계 요약 1건으로 치환. 설정: `LTM_COMPACT_*` (`.env.example` 참고).
+- **시간 기반 요약** (`summarize_old_memories`): 수동·배치용, 동일 후보 규칙 + N일 이전.
 
 ### 출력·설정 (`backend/src/utils/config.py`, `.env.example`)
 
@@ -74,23 +85,24 @@
 
 ### UGC 플랫폼 MVP (2026-04 기획 통합)
 
-엔진을 **멀티 유저·UGC·BYOK·배포**까지 확장하는 **4주 MVP** 범위·주차·비용·체크리스트는 코드가 아닌 기획 문서로만 관리한다:
+엔진을 **멀티 유저·UGC·BYOK·배포**까지 확장하는 **4주 MVP**는 아래처럼 문서를 나눈다:
 
-- **[`docs/UGC_MVP_PLAN.md`](docs/UGC_MVP_PLAN.md)** — 단일 정본 (정책 상한 vs 1차 베타 코호트 구분, Ready but Gated, Phase 2 경계)
+- **[`docs/UGC_MVP_PLAN.md`](docs/UGC_MVP_PLAN.md)** — 기획·정책 정본 (Ready but Gated, Phase 2 경계)
+- **[`docs/BETA_DEV_EXECUTION.md`](docs/BETA_DEV_EXECUTION.md)** — 베타 구현 **Epic·DoD·파일 힌트** (진행 시 체크박스 갱신)
 
-구현이 시작되면 해당 문서의 체크리스트를 갱신하고, 아키텍처 다이어그램은 `docs/ARCHITECTURE.md`에 UGC 흐름을 반영할 예정이다.
+아키텍처 다이어그램은 `docs/ARCHITECTURE.md`에 UGC 흐름을 반영할 예정이다.
 
 #### UGC 수직 슬라이스 구현 브리핑 (2026-03 ~ 04, 코드 기준)
 
 - **인증·저장소:** 인메모리 `auth_store` 제거 → PostgreSQL `users`, `DATABASE_URL`, `get_db`, JWT 동일.
 - **마이그레이션:** Alembic 루트 `migrations/` + `alembic.ini`. 리비전 `0001` users, `0002` worlds, **`0003` `worlds.visibility`** (`private` \| `public`, 기본 `private`, 인덱스). 로컬·배포 후 **반드시** `poetry run python -m alembic upgrade head`. 스키마 누락 시(예: `column worlds.visibility does not exist`) 동일 명령으로 해결.
-- **월드 API:** `World` 모델(JSON `world_data` / `characters_data` / `events_data` + `visibility`). 소유자만 CRUD·편집. **`GET /api/worlds/explore`** — 로그인 유저 기준 공개 월드 목록(`owner_username`, `is_mine`), 최대 100건·`updated_at` 내림차순.
+- **월드 API:** `World` 모델(JSON `world_data` / `characters_data` / `events_data` + `visibility`). 소유자만 CRUD·편집. **`GET /api/worlds/explore`** — 로그인 유저 기준 공개 월드 목록(`owner_username`, `is_mine`), `updated_at` 내림차순, **페이지네이션** `limit`(기본 20, 최대 100)·`offset`, 응답 `{ items, total, limit, offset }`.
 - **플레이 API:** `POST /api/play/start` — 바디 `world_id`, 선택 `force_new`. **소유 월드 또는 `public` 월드**만 시작 가능. 동일 `(user_id, world_id)`에 활성 세션이 있으면 **기존 `session_id` 반환**(HTTP 200, `resumed: true`), 없으면 생성(201). `GET /api/play/sessions`, `GET /api/play/{id}/history`, `POST .../turn`, `DELETE /api/play/{id}`. **엔진 스냅샷:** PostgreSQL `play_sessions`(마이그레이션 `0004`, `UNIQUE(user_id, world_id)`). **장기기억 파일:** `data/play_sessions/{session_id}.json` (`.gitignore`).
 - **대화 UI:** `dialogue_split` + 프롬프트 규칙으로 assistant 응답을 NPC별 세그먼트로 나눠 `response_segments`·히스토리에 반영.
 - **프론트 라우팅:** 네비 `홈 | 탐색 | 마이페이지`. **`/my`** — 플레이 중 세션 + 내 월드(공개/비공개 뱃지). **`/explore`** — 공개 월드(내 공개 / 다른 크리에이터 구역). **`/worlds`**·**`/play`**(허브)는 **`/my`로 리다이렉트**. **`/play/:sessionId`** — 채팅. **`/worlds/new`**, **`/worlds/:id`** — JSON 편집기에서 공개 범위 라디오. Vite 5173 + API 8000 병행.
 - **내장 세계관:** `backend/src/worlds/campus`·`arcane_academy`는 **CLI `play_game` 전용** — 웹은 DB UGC만 사용.
 - **운영 메모:** DB 오류 시 핸들러가 마이그레이션 안내( `DEBUG` 시 `orig` ).
-- **다음(로드맵):** 공유 링크, BYOK, 초대 검증, 탐색 페이지네이션·검색, 장기기억·스냅샷 단일화, 관측·배포 등. (베타 범위: [`docs/UGC_MVP_PLAN.md`](docs/UGC_MVP_PLAN.md))
+- **다음(실행 로드맵):** 베타 필수 구현은 **[`docs/BETA_DEV_EXECUTION.md`](docs/BETA_DEV_EXECUTION.md)** (Epic·DoD·파일 힌트). 기획 정본은 [`docs/UGC_MVP_PLAN.md`](docs/UGC_MVP_PLAN.md). 남은 제품 과제 예: 공유 링크 정책(세션 vs 월드), BYOK(Epic G), 탐색 검색, 장기기억·스냅샷 단일화. **초대 검증(Epic C)** 는 플래그·`invite_codes`로 반영됨.
 
 ---
 

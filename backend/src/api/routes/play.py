@@ -20,7 +20,7 @@ from ...engine.game_loop import GameEngine
 from ...engine.play_persistence import apply_play_payload, sync_engine_after_restore
 from ...services import play_sessions
 from ...services import play_session_db
-from ...utils.config import PROJECT_ROOT
+from ...utils.config import PROJECT_ROOT, get_settings
 from ...utils.logger import get_logger
 from ..deps import get_current_user
 
@@ -370,9 +370,12 @@ def play_turn(
         result = bundle.engine.process_turn(body.message.strip())
     except Exception as exc:
         logger.exception("play turn failed")
+        detail = "LLM 또는 엔진 처리 중 오류가 났습니다. API 키·네트워크를 확인하세요."
+        if get_settings().debug:
+            detail = f"{detail} ({type(exc).__name__}: {exc})"
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="LLM 또는 엔진 처리 중 오류가 났습니다. API 키·네트워크를 확인하세요.",
+            detail=detail,
         ) from exc
 
     _persist_session(db, session_id, user.id, bundle.world_id, bundle.engine)

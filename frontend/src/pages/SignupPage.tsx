@@ -44,7 +44,7 @@ export function SignupPage() {
     <div className="mx-auto max-w-md px-4 py-16">
       <h1 className="mb-2 text-2xl font-semibold text-white">회원가입</h1>
       <p className="mb-6 text-sm text-slate-400">
-        <code className="text-slate-300">invite_code</code> 필드만 연결됨 (검증은 추후).
+        서버에서 초대 코드 검증을 켠 경우에만 코드가 필수입니다. (로컬 기본은 꺼져 있을 수 있음)
       </p>
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <input
@@ -74,7 +74,7 @@ export function SignupPage() {
         />
         <input
           type="text"
-          placeholder="초대 코드 (선택)"
+          placeholder="초대 코드 (베타 시 서버 설정에 따라 필수)"
           value={inviteCode}
           onChange={(e) => setInviteCode(e.target.value)}
           className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-white placeholder:text-slate-500"

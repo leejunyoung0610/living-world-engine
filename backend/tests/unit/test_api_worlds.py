@@ -167,7 +167,7 @@ def test_worlds_explore_public_only(client: TestClient) -> None:
 
     r = client.get("/api/worlds/explore", headers=h_b)
     assert r.status_code == 200
-    assert r.json() == []
+    assert r.json() == {"items": [], "total": 0, "limit": 20, "offset": 0}
 
     client.post(
         "/api/worlds/",
@@ -193,14 +193,55 @@ def test_worlds_explore_public_only(client: TestClient) -> None:
     r = client.get("/api/worlds/explore", headers=h_b)
     assert r.status_code == 200
     data = r.json()
-    assert len(data) == 1
-    assert data[0]["name"] == "공개"
-    assert data[0]["world_id"] == "pub_w"
-    assert data[0]["owner_username"] == "W"
-    assert data[0]["is_mine"] is False
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["name"] == "공개"
+    assert data["items"][0]["world_id"] == "pub_w"
+    assert data["items"][0]["owner_username"] == "W"
+    assert data["items"][0]["is_mine"] is False
 
     r = client.get("/api/worlds/explore", headers=h_a)
-    assert r.json()[0]["is_mine"] is True
+    assert r.json()["items"][0]["is_mine"] is True
+
+
+def test_worlds_explore_pagination(client: TestClient) -> None:
+    token = _signup_login(client, "pag@example.com")
+    h = {"Authorization": f"Bearer {token}"}
+    body = {
+        "name": "W",
+        "world": MIN_WORLD,
+        "characters": MIN_CHARS,
+        "visibility": "public",
+    }
+    # 계정당 월드 상한(기본 3)에 맞춤
+    for i in range(3):
+        r = client.post(
+            "/api/worlds/",
+            headers=h,
+            json={
+                **body,
+                "name": f"P{i}",
+                "world": {**MIN_WORLD, "id": f"pub_pag_{i}"},
+            },
+        )
+        assert r.status_code == 201, r.text
+
+    r = client.get("/api/worlds/explore?limit=2&offset=0", headers=h)
+    assert r.status_code == 200
+    p1 = r.json()
+    assert p1["total"] == 3
+    assert p1["limit"] == 2
+    assert p1["offset"] == 0
+    assert len(p1["items"]) == 2
+
+    r = client.get("/api/worlds/explore?limit=2&offset=2", headers=h)
+    p2 = r.json()
+    assert p2["total"] == 3
+    assert len(p2["items"]) == 1
+
+    r = client.get("/api/worlds/explore?limit=100&offset=0", headers=h)
+    assert r.json()["total"] == 3
+    assert len(r.json()["items"]) == 3
 
 
 def test_worlds_explore_unauthenticated(client: TestClient) -> None:

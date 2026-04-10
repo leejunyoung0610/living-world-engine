@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -118,6 +118,13 @@ class ExploreWorldSummary(BaseModel):
     updated_at: datetime
 
 
+class ExploreWorldsPage(BaseModel):
+    items: list[ExploreWorldSummary]
+    total: int
+    limit: int
+    offset: int
+
+
 def _get_owned_world(db: Session, world_id: uuid.UUID, owner_id: uuid.UUID) -> World | None:
     return db.scalars(
         select(World).where(World.id == world_id, World.owner_id == owner_id)
@@ -133,17 +140,22 @@ def list_worlds(
     return [WorldSummary.from_orm_world(w) for w in rows]
 
 
-@router.get("/explore", response_model=list[ExploreWorldSummary])
+@router.get("/explore", response_model=ExploreWorldsPage)
 def explore_worlds(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> list[ExploreWorldSummary]:
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+) -> ExploreWorldsPage:
+    public = World.visibility == "public"
+    total = int(db.scalar(select(func.count()).select_from(World).where(public)) or 0)
     rows = db.execute(
         select(World, User.username)
         .join(User, World.owner_id == User.id)
-        .where(World.visibility == "public")
+        .where(public)
         .order_by(World.updated_at.desc())
-        .limit(100)
+        .limit(limit)
+        .offset(offset)
     ).all()
     out: list[ExploreWorldSummary] = []
     for w, owner_username in rows:
@@ -161,7 +173,7 @@ def explore_worlds(
                 updated_at=w.updated_at,
             )
         )
-    return out
+    return ExploreWorldsPage(items=out, total=total, limit=limit, offset=offset)
 
 
 @router.post("/", response_model=WorldDetail, status_code=status.HTTP_201_CREATED)

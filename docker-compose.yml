@@ -1,0 +1,50 @@
+# 로컬·스테이징용: PostgreSQL + API + 웹(Nginx)
+# 사용법: docs/BETA_DEV_EXECUTION.md / README 「Docker」절 참고
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: living_world
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d living_world"]
+      interval: 3s
+      timeout: 5s
+      retries: 15
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/living_world
+      DEBUG: "false"
+      CORS_ORIGINS: http://localhost:8080,http://127.0.0.1:8080,http://localhost:8000,http://127.0.0.1:8000
+      HOST: 0.0.0.0
+      PORT: "8000"
+    env_file:
+      - .env
+    volumes:
+      - engine_data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  engine_data:

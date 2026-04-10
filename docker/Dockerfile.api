@@ -1,0 +1,29 @@
+# API — Poetry, 프로젝트 루트가 컨텍스트
+FROM python:3.11-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    POETRY_VIRTUALENVS_CREATE=false \
+    POETRY_NO_INTERACTION=1
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --upgrade pip && pip install "poetry>=1.8,<3"
+
+COPY pyproject.toml poetry.lock ./
+RUN poetry install --only main --no-ansi
+
+COPY backend ./backend
+COPY migrations ./migrations
+COPY alembic.ini ./
+COPY docker/docker-api-entrypoint.sh /docker-api-entrypoint.sh
+RUN chmod +x /docker-api-entrypoint.sh
+
+EXPOSE 8000
+ENTRYPOINT ["/docker-api-entrypoint.sh"]
+CMD ["uvicorn", "backend.src.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -21,7 +21,7 @@
 | API | ✅ `/api/auth/*`, `/api/worlds/*`, **`GET /api/worlds/explore`**, `/api/play/*`, `/health` |
 | React 프론트 | ✅ **`/my` 마이페이지**(진행 중 플레이 + 내 월드), **`/explore` 탐색**, `/play/:sessionId`, `/worlds/new`·`/worlds/:id` (Vite → `/api` :8000) |
 | 웹 플레이 | ✅ 세션 **이어하기**(월드당 1세션), 히스토리·NPC 블록 UI, `force_new`·`GET .../history`; **엔진 스냅샷은 DB `play_sessions`에 영속화**(턴 후·시작 시 upsert, 인메모리는 캐시). 장기기억 파일은 `data/play_sessions/{session_id}.json` |
-| 프로덕션 배포 | 미구현 |
+| 프로덕션 배포 (HTTPS·시크릿) | Epic B 대기 — **로컬은 Docker Compose**로 API+DB+웹 실행 가능 |
 
 **UGC 플랫폼 MVP(베타) 계획**은 [`docs/UGC_MVP_PLAN.md`](docs/UGC_MVP_PLAN.md)에 통합해 두었다. (정책 상한 vs 1차 초대 인원, 4주 범위, 비용·배포 원칙)
 
@@ -109,7 +109,7 @@
 
 | 단계 | 내용 |
 |------|------|
-| 단기 | `enable_single_pass` 등 엔진 플래그 **`.env`/설정 노출**, API 엔드포인트·에러 응답 정리 |
+| 단기 | API **검증(422)·미처리 예외** 응답 정리, 탐색 **`GET /api/worlds/explore` 페이지네이션** (`limit`/`offset`, 기본 20·최대 100) |
 | 중기 | 응답 **스트리밍(SSE 등)** 검토, 통합 테스트·E2E 보강(API 키·마커 분리) |
 | 중기 | **루프 감지** 재활성화·튜닝, **이벤트** 시스템 고도화 |
 | 장기 | **장기 기억**을 파일 외 **PostgreSQL(또는 객체 저장소)** 로 이전 시 일관성 설계, **관측**(구조화 로그·메트릭·알림), 프로덕션 배포·BYOK·쿼터( [`UGC_MVP_PLAN`](docs/UGC_MVP_PLAN.md) ) |
@@ -151,6 +151,20 @@ poetry run python -m uvicorn backend.src.main:app --reload --host 127.0.0.1 --po
 # 웹 UI (터미널 2 — 5173은 이 프로세스가 켜져 있어야 함)
 cd frontend && npm install && npm run dev
 # → http://127.0.0.1:5173 (API는 Vite proxy로 /api → :8000)
+```
+
+### Docker Compose (API + PostgreSQL + Nginx 정적 웹)
+
+로컬 전용 기본 DB 계정은 `postgres` / `postgres` (`docker-compose.yml`의 `db` 서비스). 인터넷에 노출하지 말 것.
+
+```bash
+cp .env.example .env
+# ANTHROPIC_API_KEY 필수. JWT_SECRET은 추측 불가한 긴 값으로 변경 권장.
+# compose의 api 서비스는 DATABASE_URL을 파일에서 덮어씁니다(컨테이너는 db 호스트 사용).
+
+docker compose up --build -d
+# API 직접: http://127.0.0.1:8000/health
+# 웹(UI, /api·/health 프록시): http://127.0.0.1:8080
 ```
 
 ---
@@ -198,6 +212,7 @@ engine/
 |------|------|
 | [docs/UGC_MVP_PLAN.md](docs/UGC_MVP_PLAN.md) | **UGC MVP·베타** 기획 통합본 (범위·주차·비용·배포·체크리스트) |
 | [docs/PORTFOLIO.md](docs/PORTFOLIO.md) | 기업·부트캠프 지원용 요약 (복붙용) |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | **프로덕션** 호스팅·HTTPS·시크릿(SSM 등)·이미지 배포 요약 (Epic B) |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | 일자별 개발 기록 · 코드 기준 최적화 스냅샷 |
 
 ---

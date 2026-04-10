@@ -1,5 +1,7 @@
 # backend/tests/unit/test_long_term_memory.py
 
+import uuid
+
 import pytest
 import tempfile
 import json
@@ -132,36 +134,36 @@ def test_get_recent(memory_system):
     """최근 기억 반환 테스트"""
     import time
     
-    memory_system.add_memory("첫 번째 기억", importance=5)
+    memory_system.add_memory("최근목록A-동물원에서 코끼리", importance=5)
     time.sleep(0.01)  # 시간 차이
-    memory_system.add_memory("두 번째 기억", importance=5)
+    memory_system.add_memory("최근목록B-바다에서 고래관측", importance=5)
     time.sleep(0.01)
-    memory_system.add_memory("세 번째 기억", importance=5)
+    memory_system.add_memory("최근목록C-산에서 일출", importance=5)
     
     recent = memory_system.get_recent(limit=2)
     
     assert len(recent) == 2
     # 최신 순서
-    assert recent[0]["content"] == "세 번째 기억"
-    assert recent[1]["content"] == "두 번째 기억"
+    assert recent[0]["content"] == "최근목록C-산에서 일출"
+    assert recent[1]["content"] == "최근목록B-바다에서 고래관측"
 
 
 def test_importance_clamping(memory_system):
     """중요도 범위 제한 테스트"""
     # 범위 초과
-    memory_system.add_memory("테스트", importance=150)
+    memory_system.add_memory("중요도상한검증-별도문구", importance=150)
     assert memory_system.memories[-1]["importance"] == 100
     
     # 범위 미만
-    memory_system.add_memory("테스트2", importance=-5)
+    memory_system.add_memory("중요도하한검증-또다른문구", importance=-5)
     assert memory_system.memories[-1]["importance"] == 1
 
 
 def test_player_id_filtering(memory_system):
     """플레이어별 기억 분리 테스트"""
-    memory_system.add_memory("플레이어1 기억", player_id="player1", importance=8)
-    memory_system.add_memory("플레이어2 기억", player_id="player2", importance=8)
-    memory_system.add_memory("플레이어1 기억2", player_id="player1", importance=7)
+    memory_system.add_memory("p1-고유기억-알파", player_id="player1", importance=8)
+    memory_system.add_memory("p2-전용기억-베타", player_id="player2", importance=8)
+    memory_system.add_memory("p1-두번째-감마델타", player_id="player1", importance=7)
     
     # player1 기억만 검색
     results = memory_system.search(player_id="player1", min_importance=5)
@@ -189,9 +191,9 @@ def test_persistence(temp_storage):
 
 def test_get_stats(memory_system):
     """통계 반환 테스트"""
-    memory_system.add_memory("기쁜 일", emotion="joy", importance=8)
-    memory_system.add_memory("화난 일", emotion="anger", importance=7)
-    memory_system.add_memory("또 기쁜 일", emotion="joy", importance=9)
+    memory_system.add_memory("감정통계-기쁨-첫이벤트", emotion="joy", importance=8)
+    memory_system.add_memory("감정통계-분노-별건", emotion="anger", importance=7)
+    memory_system.add_memory("감정통계-기쁨-완전다른상황", emotion="joy", importance=9)
     
     stats = memory_system.get_stats()
     
@@ -246,9 +248,40 @@ def test_duplicate_detection(memory_system):
     assert len(memory_system.memories) == 1
 
 
+def test_maybe_compact_if_oversized(memory_system):
+    """개수 상한 초과 시 가장 오래된 저중요도 기억을 한 번에 묶어 요약한다."""
+    for i in range(25):
+        memory_system.add_memory(f"압축테스트-{i:03d}-{uuid.uuid4().hex[:12]}", importance=5)
+    assert len(memory_system.memories) == 25
+    # 상한 20 → 초과 5이지만 최소 묶음 10 → 10건 접고 요약 1건 추가 → 25 - 10 + 1 = 16
+    memory_system.maybe_compact_if_oversized(max_total=20, min_batch=10, importance_below=50)
+    assert len(memory_system.memories) == 16
+    assert any("summary" in (m.get("tags") or []) for m in memory_system.memories)
+
+
+def test_compact_at_201_with_defaults_like_production(memory_system):
+    """상한 200·최소묶음 10일 때 201개면 초과분은 1이어도 10개를 접어 192개가 된다."""
+    for i in range(201):
+        memory_system.add_memory(f"sc-{i:04d}-{uuid.uuid4().hex[:10]}", importance=5)
+    assert len(memory_system.memories) == 201
+    memory_system.maybe_compact_if_oversized(max_total=200, min_batch=10, importance_below=50)
+    assert len(memory_system.memories) == 192
+    summaries = [m for m in memory_system.memories if "summary" in (m.get("tags") or [])]
+    assert len(summaries) == 1
+    assert summaries[0].get("importance") == 30
+
+
+def test_compact_large_excess_takes_more_than_min_batch(memory_system):
+    """초과분이 10 이상이면 take = 초과분(최소 10과 동일 또는 더 큼). 예: 250개 → 50개 접음 → 201개."""
+    for i in range(250):
+        memory_system.add_memory(f"lg-{i:04d}-{uuid.uuid4().hex[:10]}", importance=5)
+    memory_system.maybe_compact_if_oversized(max_total=200, min_batch=10, importance_below=50)
+    assert len(memory_system.memories) == 201
+
+
 def test_summarization(memory_system):
     for i in range(12):
-        memory_system.add_memory(f"과거 기억 {i}", importance=10)
+        memory_system.add_memory(f"과거요약대상-{i}-{uuid.uuid4().hex[:8]}", importance=10)
         memory_system.memories[-1]["importance"] = 30
         memory_system.memories[-1]["created_at"] = (
             datetime.now() - timedelta(days=10)

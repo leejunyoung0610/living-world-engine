@@ -2,13 +2,14 @@
 
 import json
 import uuid
+from collections import Counter
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import List, Dict, Optional
 import logging
 
-from ..utils.config import MEMORIES_JSON_PATH
+from ..utils.config import MEMORIES_JSON_PATH, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -303,28 +304,32 @@ class LongTermMemory:
         for memory in reversed(recent):
             old_content = memory.get("content", "")
             ratio = SequenceMatcher(None, new_content, old_content).ratio()
-            if ratio > 0.95:
+            if ratio > 0.80:
                 logger.debug(f"Similar memory found: {ratio:.2f}")
                 return True
         return False
 
-    def summarize_old_memories(self, days_ago: int = 7) -> None:
-        """오래된 중요 낮은 기억을 요약"""
-        cutoff = datetime.now() - timedelta(days=days_ago)
-        old_memories = [
-            m for m in self.memories
-            if datetime.fromisoformat(m["created_at"]) < cutoff
-            and m.get("importance", 0) < 50
-        ]
-        if len(old_memories) < 10:
-            return
-        summary = self._create_summary(old_memories)
-        for old in old_memories:
-            self.memories.remove(old)
+    def _is_compact_candidate(self, m: Dict, importance_below: int) -> bool:
+        if m.get("importance", 0) >= importance_below:
+            return False
+        if "summary" in (m.get("tags") or []):
+            return False
+        return True
 
+    def _fold_memories_into_summary(self, old_memories: List[Dict]) -> None:
+        """선택된 기억을 제거하고 태그 통계 요약 1건으로 치환."""
+        with_id = [m for m in old_memories if m.get("id")]
+        if len(with_id) < 10:
+            return
+        summary = self._create_summary(with_id)
+        remove_ids = {m["id"] for m in with_id}
+        self.memories = [m for m in self.memories if m.get("id") not in remove_ids]
+        player_id = Counter(
+            (m.get("player_id") or "default") for m in with_id
+        ).most_common(1)[0][0]
         summary_memory = {
             "id": uuid.uuid4().hex,
-            "player_id": "summary",
+            "player_id": player_id,
             "content": f"[요약] {summary}",
             "emotion": "neutral",
             "importance": 30,
@@ -333,7 +338,52 @@ class LongTermMemory:
         }
         self.memories.append(summary_memory)
         self._save()
-        logger.info(f"Summarized {len(old_memories)} memories into one")
+        logger.info("Summarized %s memories into one (player_id=%s)", len(with_id), player_id)
+
+    def maybe_compact_if_oversized(
+        self,
+        *,
+        max_total: int | None = None,
+        min_batch: int | None = None,
+        importance_below: int | None = None,
+    ) -> None:
+        """전체 기억 개수가 상한을 넘으면, 가장 오래된 저중요도 기억을 한 묶음 요약으로 줄임."""
+        s = get_settings()
+        mt = max_total if max_total is not None else s.ltm_compact_max_total
+        mb = min_batch if min_batch is not None else s.ltm_compact_min_batch
+        ib = importance_below if importance_below is not None else s.ltm_compact_importance_below
+
+        if len(self.memories) <= mt:
+            return
+        candidates = [m for m in self.memories if self._is_compact_candidate(m, ib)]
+        candidates.sort(key=lambda m: m.get("created_at", ""))
+        excess = len(self.memories) - mt
+        take = max(mb, excess)
+        take = min(take, len(candidates))
+        if take < mb:
+            logger.debug(
+                "LTM compact skipped: need %s compactable oldest, have %s (total=%s)",
+                mb,
+                len(candidates),
+                len(self.memories),
+            )
+            return
+        self._fold_memories_into_summary(candidates[:take])
+
+    def summarize_old_memories(self, days_ago: int = 7) -> None:
+        """오래된 중요 낮은 기억을 요약 (시간 기준 — 수동·배치용)."""
+        s = get_settings()
+        ib = s.ltm_compact_importance_below
+        cutoff = datetime.now() - timedelta(days=days_ago)
+        old_memories = [
+            m
+            for m in self.memories
+            if self._is_compact_candidate(m, ib)
+            and datetime.fromisoformat(m["created_at"]) < cutoff
+        ]
+        if len(old_memories) < 10:
+            return
+        self._fold_memories_into_summary(old_memories)
 
     def _create_summary(self, memories: List[Dict]) -> str:
         tag_counts: Dict[str, int] = {}

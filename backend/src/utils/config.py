@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     database_url: str = ""
     # UGC 월드 수 상한 (정책·플랜과 맞출 것)
     max_worlds_per_user: int = 3
+    # 가입 게이트 (Epic C) — True면 유효한 DB 초대 코드 없이는 signup 불가
+    require_invite_code_for_signup: bool = False
+    # 전체 가입자 상한 — None 이면 미적용. 정책 상한(예: 100)은 UGC_MVP_PLAN 참고
+    max_total_users: int | None = None
 
     # 게임
     default_world: str = "arcane_academy"
@@ -68,6 +72,10 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 768
     # True: 1차 응답에 NPC 텍스트+tool_use가 같이 오면 2차 API 호출 생략 (game_loop → ClaudeClient)
     enable_single_pass: bool = True
+    # 장기기억: 전체 개수가 max_total 초과 시 가장 오래된 저중요도 묶음을 태그 요약 1건으로 접음
+    ltm_compact_max_total: int = 200
+    ltm_compact_min_batch: int = 10
+    ltm_compact_importance_below: int = 50
 
     @field_validator("llm_model", mode="before")
     @classmethod

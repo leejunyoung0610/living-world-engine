@@ -31,6 +31,13 @@ export type ExploreWorldSummary = {
   updated_at: string;
 };
 
+export type ExploreWorldsPage = {
+  items: ExploreWorldSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
 /** 엔진 `world.json` / `characters.json` 최소 형태 — 새 월드 기본값 */
 export const EMPTY_WORLD: Record<string, unknown> = {
   id: "my_world",
@@ -73,9 +80,17 @@ export async function listWorlds(token: string): Promise<WorldSummary[]> {
   return readJson<WorldSummary[]>(res);
 }
 
-export async function exploreWorlds(token: string): Promise<ExploreWorldSummary[]> {
-  const res = await apiFetch("/api/worlds/explore", { headers: authHeaders(token) });
-  return readJson<ExploreWorldSummary[]>(res);
+export async function exploreWorlds(
+  token: string,
+  opts?: { limit?: number; offset?: number },
+): Promise<ExploreWorldsPage> {
+  const q = new URLSearchParams();
+  if (opts?.limit != null) q.set("limit", String(opts.limit));
+  if (opts?.offset != null) q.set("offset", String(opts.offset));
+  const qs = q.toString();
+  const path = qs ? `/api/worlds/explore?${qs}` : "/api/worlds/explore";
+  const res = await apiFetch(path, { headers: authHeaders(token) });
+  return readJson<ExploreWorldsPage>(res);
 }
 
 export async function getWorld(token: string, id: string): Promise<WorldDetail> {

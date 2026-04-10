@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.requests import Request
 
+from .api.error_handlers import register_exception_handlers
 from .api.routes import auth as auth_routes
 from .api.routes import play as play_routes
 from .api.routes import worlds as worlds_routes
@@ -36,6 +37,8 @@ def create_app() -> FastAPI:
     app.include_router(auth_routes.router, prefix="/api/auth", tags=["auth"])
     app.include_router(worlds_routes.router, prefix="/api/worlds", tags=["worlds"])
     app.include_router(play_routes.router, prefix="/api/play", tags=["play"])
+
+    register_exception_handlers(app, debug=settings.debug)
 
     @app.exception_handler(SQLAlchemyError)
     async def sqlalchemy_exception_handler(_request: Request, exc: SQLAlchemyError) -> JSONResponse:

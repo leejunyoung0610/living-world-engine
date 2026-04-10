@@ -215,6 +215,7 @@ class GameEngine:
                         importance=mem.get("importance", 5),
                         player_id=self.state.player.get("id", "default"),
                     )
+                self.memory.maybe_compact_if_oversized()
 
             snapshot = self.state.snapshot()
             response_text = llm_result.get("response", "")
