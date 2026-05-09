@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import uuid
+from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -18,11 +19,14 @@ from ...db.session import get_db
 from ...engine.dialogue_split import split_assistant_into_segments
 from ...engine.game_loop import GameEngine
 from ...engine.play_persistence import apply_play_payload, sync_engine_after_restore
-from ...services import play_sessions
+from ...services import platform_cost
 from ...services import play_session_db
+from ...services import play_sessions
+from ...services import turn_quota
 from ...utils.config import PROJECT_ROOT, get_settings
 from ...utils.logger import get_logger
 from ..deps import get_current_user
+from ..limiter import limiter
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -33,12 +37,27 @@ PLAY_SESSIONS_DIR = PROJECT_ROOT / "data" / "play_sessions"
 class PlayStartBody(BaseModel):
     world_id: uuid.UUID
     force_new: bool = False
+    #: 새 세션 시작 시 필수(이어하기 응답 경로에서는 생략).
+    player: dict[str, Any] | None = None
 
 
 class PlayStartResponse(BaseModel):
     session_id: uuid.UUID
     world_name: str
     resumed: bool = False
+
+
+class PlayWorldBriefResponse(BaseModel):
+    """플레이 입장 화면용 — 공개·소유 월드 조회."""
+
+    world_uuid: uuid.UUID
+    list_name: str
+    story_title: str
+    description: str = ""
+    #: 스토리용 상세 세계관 (`world_setting`; 없으면 레거시 `setting` 등).
+    world_setting: str = ""
+    npcs: list[dict[str, Any]] = Field(default_factory=list)
+    suggested_player: dict[str, Any] | None = None  # 구버전 월드에만 있을 수 있음
 
 
 class SessionSummary(BaseModel):
@@ -107,6 +126,36 @@ def _playable_world(db: Session, world_id: uuid.UUID, user_id: uuid.UUID) -> Wor
     return None
 
 
+def _validate_entry_player(player: dict[str, Any]) -> None:
+    name = player.get("name")
+    if not isinstance(name, str) or not name.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="player.name is required",
+        )
+
+
+def _merge_template_and_entry_player(
+    template_chars: dict[str, Any],
+    player: dict[str, Any],
+) -> dict[str, Any]:
+    npcs_raw = template_chars.get("npcs")
+    npcs: list[Any] = npcs_raw if isinstance(npcs_raw, list) else []
+    merged: dict[str, Any] = {"player": deepcopy(player), "npcs": deepcopy(npcs)}
+    q = template_chars.get("quests")
+    if isinstance(q, list):
+        merged["quests"] = deepcopy(q)
+    pl = merged["player"]
+    st = pl.get("stats")
+    if st is None:
+        pl["stats"] = {}
+    elif not isinstance(st, dict):
+        pl["stats"] = {}
+    if not pl.get("class"):
+        pl["class"] = "traveler"
+    return merged
+
+
 def _npc_names_from_engine(engine: Any) -> list[str]:
     state = getattr(engine, "state", None)
     if state is None:
@@ -122,6 +171,20 @@ def _npc_names_from_engine(engine: Any) -> list[str]:
 def _segments_for_assistant(engine: Any, content: str) -> list[NpcLineSegment]:
     raw = split_assistant_into_segments(content, _npc_names_from_engine(engine))
     return [NpcLineSegment(speaker=s["speaker"], text=s["text"]) for s in raw]
+
+
+def _ensure_platform_llm_key(engine: Any) -> None:
+    """모든 플레이는 서버 `ANTHROPIC_API_KEY` 단일 키로 LLM 호출."""
+    llm = getattr(engine, "llm", None)
+    if llm is None or not hasattr(llm, "rebind_api_key"):
+        return
+    settings = get_settings()
+    if not settings.anthropic_api_key.strip():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="플랫폼 API 키(ANTHROPIC_API_KEY)가 설정되지 않았습니다. 관리자에게 문의하세요.",
+        )
+    engine.llm.rebind_api_key(None)
 
 
 def _last_message_preview(engine: Any) -> str:
@@ -194,6 +257,48 @@ def _persist_session(
         world_id,
         engine,
         last_preview=_last_message_preview(engine),
+    )
+
+
+def _brief_world_setting(wd: dict[str, Any]) -> str:
+    raw = wd.get("world_setting")
+    if isinstance(raw, str) and raw.strip():
+        return raw.strip()
+    if isinstance(raw, list):
+        parts = [str(x).strip() for x in raw if isinstance(x, str) and str(x).strip()]
+        if parts:
+            return "\n\n".join(parts)
+    leg = wd.get("setting")
+    if isinstance(leg, str) and leg.strip():
+        return leg.strip()
+    return ""
+
+
+@router.get("/world/{world_id}/brief", response_model=PlayWorldBriefResponse)
+def play_world_brief(
+    world_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PlayWorldBriefResponse:
+    """입장 화면 — 탐색·타유저 플레이 시 월드 메타·NPC 목록 (소유/공개만)."""
+    w = _playable_world(db, world_id, user.id)
+    if w is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="World not found")
+    wd = w.world_data if isinstance(w.world_data, dict) else {}
+    chars = w.characters_data if isinstance(w.characters_data, dict) else {}
+    npcs_raw = chars.get("npcs")
+    npcs_list: list[dict[str, Any]] = (
+        [x for x in npcs_raw if isinstance(x, dict)] if isinstance(npcs_raw, list) else []
+    )
+    sug = chars.get("player") if isinstance(chars.get("player"), dict) else None
+    return PlayWorldBriefResponse(
+        world_uuid=w.id,
+        list_name=w.name,
+        story_title=str(wd.get("name", "") or ""),
+        description=str(wd.get("description", "") or ""),
+        world_setting=_brief_world_setting(wd),
+        npcs=npcs_list,
+        suggested_player=sug,
     )
 
 
@@ -323,11 +428,20 @@ def play_start(
     PLAY_SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
     mem_path = _memory_file(session_id)
 
+    if body.player is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="이 월드로 새로 들어가려면 player(입장 캐릭터) JSON이 필요합니다.",
+        )
+    _validate_entry_player(body.player)
+    template_chars = w.characters_data if isinstance(w.characters_data, dict) else {}
+    characters_merged = _merge_template_and_entry_player(template_chars, body.player)
+
     engine = GameEngine()
     try:
         engine.initialize_from_dicts(
             w.world_data,
-            w.characters_data,
+            characters_merged,
             w.events_data,
             memory_storage_path=mem_path,
         )
@@ -355,8 +469,10 @@ def play_start(
     return JSONResponse(status_code=status.HTTP_201_CREATED, content=payload)
 
 
+@limiter.limit("90/minute")
 @router.post("/{session_id}/turn", response_model=TurnResponse)
 def play_turn(
+    request: Request,
     session_id: uuid.UUID,
     body: TurnBody,
     user: User = Depends(get_current_user),
@@ -365,6 +481,21 @@ def play_turn(
     bundle = _ensure_bundle(db, session_id, user.id)
     if bundle is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
+    settings = get_settings()
+    db.refresh(user)
+    if settings.emergency_shutdown:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="긴급 점검 중입니다. 플레이가 일시 중단되었습니다.",
+        )
+
+    _ensure_platform_llm_key(bundle.engine)
+
+    turn_quota.check_platform_turn_quota_or_raise(db, user, settings)
+
+    ut = getattr(bundle.engine, "usage_tracker", None)
+    cost_before = float(ut.total_cost) if ut is not None else 0.0
 
     try:
         result = bundle.engine.process_turn(body.message.strip())
@@ -378,6 +509,11 @@ def play_turn(
             detail=detail,
         ) from exc
 
+    turn_quota.record_platform_turn(db, user, settings)
+    if ut is not None:
+        delta = float(ut.total_cost) - cost_before
+        platform_cost.record_platform_cost_delta(db, delta, settings)
+
     _persist_session(db, session_id, user.id, bundle.world_id, bundle.engine)
 
     ev = result.get("events_triggered") or []
@@ -388,6 +524,7 @@ def play_turn(
                 {
                     "event_id": str(e.get("event_id", "")),
                     "description": str(e.get("description", "")),
+                    "narrative_hint": str(e.get("narrative_hint", "")),
                 }
             )
 

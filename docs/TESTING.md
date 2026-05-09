@@ -7,7 +7,9 @@
 ## 1. 테스트 피라미드
 
 ```
-        ╱  E2E  ╲           ← 전체 게임 플로우 (10턴 플레이) — 예정
+        ╱   Smoke API    ╲      ← 가입→월드→플레이→턴 (TestClient, Stub) ✅
+       ╱───────────────╲
+      ╱  E2E (엔진)      ╲      ← 장시간 플로우 — `e2e`, 실 키 ✅
        ╱─────────╲          
       ╱ Integration╲        ← GameEngine + 실제 Claude API (5개) ✅
      ╱───────────────╲      
@@ -17,20 +19,27 @@
 
 | 레벨 | 파일 수 | 테스트 수 | API 필요 | 실행 시간 | 상태 |
 |------|---------|-----------|----------|-----------|------|
-| **Unit** | 7개 | 80개 | ❌ (Mock) | ~0.2초 | ✅ 완료 |
-| **Integration** | 1개 | 5개 | ✅ (~$0.05/회) | ~60초 | ✅ 완료 |
-| **E2E** | 예정 | 예정 | ✅ | ~2분 | ⬜ Week 2 |
+| **Smoke (API)** | `smoke/` | 1 | ❌ (Stub) | ~0.3초 | ✅ CI 포함 |
+| **Unit** | `unit/` | 다수 | ❌ (Mock/Stub) | ~10초 | ✅ |
+| **Integration** | `integration/` | 5개 | ✅ (~$0.05/회) | ~60초 | ⬜ CI 제외 |
+| **E2E** | `e2e/` | — | ✅ | ~2분 | ⬜ CI 제외 |
 
 ### 실행 명령어 요약
 
 ```bash
+# 유닛 + 스모크 (통합·e2e 제외) — CI(`pytest.yml`)와 동일
+poetry run pytest backend/tests -m "not integration and not e2e" --no-cov -q
+
+# 스모크만
+poetry run pytest backend/tests -m smoke --no-cov -q
+
 # 유닛만 (빠름, API 불필요) — 일상적 개발에 사용
-poetry run pytest -m "not integration" --no-cov
+poetry run pytest -m "not integration and not e2e" --no-cov
 
 # 통합만 (느림, API 필요) — 기능 변경 후 검증
 poetry run pytest -m integration --no-cov
 
-# 전체 (유닛 + 통합)
+# 전체 (유닛 + 통합 + 스모크 + e2e)
 poetry run pytest --no-cov
 ```
 

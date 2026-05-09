@@ -91,11 +91,18 @@ GAME_STATE_TOOL = {
 class ClaudeClient:
     """Anthropic Claude API 클라이언트 - 올바른 Tool Use 처리"""
 
-    def __init__(self) -> None:
+    def __init__(self, api_key: str | None = None) -> None:
         settings = get_settings()
-        self.client = Anthropic(api_key=settings.anthropic_api_key)
+        resolved = api_key.strip() if api_key else settings.anthropic_api_key
+        self.client = Anthropic(api_key=resolved)
         self.model = settings.llm_model
         self.max_tokens = settings.llm_max_tokens
+
+    def rebind_api_key(self, api_key: str | None) -> None:
+        """None 이면 설정의 플랫폼 키로 되돌림 (BYOK 제거 후)."""
+        settings = get_settings()
+        resolved = api_key.strip() if api_key else settings.anthropic_api_key
+        self.client = Anthropic(api_key=resolved)
 
     @staticmethod
     def _system_messages_from_prompt(

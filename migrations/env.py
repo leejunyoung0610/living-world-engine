@@ -22,7 +22,14 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from backend.src.db.base import Base  # noqa: E402
-from backend.src.db.models import InviteCode, PlaySession, User, World  # noqa: E402, F401
+from backend.src.db.models import (  # noqa: E402, F401
+    InviteCode,
+    PlatformCostDaily,
+    PlaySession,
+    User,
+    UserDailyTurnUsage,
+    World,
+)
 from backend.src.utils.config import get_settings  # noqa: E402
 
 config = context.config

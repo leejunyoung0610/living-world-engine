@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { TOKEN_KEY } from "../api/client";
-import { startPlay, SESSION_EXPIRED as PLAY_EXPIRED } from "../api/play";
+import { SESSION_EXPIRED as PLAY_EXPIRED } from "../api/play";
 import { exploreWorlds, SESSION_EXPIRED, type ExploreWorldSummary } from "../api/worlds";
 import { LoggedInNav } from "../components/LoggedInNav";
 
@@ -15,7 +15,6 @@ export function ExplorePage() {
     total: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [startingId, setStartingId] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
   const load = useCallback(async (t: string) => {
@@ -45,23 +44,8 @@ export function ExplorePage() {
     void load(t);
   }, [nav, load]);
 
-  async function onPlay(worldId: string) {
-    if (!token) return;
-    setStartingId(worldId);
-    setError(null);
-    try {
-      const { session_id } = await startPlay(token, worldId);
-      nav(`/play/${session_id}`);
-    } catch (e) {
-      if (e instanceof Error && e.message === PLAY_EXPIRED) {
-        localStorage.removeItem(TOKEN_KEY);
-        nav("/login");
-        return;
-      }
-      setError(e instanceof Error ? e.message : "플레이 시작 실패");
-    } finally {
-      setStartingId(null);
-    }
+  function onPlay(worldId: string) {
+    nav(`/play/setup/${worldId}`);
   }
 
   async function onLoadMore() {
@@ -98,7 +82,7 @@ export function ExplorePage() {
 
   function Card({ w }: { w: ExploreWorldSummary }) {
     return (
-      <li className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 shadow-sm">
+      <li className="card">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h3 className="font-medium text-white">{w.name}</h3>
@@ -117,11 +101,10 @@ export function ExplorePage() {
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
-            disabled={startingId === w.id}
             onClick={() => onPlay(w.id)}
-            className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500 disabled:opacity-50"
+            className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500"
           >
-            {startingId === w.id ? "시작 중…" : "플레이 / 이어하기"}
+            플레이 / 이어하기
           </button>
           {w.is_mine && (
             <Link
@@ -137,9 +120,9 @@ export function ExplorePage() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="page-shell">
       <LoggedInNav />
-      <div className="mx-auto max-w-3xl px-4 py-10">
+      <div className="page-container-md">
         <h1 className="text-2xl font-semibold text-white">탐색</h1>
         <p className="mt-2 text-sm text-slate-400">
           공개로 설정된 월드가 여기에 보입니다. 내가 올린 공개 월드와 다른 사람의 월드를 함께 플레이할 수 있습니다.

@@ -40,7 +40,7 @@ class Settings(BaseSettings):
         "env_file_encoding": "utf-8",
     }
 
-    # API
+    # API — 플랫폼 단일 Anthropic 키(모든 유저 LLM 호출)
     anthropic_api_key: str = ""
 
     # 서버
@@ -62,6 +62,35 @@ class Settings(BaseSettings):
     require_invite_code_for_signup: bool = False
     # 전체 가입자 상한 — None 이면 미적용. 정책 상한(예: 100)은 UGC_MVP_PLAN 참고
     max_total_users: int | None = None
+
+    # 플랫폼 키 일일 턴 쿼터 (Epic D) — UTC 자정 리셋.
+    enforce_platform_turn_quota: bool = False
+    platform_daily_turn_limit: int | None = None  # 예: 20. None 이거나 1 미만이면 enforce 시에도 실질 미적용
+
+    # 레이트 리밋 (Epic F, slowapi) — `backend/tests/conftest.py` 가 테스트에서 끔.
+    rate_limiting_enabled: bool = True
+
+    # --- Kakao OAuth ---
+    #: 비활성 시 라우트 자체가 404. 키만 채우고 ``KAKAO_LOGIN_ENABLED=true`` 로 켠다.
+    kakao_login_enabled: bool = False
+    kakao_client_id: str = ""
+    #: 카카오 콘솔 「보안」에서 발급. 비워두면 token 교환 시 secret 미전송 (콘솔에서 「사용 안 함」이어야 동작).
+    kakao_client_secret: str = ""
+    #: 카카오 콘솔에 등록한 Redirect URI 와 **글자 단위로 동일**해야 함.
+    kakao_redirect_uri: str = ""
+    #: 콜백 후 토큰을 들고 돌아올 프론트 콜백 URL. 비우면 ``/oauth/callback`` 로 폴백.
+    kakao_post_login_redirect: str = ""
+
+    # 관측 (Epic H) — Sentry DSN 비우면 비활성. 구조화 로그는 JSON 한 줄(요청 id·경로·상태 등).
+    sentry_dsn: str = ""
+    sentry_environment: str | None = None
+    sentry_traces_sample_rate: float = 0.0
+    structured_logging: bool = False
+
+    # 비용 알림·긴급 셧다운 (Epic E) — 플랫폼 턴 비용은 `UsageTracker` 단가로 일별 누적.
+    emergency_shutdown: bool = False
+    platform_daily_cost_alert_threshold_usd: float | None = None  # 예: 50.0 — None 이면 알림 없음
+    platform_cost_alert_webhook_url: str = ""  # Slack Incoming Webhook 등 JSON `{"text":...}` 수신 URL
 
     # 게임
     default_world: str = "arcane_academy"

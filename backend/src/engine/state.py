@@ -22,15 +22,6 @@ logger = get_logger(__name__)
 class WorldState:
     """게임 세계의 전체 상태를 관리하는 클래스"""
 
-    STANDARD_STATS = {
-        "affection": 0,
-        "trust": 0,
-        "respect": 0,
-        "fear": 0,
-        "loyalty": 0,
-        "romance": 0,
-    }
-
     def __init__(self) -> None:
         self.world: dict[str, Any] = {}
         self.player: dict[str, Any] = {}
@@ -90,7 +81,7 @@ class WorldState:
                     f"{world_label}에 필수 필드 '{field}'가 누락되었습니다."
                 )
 
-        for field in ("player", "npcs"):
+        for field in ("npcs",):
             if field not in characters_data:
                 raise ValueError(
                     f"{characters_label}에 필수 필드 '{field}'가 누락되었습니다."
@@ -98,10 +89,18 @@ class WorldState:
 
         state = cls()
         state.world = world_data
-        state.player = characters_data["player"]
-        stats = state.player.setdefault("stats", {})
-        for stat, default in cls.STANDARD_STATS.items():
-            stats.setdefault(stat, default)
+        raw_player = characters_data.get("player")
+        if isinstance(raw_player, dict) and raw_player:
+            state.player = raw_player
+        else:
+            # 템플릿 전용(npcs만) 또는 자리 표시; UGC 플레이는 API에서 player 합성 후 로드됨
+            state.player = {"name": "플레이어", "class": "traveler", "stats": {}}
+        if "stats" not in state.player:
+            state.player["stats"] = {}
+        elif state.player["stats"] is None:
+            state.player["stats"] = {}
+        elif not isinstance(state.player["stats"], dict):
+            state.player["stats"] = {}
         state.npcs = characters_data["npcs"]
         state.quests = characters_data.get("quests", [])
 

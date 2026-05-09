@@ -98,6 +98,43 @@ def test_build_system_blocks_split_for_cache():
     assert "## 응답 규칙" in static
 
 
+def test_dynamic_includes_player_stats_not_static():
+    """플레이어 스텟은 dynamic(캐시 비대상)에만 포함"""
+    optimizer = SystemPromptOptimizer()
+    static, dynamic = optimizer.build_system_blocks(
+        world={"name": "W"},
+        player={"name": "P", "location": "A", "stats": {"fatigue": 3}},
+        active_location="A",
+        npcs=[],
+        memories=[],
+        turn=2,
+        day=1,
+    )
+    assert "fatigue" in dynamic
+    assert "fatigue" not in static
+
+
+def test_static_includes_world_setting_and_one_line_summary():
+    """세계관·한 줄 요약은 static(프롬프트 캐시 후보)에 포함"""
+    optimizer = SystemPromptOptimizer()
+    static, dynamic = optimizer.build_system_blocks(
+        world={
+            "name": "W",
+            "description": "목록용 한줄",
+            "world_setting": "긴\n설명",
+        },
+        player={"name": "P", "location": "A"},
+        active_location="A",
+        npcs=[],
+        memories=[],
+    )
+    assert "## 세계 한 줄 요약" in static
+    assert "목록용 한줄" in static
+    assert "## 세계관 설정" in static
+    assert "긴" in static
+    assert "## 세계 한 줄 요약" not in dynamic
+
+
 def test_only_important_memories():
     """중요 기억만 포함되는지"""
     optimizer = SystemPromptOptimizer()

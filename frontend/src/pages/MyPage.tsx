@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { fetchMe, type MeResponse } from "../api/auth";
 import { TOKEN_KEY } from "../api/client";
 import {
   listPlaySessions,
   SESSION_EXPIRED as PLAY_EXPIRED,
-  startPlay,
   type SessionSummary,
 } from "../api/play";
 import { deleteWorld, listWorlds, SESSION_EXPIRED, type WorldSummary } from "../api/worlds";
@@ -17,17 +17,17 @@ export function MyPage() {
   const [token, setToken] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionSummary[] | null>(null);
   const [worlds, setWorlds] = useState<WorldSummary[] | null>(null);
+  const [me, setMe] = useState<MeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyWorldId, setBusyWorldId] = useState<string | null>(null);
-  const [startingWorldId, setStartingWorldId] = useState<string | null>(null);
-  const [busySessionId, setBusySessionId] = useState<string | null>(null);
 
   const loadAll = useCallback(async (t: string) => {
     setError(null);
     try {
-      const [sess, w] = await Promise.all([listPlaySessions(t), listWorlds(t)]);
+      const [sess, w, m] = await Promise.all([listPlaySessions(t), listWorlds(t), fetchMe(t)]);
       setSessions(sess);
       setWorlds(w);
+      setMe(m);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
       if (msg === SESSION_EXPIRED || msg === PLAY_EXPIRED) {
@@ -71,44 +71,13 @@ export function MyPage() {
     }
   }
 
-  async function onPlayWorld(worldId: string) {
-    if (!token) return;
-    setStartingWorldId(worldId);
-    setError(null);
-    try {
-      const { session_id } = await startPlay(token, worldId);
-      nav(`/play/${session_id}`);
-    } catch (e) {
-      if (e instanceof Error && e.message === PLAY_EXPIRED) {
-        localStorage.removeItem(TOKEN_KEY);
-        nav("/login");
-        return;
-      }
-      setError(e instanceof Error ? e.message : "플레이 시작 실패");
-    } finally {
-      setStartingWorldId(null);
-    }
+  function onPlayWorld(worldId: string) {
+    nav(`/play/setup/${worldId}`);
   }
 
-  async function onRestartSession(s: SessionSummary) {
-    if (!token) return;
+  function onRestartSession(s: SessionSummary) {
     if (!window.confirm(`「${s.world_name}」진행을 초기화하고 처음부터 시작할까요?`)) return;
-    setBusySessionId(s.session_id);
-    setError(null);
-    try {
-      const r = await startPlay(token, s.world_id, { forceNew: true });
-      nav(`/play/${r.session_id}`);
-    } catch (e) {
-      if (e instanceof Error && e.message === PLAY_EXPIRED) {
-        localStorage.removeItem(TOKEN_KEY);
-        nav("/login");
-        return;
-      }
-      setError(e instanceof Error ? e.message : "초기화 실패");
-    } finally {
-      setBusySessionId(null);
-      void loadAll(token);
-    }
+    nav(`/play/setup/${s.world_id}?forceNew=1`);
   }
 
   if (!token) {
@@ -119,11 +88,23 @@ export function MyPage() {
   const loading = sessions === null || worlds === null;
 
   return (
-    <div className="min-h-screen">
+    <div className="page-shell">
       <LoggedInNav />
-      <div className="mx-auto max-w-4xl space-y-16 px-4 py-10">
+      <div className="page-container-wide space-y-12 sm:space-y-16">
         <header>
-          <h1 className="text-2xl font-semibold text-white">마이페이지</h1>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h1 className="text-2xl font-semibold text-white">마이페이지</h1>
+            {me && (
+              <span className="text-xs text-slate-500">
+                {me.email}
+                {me.kakao_linked && (
+                  <span className="ml-2 inline-flex items-center rounded bg-[#FEE500]/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">
+                    카카오 연동
+                  </span>
+                )}
+              </span>
+            )}
+          </div>
           <p className="mt-1 text-sm text-slate-400">
             만든 월드와 진행 중인 플레이를 한곳에서 관리합니다.
           </p>
@@ -156,10 +137,7 @@ export function MyPage() {
           ) : (
             <ul className="mt-6 space-y-4">
               {sessions.map((s) => (
-                <li
-                  key={s.session_id}
-                  className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 shadow-sm"
-                >
+                <li key={s.session_id} className="card">
                   <div>
                     <h3 className="text-lg font-medium text-white">{s.world_name || "(이름 없음)"}</h3>
                     <p className="mt-1 text-xs text-slate-500">
@@ -178,11 +156,10 @@ export function MyPage() {
                     </Link>
                     <button
                       type="button"
-                      disabled={busySessionId === s.session_id}
                       onClick={() => onRestartSession(s)}
-                      className="rounded-md border border-slate-600 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+                      className="rounded-md border border-slate-600 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
                     >
-                      {busySessionId === s.session_id ? "…" : "처음부터"}
+                      처음부터
                     </button>
                     <Link
                       to={`/worlds/${s.world_id}`}
@@ -243,10 +220,7 @@ export function MyPage() {
           ) : (
             <ul className="mt-6 grid gap-4 sm:grid-cols-2">
               {worlds.map((w) => (
-                <li
-                  key={w.id}
-                  className="flex flex-col rounded-xl border border-slate-800 bg-slate-900/50 p-5 shadow-sm transition hover:border-slate-700"
-                >
+                <li key={w.id} className="card flex flex-col transition hover:border-slate-700">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-medium text-white">{w.name}</h3>
                     <span
@@ -264,11 +238,11 @@ export function MyPage() {
                   <div className="mt-4 flex flex-wrap gap-2">
                     <button
                       type="button"
-                      disabled={startingWorldId === w.id || busyWorldId === w.id}
+                      disabled={busyWorldId === w.id}
                       onClick={() => onPlayWorld(w.id)}
                       className="rounded-md bg-indigo-700 px-3 py-1.5 text-sm text-white hover:bg-indigo-600 disabled:opacity-50"
                     >
-                      {startingWorldId === w.id ? "시작 중…" : "플레이 / 이어하기"}
+                      플레이 / 이어하기
                     </button>
                     <Link
                       to={`/worlds/${w.id}`}

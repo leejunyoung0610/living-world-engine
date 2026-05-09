@@ -34,25 +34,37 @@ def world_to_detail(w: World) -> WorldDetail:
     )
 
 
-def _validate_payload(world: dict[str, Any], characters: dict[str, Any]) -> None:
+def _validate_world(world: dict[str, Any]) -> None:
     for key in ("id", "name"):
         if key not in world:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"world.{key} is required",
             )
-    for key in ("player", "npcs"):
-        if key not in characters:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"characters.{key} is required",
-            )
+
+
+class WorldCharactersBody(BaseModel):
+    """`npcs` 기본 `[]`. `player`·`quests` 등은 `extra='allow'`로 허용하나 저장 시 `player`는 제거됨."""
+
+    model_config = ConfigDict(extra="allow")
+
+    npcs: list[Any] = Field(default_factory=list)
+
+
+def _normalize_characters_for_storage(characters: dict[str, Any]) -> dict[str, Any]:
+    """UGC 월드에는 NPC(및 선택 quests)만 저장. 플레이어는 플레이 시작 시 합성."""
+    npcs = characters.get("npcs")
+    out: dict[str, Any] = {"npcs": npcs if isinstance(npcs, list) else []}
+    q = characters.get("quests")
+    if isinstance(q, list):
+        out["quests"] = q
+    return out
 
 
 class WorldCreateBody(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     world: dict[str, Any]
-    characters: dict[str, Any]
+    characters: WorldCharactersBody
     events: dict[str, Any] | None = None
     visibility: WorldVisibility = "private"
 
@@ -60,7 +72,7 @@ class WorldCreateBody(BaseModel):
 class WorldUpdateBody(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     world: dict[str, Any]
-    characters: dict[str, Any]
+    characters: WorldCharactersBody
     events: dict[str, Any] | None = None
     visibility: WorldVisibility = "private"
 
@@ -183,7 +195,8 @@ def create_world(
     db: Session = Depends(get_db),
 ) -> WorldDetail:
     settings = get_settings()
-    _validate_payload(body.world, body.characters)
+    _validate_world(body.world)
+    chars_raw = body.characters.model_dump(mode="python", exclude_none=False)
     n = db.scalar(select(func.count(World.id)).where(World.owner_id == user.id))
     if n is not None and n >= settings.max_worlds_per_user:
         raise HTTPException(
@@ -195,7 +208,7 @@ def create_world(
         name=body.name.strip(),
         visibility=body.visibility,
         world_data=body.world,
-        characters_data=body.characters,
+        characters_data=_normalize_characters_for_storage(chars_raw),
         events_data=body.events,
     )
     db.add(w)
@@ -226,11 +239,12 @@ def update_world(
     w = _get_owned_world(db, world_id, user.id)
     if w is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="World not found")
-    _validate_payload(body.world, body.characters)
+    _validate_world(body.world)
+    chars_raw = body.characters.model_dump(mode="python", exclude_none=False)
     w.name = body.name.strip()
     w.visibility = body.visibility
     w.world_data = body.world
-    w.characters_data = body.characters
+    w.characters_data = _normalize_characters_for_storage(chars_raw)
     w.events_data = body.events
     db.commit()
     db.refresh(w)

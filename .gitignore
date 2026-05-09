@@ -13,9 +13,10 @@ build/
 venv/
 ENV/
 
-# IDE
+# IDE / Agent worktrees
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 *~

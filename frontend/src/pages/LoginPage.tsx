@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiFetch, TOKEN_KEY } from "../api/client";
+import { KakaoLoginButton } from "../components/KakaoLoginButton";
 
 export function LoginPage() {
   const nav = useNavigate();
@@ -34,7 +35,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-16">
+    <div className="mx-auto max-w-md px-4 py-12 sm:py-16">
       <h1 className="mb-6 text-2xl font-semibold text-white">로그인</h1>
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <input
@@ -64,6 +65,14 @@ export function LoginPage() {
           {loading ? "…" : "로그인"}
         </button>
       </form>
+
+      <div className="my-6 flex items-center gap-3">
+        <span className="h-px flex-1 bg-slate-800" />
+        <span className="text-xs text-slate-500">또는</span>
+        <span className="h-px flex-1 bg-slate-800" />
+      </div>
+      <KakaoLoginButton label="카카오로 로그인" />
+
       <p className="mt-4 text-sm text-slate-400">
         계정이 없으면 <Link to="/signup" className="text-indigo-400 underline">회원가입</Link>
       </p>

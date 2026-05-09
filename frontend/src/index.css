@@ -2,6 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-slate-950 text-slate-100 antialiased;
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-slate-950 text-slate-100 antialiased;
+    /* iOS 안전 영역 대응(인스톨/노치) */
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  /* iOS Safari 자동 줌 방지: 입력 폰트 ≥16px */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+  @media (min-width: 640px) {
+    input,
+    textarea,
+    select {
+      font-size: 14px;
+    }
+  }
+}
+
+@layer components {
+  .page-shell {
+    @apply min-h-screen;
+  }
+  .page-container {
+    @apply mx-auto w-full px-4 py-6 sm:px-6 sm:py-10;
+  }
+  .page-container-narrow {
+    @apply page-container max-w-xl;
+  }
+  .page-container-md {
+    @apply page-container max-w-2xl;
+  }
+  .page-container-wide {
+    @apply page-container max-w-4xl;
+  }
+  .card {
+    @apply rounded-xl border border-slate-800 bg-slate-900/50 p-4 shadow-sm sm:p-5;
+  }
 }

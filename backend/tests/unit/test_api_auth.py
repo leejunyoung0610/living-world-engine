@@ -43,7 +43,9 @@ def client() -> TestClient:
 def test_health(client: TestClient) -> None:
     r = client.get("/health")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok"}
+    data = r.json()
+    assert data["status"] == "ok"
+    assert data["database"] == "ok"
 
 
 def test_signup_login_me_flow(client: TestClient) -> None:
@@ -73,7 +75,12 @@ def test_signup_login_me_flow(client: TestClient) -> None:
         headers={"Authorization": f"Bearer {token}"},
     )
     assert r.status_code == 200
-    assert r.json() == {"email": "a@example.com", "username": "Tester"}
+    body = r.json()
+    assert body["email"] == "a@example.com"
+    assert body["username"] == "Tester"
+    assert body["auth_provider"] == "local"
+    assert body["has_password"] is True
+    assert body["kakao_linked"] is False
 
 
 def test_signup_duplicate(client: TestClient) -> None:
@@ -229,3 +236,57 @@ def test_signup_max_total_users(monkeypatch: pytest.MonkeyPatch) -> None:
         assert "가득" in r.json()["detail"]
     finally:
         client.app.dependency_overrides.clear()
+
+
+def _token_for_new_user(client: TestClient, email: str) -> str:
+    assert (
+        client.post(
+            "/api/auth/signup",
+            json={
+                "email": email,
+                "username": "U",
+                "password": "password123",
+                "invite_code": "",
+            },
+        ).status_code
+        == 201
+    )
+    r = client.post("/api/auth/login", json={"email": email, "password": "password123"})
+    assert r.status_code == 200
+    return r.json()["access_token"]
+
+
+def test_signup_emergency_shutdown_503(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("EMERGENCY_SHUTDOWN", "true")
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    def override_get_db():
+        db = TestSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app = create_app()
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        c = TestClient(app)
+        r = c.post(
+            "/api/auth/signup",
+            json={
+                "email": "es@example.com",
+                "username": "E",
+                "password": "password123",
+                "invite_code": "",
+            },
+        )
+        assert r.status_code == 503
+        assert "긴급" in r.json()["detail"]
+    finally:
+        app.dependency_overrides.clear()

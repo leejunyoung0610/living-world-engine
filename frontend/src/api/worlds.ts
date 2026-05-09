@@ -40,21 +40,18 @@ export type ExploreWorldsPage = {
 
 /** 엔진 `world.json` / `characters.json` 최소 형태 — 새 월드 기본값 */
 export const EMPTY_WORLD: Record<string, unknown> = {
-  id: "my_world",
-  name: "새 세계",
-  description: "",
-  time: "Day 1",
+  id: "seoul_national_university",
+  name: "서울대학교",
+  description: "관악 캠퍼스. 수업과 동아리가 얽인 하루하루.",
+  world_setting: "",
+  time: "개강 첫 주",
   regions: [],
   facts: [],
   world_variables: {},
 };
 
+/** 월드 저장용 최소 characters — NPC만 (플레이어는 플레이 시작 시 설정) */
 export const EMPTY_CHARACTERS: Record<string, unknown> = {
-  player: {
-    name: "플레이어",
-    class: "traveler",
-    stats: { hp: 10, mana: 5, focus: 5 },
-  },
   npcs: [],
 };
 
@@ -153,7 +150,17 @@ export async function deleteWorld(token: string, id: string): Promise<void> {
 
 async function textDetail(res: Response): Promise<string> {
   try {
-    const j = (await res.json()) as { detail?: string | unknown };
+    const j = (await res.json()) as {
+      detail?: string | unknown;
+      errors?: Array<{ loc?: (string | number)[]; msg?: string; type?: string }>;
+    };
+    if (Array.isArray(j.errors) && j.errors.length > 0) {
+      const e = j.errors[0];
+      const loc = (e.loc ?? [])
+        .filter((x) => x !== "body" && x !== "json")
+        .join(".");
+      if (e.msg) return loc ? `${loc}: ${e.msg}` : e.msg;
+    }
     if (typeof j.detail === "string") return j.detail;
     return res.statusText || "요청 실패";
   } catch {

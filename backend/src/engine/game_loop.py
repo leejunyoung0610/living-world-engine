@@ -305,6 +305,8 @@ class GameEngine:
             npcs=self.state.npcs,
             memories=relevant_memories,
             cache_reset_flag=self.cache_reset_flag,
+            turn=self.state.turn,
+            day=self.state.day,
         )
         total = len(static) + len(dynamic)
         logger.debug(

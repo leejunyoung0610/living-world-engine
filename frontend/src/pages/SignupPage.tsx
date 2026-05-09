@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiFetch } from "../api/client";
+import { KakaoLoginButton } from "../components/KakaoLoginButton";
 
 export function SignupPage() {
   const nav = useNavigate();
@@ -41,7 +42,7 @@ export function SignupPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-16">
+    <div className="mx-auto max-w-md px-4 py-12 sm:py-16">
       <h1 className="mb-2 text-2xl font-semibold text-white">회원가입</h1>
       <p className="mb-6 text-sm text-slate-400">
         서버에서 초대 코드 검증을 켠 경우에만 코드가 필수입니다. (로컬 기본은 꺼져 있을 수 있음)
@@ -88,6 +89,14 @@ export function SignupPage() {
           {loading ? "…" : "가입"}
         </button>
       </form>
+
+      <div className="my-6 flex items-center gap-3">
+        <span className="h-px flex-1 bg-slate-800" />
+        <span className="text-xs text-slate-500">또는</span>
+        <span className="h-px flex-1 bg-slate-800" />
+      </div>
+      <KakaoLoginButton />
+
       <p className="mt-4 text-sm text-slate-400">
         이미 계정이 있으면 <Link to="/login" className="text-indigo-400 underline">로그인</Link>
       </p>

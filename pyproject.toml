@@ -20,6 +20,8 @@ email-validator = "^2.3.0"
 sqlalchemy = "^2.0.49"
 alembic = "^1.18.4"
 psycopg2-binary = "^2.9.11"
+slowapi = "^0.1.9"
+sentry-sdk = {extras = ["fastapi"], version = "^2.58.0"}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"
@@ -43,6 +45,10 @@ python_functions = ["test_*"]
 addopts = "-v --cov=backend/src --cov-report=html --cov-report=term"
 markers = [
     "integration: 통합 테스트 - 실제 API 호출 필요 (deselect with '-m \"not integration\"')",
+    "smoke: HTTP API 스모크 (가입→월드→플레이→턴, Stub LLM)",
+    "e2e: 엔진 장시간 플로우 (실 Anthropic 키 필요 시 skip)",
+    "slow: 느린 테스트",
+    "live: 외부 네트워크·LLM API 필수 (CI 기본 제외 시 integration/e2e 와 함께 참고)",
 ]
 
 [tool.black]

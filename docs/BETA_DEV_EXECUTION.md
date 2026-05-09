@@ -20,7 +20,7 @@
 | 영역 | 상태 | 참고 |
 |------|------|------|
 | 인증·JWT | 있음 | `backend/src/api/routes/auth.py`, `deps.py` |
-| 초대 코드 필드 | **수용만** | `signup`의 `invite_code` — **DB·정책 검증 없음** (주석 그대로) |
+| 초대 코드 | **검증 있음(플래그)** | `REQUIRE_INVITE_CODE_FOR_SIGNUP` + `invite_codes` (Epic C) |
 | 월드 CRUD·공개 탐색 | 있음 | `backend/src/api/routes/worlds.py` |
 | 탐색 페이지네이션 | 있음 | `GET /api/worlds/explore` → `{ items, total, limit, offset }`, `limit` 기본 20·최대 100 |
 | 플레이·세션·엔진 | 있음 | `backend/src/api/routes/play.py`, `GameEngine`, `play_sessions` |
@@ -28,9 +28,10 @@
 | 전역 422·미처리 예외 | 있음 | `backend/src/api/error_handlers.py`, `main.py` |
 | SQLAlchemy 오류 500 | 있음 | `main.py` |
 | CORS | **설정값 의존** | `settings.cors_origins` — 프로덕션에서 도메인 고정은 **운영 설정 과제** |
-| `/health` | **정적 OK만** | DB ping 없음 |
+| `/health` | **DB ping** | `SELECT 1` 실패 시 503 |
 | 턴당 usage 집계(엔진) | 있음 | `UsageTracker` (`game_loop`) — **플랫폼 일일 쿼터·알림과는 별개** |
-| Docker / CI / AWS / Sentry | 없음 | 이 문서 Epic에서 다룸 |
+| Docker / CI | **부분** | Compose·`docker-build` workflow (Epic A·B). Sentry·JSON 로그는 Epic H |
+| 플랫폼 일일 턴 쿼터 | **부분** | `user_daily_turn_usage` + `POST .../turn` (Epic D). Redis 미사용 · 플랫폼 단일 API 키 |
 
 ---
 
@@ -87,12 +88,12 @@
 
 | Task | DoD |
 |------|-----|
-| [ ] 정책 정의 | FREE(플랫폼 키) vs BYOK 경로 구분 — BYOK는 문서대로 플랫폼 집계 제외 |
-| [ ] `POST .../turn` (및 필요 시 `start`) 전 검사 | 초과 시 402/429 + 한국어 메시지 |
-| [ ] 일일 리셋 기준 시각 고정 | `UGC_MVP_PLAN.md` §8 (UTC 권장) |
-| [ ] 저장소 | DB 컬럼/테이블 또는 Redis — 멀티 워커 시 **공유 저장소** 필수 |
+| [x] 정책 정의 | 플랫폼 단일 `ANTHROPIC_API_KEY` — 일일 턴 쿼터는 **전 유저** 대상(Epic D) |
+| [x] `POST .../turn` 전·후 | 선검사 + 성공 시 기록, 초과 시 **429** + 한국어 메시지 (`play_start` 는 LLM 없음 → 미집계) |
+| [x] 일일 리셋 | **UTC 달력일** (`turn_quota.utc_usage_date`, `UGC_MVP_PLAN` §8 정렬) |
+| [x] 저장소 | PostgreSQL `user_daily_turn_usage` — 멀티 워커 공유. (Redis는 미도입) |
 
-**파일 힌트:** `backend/src/api/routes/play.py`, `config.py`, 신규 `services/quota.py` 등.
+**파일:** `backend/src/services/turn_quota.py`, `play.py`, `config.py`, Alembic `0006`.
 
 ---
 
@@ -102,11 +103,11 @@
 
 | Task | DoD |
 |------|-----|
-| [ ] 일일 플랫폼 비용 추정 집계 | `UsageTracker` 또는 별도 집계와 연결 방법 명시 |
-| [ ] 임계 초과 시 Slack(또는 웹훅) 알림 | 환경변수로 웹훅 URL |
-| [ ] `EMERGENCY_SHUTDOWN` (이름은 설정으로) | True면 플랫폼 키 턴 거절 또는 가입/플레이 전부 503 |
+| [x] 일일 플랫폼 비용 추정 집계 | 플랫폼 턴 성공 후 `UsageTracker.total_cost` 증분 → `platform_cost_daily` (UTC 일자, Alembic `0008`) |
+| [x] 임계 초과 시 웹훅 | `PLATFORM_COST_ALERT_WEBHOOK_URL` + `PLATFORM_DAILY_COST_ALERT_THRESHOLD_USD` — JSON `{"text":...}` 1일 1회 |
+| [x] `EMERGENCY_SHUTDOWN` | `True`면 **신규 가입 503**, **플레이 턴(LLM) 전부 503** |
 
-**파일 힌트:** `config.py`, 백그라운드 잡은 Cron/워커 vs 요청 시 체크 중 선택.
+**파일:** `config.py`, `services/platform_cost.py`, `play.py`, `auth.py`(signup), `db/models/platform_cost_daily.py`.
 
 ---
 
@@ -114,27 +115,22 @@
 
 | Task | DoD |
 |------|-----|
-| [ ] CORS 프로덕션 도메인 화이트리스트 | 와일드카드 `*` 금지 (자격 증명 사용 시 특히) |
-| [ ] 레이트 리밋 | `slowapi` 등 — 로그인·가입·턴 엔드포인트 우선 |
-| [ ] `/health` 확장 | DB `SELECT 1` (또는 ORM ping) — 로드밸런서용 |
-| [ ] (선택) 보안 헤더 | nginx 또는 Starlette 미들웨어 |
+| [x] CORS 프로덕션 | `DEBUG=false` 일 때 `CORS_ORIGINS` 에 `*` 이면 기동 거부 (`api/security.py`) |
+| [x] 레이트 리밋 | `slowapi` — 가입 12/분, 로그인 30/분, 턴 90/분 (`RATE_LIMITING_ENABLED`, 테스트는 env 로 off) |
+| [x] `/health` 확장 | `Depends(get_db)` + `SELECT 1`, 실패 시 503 |
+| [x] 보안 헤더 | `SecurityHeadersMiddleware` — `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` |
 
-**파일 힌트:** `main.py`, `nginx` 설정.
+**파일:** `main.py`, `api/limiter.py`, `api/security.py`, `api/routes/auth.py`, `play.py`.
 
 ---
 
-## Epic G — BYOK
+## Epic G — BYOK (중단 · 플랫폼 단일 키)
 
-**목표:** 사용자 API 키 암호화 저장, FREE vs BYOK 분기.
+**현재 정책:** per-user 키(BYOK) 없음. 서버 **`ANTHROPIC_API_KEY` 하나**로 모든 턴 호출. Alembic **`0009`** 가 `users` 에서 BYOK 관련 컬럼 제거.
 
 | Task | DoD |
 |------|-----|
-| [ ] 키 암호화 (Fernet 등) | 마스터 키는 환경 시크릿, 평문 DB 컬럼 없음 |
-| [ ] LLM 호출 경로에서 BYOK 우선 | 키 없으면 플랫폼 키 + 쿼터 |
-| [ ] TierManager (또는 동등) | 설정·모델 라우팅이 한 곳에서 결정 |
-| [ ] 설정 페이지 UI | 프론트에서 키 입력·마스킹·삭제 |
-
-**파일 힌트:** `backend/src/engine/llm.py`, `config.py`, `frontend/src/pages/`.
+| [—] (이전) BYOK | 코드·UI·`/me/llm-key` 제거됨. 문서·기획 재검토 시 Epic G 재정의 가능 |
 
 ---
 
@@ -142,8 +138,10 @@
 
 | Task | DoD |
 |------|-----|
-| [ ] Sentry (또는 동등) FastAPI 연동 | 500·미처리 예외 수집 |
-| [ ] 구조화 로그 (JSON) | 요청 id, 경로, 상태코드 — 검색 가능 |
+| [x] Sentry (또는 동등) FastAPI 연동 | `SENTRY_DSN` 시 `sentry_sdk` + Starlette/FastAPI 통합; 전역·SQLAlchemy 500 핸들러에서 `capture_exception` |
+| [x] 구조화 로그 (JSON) | `STRUCTURED_LOGGING=true` 시 JSON 한 줄; 액세스 로그에 `request_id`, `path`, `status_code`, `duration_ms`; `X-Request-Id` 응답 헤더 |
+
+**파일:** `main.py`, `api/error_handlers.py`, `api/request_context_middleware.py`, `utils/logging_setup.py`, `config.py`, `tests/unit/test_observability.py`.
 
 ---
 
@@ -151,10 +149,8 @@
 
 | Task | DoD |
 |------|-----|
-| [ ] 스크립트 또는 pytest + TestClient 체인 | 가입(또는 fixture 유저) → 월드 생성 → play start → turn 1회 |
-| [ ] CI에서 마커 분리 | API 키 필요 테스트는 `pytest -m "not live"` 등 |
-
-**파일 힌트:** `docs/TESTING.md`, `backend/tests/`.
+| [x] 스크립트 또는 pytest + TestClient 체인 | `backend/tests/smoke/test_user_journey.py` — 가입 → 월드 생성 → play start → turn (`@pytest.mark.smoke`, Stub 엔진) |
+| [x] CI에서 마커 분리 | [`.github/workflows/pytest.yml`](../.github/workflows/pytest.yml) — `pytest -m "not integration and not e2e"`; `pyproject.toml`에 `smoke`·`e2e` 마커 등록 |
 
 ---
 
@@ -191,6 +187,7 @@
 
 ## 참고 링크
 
+- [`docs/PRODUCTION_ROADMAP.md`](PRODUCTION_ROADMAP.md) — **실서비스 전환** 시 갭 분석·단계별 개발 계획(신뢰·법무·결제·월드 3트랙 등)
 - [`docs/UGC_MVP_PLAN.md`](UGC_MVP_PLAN.md) — 정책·비용·보안 원칙
 - [`DEVELOPMENT.md`](../DEVELOPMENT.md) — 엔진·UGC 코드 브리핑
 - [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) — 배포 후 UGC 흐름 다이어그램 반영 권장

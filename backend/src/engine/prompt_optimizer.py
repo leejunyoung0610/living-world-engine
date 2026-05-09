@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 class SystemPromptOptimizer:
     """시스템 프롬프트 — 토큰 절약·static/dynamic 분리(프롬프트 캐시).
 
@@ -20,6 +19,48 @@ class SystemPromptOptimizer:
         active = [npc for npc in npcs if npc.get("location") == active_location]
         return active if active else npcs
 
+    @staticmethod
+    def _world_lore_paragraphs(world: dict[str, Any]) -> tuple[str, str]:
+        """(한 줄 요약, 상세 세계관) — `description` / `world_setting`·레거시 `setting`."""
+        desc = world.get("description")
+        d = desc.strip() if isinstance(desc, str) else ""
+
+        raw = world.get("world_setting")
+        chunks: list[str] = []
+        if isinstance(raw, str) and raw.strip():
+            chunks.append(raw.strip())
+        elif isinstance(raw, list):
+            for item in raw:
+                if isinstance(item, str) and item.strip():
+                    chunks.append(item.strip())
+        if not chunks:
+            leg = world.get("setting")
+            if isinstance(leg, str) and leg.strip():
+                chunks.append(leg.strip())
+        lore = "\n\n".join(chunks) if chunks else ""
+        return d, lore
+
+    @staticmethod
+    def _format_player_stats_block(player: dict[str, Any]) -> str:
+        stats = player.get("stats")
+        if not isinstance(stats, dict) or not stats:
+            return (
+                "(없음 — `characters.json` 의 `player.stats` 에 숫자 키를 원하는 만큼 정의하세요. "
+                "예: `\"스트레스\": 3`, `\"에너지\": 10`)"
+            )
+        lines: list[str] = []
+        for k in sorted(stats.keys(), key=lambda x: str(x)):
+            v = stats[k]
+            if isinstance(v, bool):
+                lines.append(f"- {k}: {v}")
+            elif isinstance(v, (int, float)) and v == v:  # not NaN
+                lines.append(f"- {k}: {v}")
+            elif isinstance(v, str) and len(v) < 120:
+                lines.append(f"- {k}: {v}")
+        if not lines:
+            return "(stats 객체에 표시 가능한 숫자/짧은 문자열 값이 없음)"
+        return "\n".join(lines)
+
     def build_system_blocks(
         self,
         world: dict[str, Any],
@@ -28,6 +69,9 @@ class SystemPromptOptimizer:
         npcs: list[dict[str, Any]],
         memories: list[dict[str, Any]],
         cache_reset_flag: str | None = None,
+        *,
+        turn: int = 0,
+        day: int = 1,
     ) -> tuple[str, str]:
         """시스템 프롬프트를 Anthropic 프롬프트 캐시용으로 분리.
 
@@ -44,11 +88,21 @@ class SystemPromptOptimizer:
         world_name = world.get("name", "알 수 없는 세계")
         world_display = world.get("name", "")
         player_name = player.get("name", "플레이어")
-        turn = int(player.get("turn", 0) or 0)
+        stats_block = self._format_player_stats_block(player)
+
+        desc_line, lore_body = self._world_lore_paragraphs(world)
+        world_context = ""
+        if desc_line or lore_body:
+            ctx_parts: list[str] = []
+            if desc_line:
+                ctx_parts.append(f"## 세계 한 줄 요약\n{desc_line}")
+            if lore_body:
+                ctx_parts.append(f"## 세계관 설정\n{lore_body}")
+            world_context = "\n\n" + "\n\n".join(ctx_parts)
 
         static_body = f"""너는 {world_name}의 NPC다.
 
-**중요: 현재 세계관은 "{world_display}"입니다. 다른 세계관의 설정을 절대 사용하지 마세요.**
+**중요: 현재 세계관은 "{world_display}"입니다. 다른 세계관의 설정을 절대 사용하지 마세요.**{world_context}
 
 ## 플레이어
 - 이름: {player_name}
@@ -82,6 +136,10 @@ class SystemPromptOptimizer:
         dynamic = f"""{prefix}## 현재 상황
 - 장소: {active_location}
 - 턴: {turn}
+- 일차: {day}
+
+## 플레이어 스텟 (저장된 수치를 따른다. LLM이 임의로 변경하지 말 것)
+{stats_block}
 
 ## NPC
 {npc_profiles if npc_profiles else "(없음)"}
@@ -99,6 +157,9 @@ class SystemPromptOptimizer:
         npcs: list[dict[str, Any]],
         memories: list[dict[str, Any]],
         cache_reset_flag: str | None = None,
+        *,
+        turn: int = 0,
+        day: int = 1,
     ) -> str:
         """최적화된 시스템 프롬프트 (단일 문자열, 테스트·로깅용)."""
         static, dynamic = self.build_system_blocks(
@@ -108,6 +169,8 @@ class SystemPromptOptimizer:
             npcs=npcs,
             memories=memories,
             cache_reset_flag=cache_reset_flag,
+            turn=turn,
+            day=day,
         )
         parts = [p for p in (static, dynamic) if p]
         return "\n\n".join(parts)

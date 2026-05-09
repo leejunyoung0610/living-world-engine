@@ -11,7 +11,13 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.src.db.base import Base
-from backend.src.db.models import PlaySession, User, World  # noqa: F401
+from backend.src.db.models import (  # noqa: F401
+    PlatformCostDaily,
+    PlaySession,
+    User,
+    UserDailyTurnUsage,
+    World,
+)
 from backend.src.db.session import get_db
 from backend.src.engine.state import WorldState
 from backend.src.main import create_app
@@ -28,8 +34,12 @@ MIN_WORLD = {
     "world_variables": {},
 }
 MIN_CHARS = {
-    "player": {"name": "P", "class": "c", "stats": {"hp": 10, "mana": 5, "focus": 5}},
     "npcs": [],
+}
+PLAYER_START = {
+    "name": "P",
+    "class": "c",
+    "stats": {"hp": 10, "mana": 5, "focus": 5},
 }
 
 
@@ -136,7 +146,7 @@ def test_play_start_and_turn(client: TestClient) -> None:
     wid = _create_world(client, token)
     h = {"Authorization": f"Bearer {token}"}
 
-    r = client.post("/api/play/start", headers=h, json={"world_id": wid})
+    r = client.post("/api/play/start", headers=h, json={"world_id": wid, "player": PLAYER_START})
     assert r.status_code == 201, r.text
     data = r.json()
     assert "session_id" in data
@@ -162,7 +172,7 @@ def test_play_history_after_turn(client: TestClient) -> None:
     wid = _create_world(client, token)
     h = {"Authorization": f"Bearer {token}"}
 
-    r = client.post("/api/play/start", headers=h, json={"world_id": wid})
+    r = client.post("/api/play/start", headers=h, json={"world_id": wid, "player": PLAYER_START})
     sid = r.json()["session_id"]
 
     r = client.post(f"/api/play/{sid}/turn", headers=h, json={"message": "hi"})
@@ -213,10 +223,52 @@ def test_play_start_public_world_other_user(client: TestClient) -> None:
     r = client.post(
         "/api/play/start",
         headers=h_b,
-        json={"world_id": wid},
+        json={"world_id": wid, "player": PLAYER_START},
     )
     assert r.status_code == 201, r.text
     assert r.json()["world_name"] == "공개월드"
+
+
+def test_play_new_game_requires_player(client: TestClient) -> None:
+    token = _signup_token(client)
+    wid = _create_world(client, token)
+    h = {"Authorization": f"Bearer {token}"}
+    r = client.post("/api/play/start", headers=h, json={"world_id": wid})
+    assert r.status_code == 422
+    assert "player" in (r.json().get("detail") or "").lower()
+
+
+def test_play_world_brief(client: TestClient) -> None:
+    token = _signup_token(client)
+    wid = _create_world(client, token)
+    h = {"Authorization": f"Bearer {token}"}
+    r = client.get(f"/api/play/world/{wid}/brief", headers=h)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data.get("list_name") == "W"
+    assert data.get("story_title") == "P"
+    assert data.get("npcs") == []
+    assert data.get("world_setting") == ""
+
+
+def test_play_world_brief_returns_world_setting(client: TestClient) -> None:
+    token = _signup_token(client)
+    h = {"Authorization": f"Bearer {token}"}
+    r = client.post(
+        "/api/worlds/",
+        headers=h,
+        json={
+            "name": "WS",
+            "world": {**MIN_WORLD, "id": "ws_test", "world_setting": "상세\n설명문"},
+            "characters": MIN_CHARS,
+        },
+    )
+    assert r.status_code == 201, r.text
+    wid = r.json()["id"]
+    rb = client.get(f"/api/play/world/{wid}/brief", headers=h)
+    assert rb.status_code == 200, rb.text
+    assert "상세" in rb.json()["world_setting"]
+    assert "설명문" in rb.json()["world_setting"]
 
 
 def test_play_turn_wrong_session(client: TestClient) -> None:
@@ -236,7 +288,9 @@ def test_play_resume_same_world(client: TestClient) -> None:
     wid = _create_world(client, token)
     h = {"Authorization": f"Bearer {token}"}
 
-    r1 = client.post("/api/play/start", headers=h, json={"world_id": wid})
+    r1 = client.post(
+        "/api/play/start", headers=h, json={"world_id": wid, "player": PLAYER_START}
+    )
     assert r1.status_code == 201
     sid1 = r1.json()["session_id"]
     assert r1.json().get("resumed") is False
@@ -253,7 +307,9 @@ def test_play_resume_from_db_after_memory_clear(client: TestClient) -> None:
     wid = _create_world(client, token)
     h = {"Authorization": f"Bearer {token}"}
 
-    r1 = client.post("/api/play/start", headers=h, json={"world_id": wid})
+    r1 = client.post(
+        "/api/play/start", headers=h, json={"world_id": wid, "player": PLAYER_START}
+    )
     sid1 = r1.json()["session_id"]
     client.post(f"/api/play/{sid1}/turn", headers=h, json={"message": "persist me"})
 
@@ -275,10 +331,16 @@ def test_play_force_new_different_session(client: TestClient) -> None:
     wid = _create_world(client, token)
     h = {"Authorization": f"Bearer {token}"}
 
-    r1 = client.post("/api/play/start", headers=h, json={"world_id": wid})
+    r1 = client.post(
+        "/api/play/start", headers=h, json={"world_id": wid, "player": PLAYER_START}
+    )
     sid1 = r1.json()["session_id"]
 
-    r2 = client.post("/api/play/start", headers=h, json={"world_id": wid, "force_new": True})
+    r2 = client.post(
+        "/api/play/start",
+        headers=h,
+        json={"world_id": wid, "force_new": True, "player": PLAYER_START},
+    )
     assert r2.status_code == 201
     sid2 = r2.json()["session_id"]
     assert sid2 != sid1
@@ -293,7 +355,11 @@ def test_play_list_sessions(client: TestClient) -> None:
     assert r.status_code == 200
     assert r.json() == []
 
-    client.post("/api/play/start", headers=h, json={"world_id": wid})
+    client.post(
+        "/api/play/start",
+        headers=h,
+        json={"world_id": wid, "player": PLAYER_START},
+    )
     r = client.get("/api/play/sessions", headers=h)
     assert r.status_code == 200
     data = r.json()
@@ -302,12 +368,48 @@ def test_play_list_sessions(client: TestClient) -> None:
     assert "session_id" in data[0]
 
 
+def test_play_turn_emergency_shutdown_platform_user_503(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    token = _signup_token(client, "emg@example.com")
+    wid = _create_world(client, token)
+    monkeypatch.setenv("EMERGENCY_SHUTDOWN", "true")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-api03-test-for-platform-path")
+    h = {"Authorization": f"Bearer {token}"}
+    sid = client.post(
+        "/api/play/start", headers=h, json={"world_id": wid, "player": PLAYER_START}
+    ).json()["session_id"]
+    r = client.post(f"/api/play/{sid}/turn", headers=h, json={"message": "hi"})
+    assert r.status_code == 503
+    assert "긴급" in r.json()["detail"]
+
+
+def test_play_turn_platform_quota_429(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ENFORCE_PLATFORM_TURN_QUOTA", "true")
+    monkeypatch.setenv("PLATFORM_DAILY_TURN_LIMIT", "2")
+
+    token = _signup_token(client, "quota@example.com")
+    wid = _create_world(client, token)
+    h = {"Authorization": f"Bearer {token}"}
+    sid = client.post(
+        "/api/play/start", headers=h, json={"world_id": wid, "player": PLAYER_START}
+    ).json()["session_id"]
+
+    assert client.post(f"/api/play/{sid}/turn", headers=h, json={"message": "a"}).status_code == 200
+    assert client.post(f"/api/play/{sid}/turn", headers=h, json={"message": "b"}).status_code == 200
+    r = client.post(f"/api/play/{sid}/turn", headers=h, json={"message": "c"})
+    assert r.status_code == 429
+    assert "한도" in r.json()["detail"]
+
+
 def test_play_delete_session(client: TestClient) -> None:
     token = _signup_token(client)
     wid = _create_world(client, token)
     h = {"Authorization": f"Bearer {token}"}
 
-    sid = client.post("/api/play/start", headers=h, json={"world_id": wid}).json()["session_id"]
+    sid = client.post(
+        "/api/play/start", headers=h, json={"world_id": wid, "player": PLAYER_START}
+    ).json()["session_id"]
     r = client.delete(f"/api/play/{sid}", headers=h)
     assert r.status_code == 204
 

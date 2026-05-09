@@ -26,4 +26,4 @@ RUN chmod +x /docker-api-entrypoint.sh
 
 EXPOSE 8000
 ENTRYPOINT ["/docker-api-entrypoint.sh"]
-CMD ["uvicorn", "backend.src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend.src.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]

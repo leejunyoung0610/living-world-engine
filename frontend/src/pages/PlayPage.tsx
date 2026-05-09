@@ -154,10 +154,10 @@ export function PlayPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex h-[100dvh] flex-col">
       <LoggedInNav />
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 px-4 pt-4 pb-2 sm:gap-4 sm:px-6 sm:pt-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Link to="/my" className="text-sm text-slate-400 hover:text-white">
             ← 마이페이지
           </Link>
@@ -167,14 +167,15 @@ export function PlayPage() {
             </span>
           )}
         </div>
-        <h1 className="text-lg font-semibold text-white">플레이</h1>
-        <p className="mt-1 text-xs text-slate-500">
-          대화는 같은 세션으로 돌아오면 서버에서 다시 불러옵니다. 서버 재시작 시 세션은 사라집니다. Anthropic API 키가
-          .env에 필요합니다.
-        </p>
+        <div>
+          <h1 className="text-lg font-semibold text-white">플레이</h1>
+          <p className="mt-1 hidden text-xs text-slate-500 sm:block">
+            대화는 같은 세션으로 돌아오면 서버에서 다시 불러옵니다.
+          </p>
+        </div>
 
-        <div className="mt-4 flex flex-1 flex-col rounded-xl border border-slate-800 bg-slate-900/40">
-          <div className="flex-1 space-y-3 overflow-y-auto p-4" style={{ maxHeight: "min(60vh, 480px)" }}>
+        <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-slate-800 bg-slate-900/40">
+          <div className="flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">
             {historyLoading && <p className="text-sm text-slate-500">대화 불러오는 중…</p>}
             {!historyLoading && lines.length === 0 && (
               <p className="text-sm text-slate-500">첫 입력을 내면 NPC 응답이 옵니다.</p>
@@ -197,13 +198,19 @@ export function PlayPage() {
           {error && (
             <p className="border-t border-red-900/40 px-4 py-2 text-sm text-red-300">{error}</p>
           )}
-          <form onSubmit={onSubmit} className="flex gap-2 border-t border-slate-800 p-3">
+          <form
+            onSubmit={onSubmit}
+            className="flex gap-2 border-t border-slate-800 p-3"
+            style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+          >
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="무엇을 하시겠습니까?"
+              enterKeyHint="send"
+              autoComplete="off"
               disabled={loading || historyLoading}
-              className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-600"
+              className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white placeholder:text-slate-600"
             />
             <button
               type="submit"

@@ -5,11 +5,16 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import sentry_sdk
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
+
+
+def _request_id(request: Request) -> str | None:
+    return getattr(request.state, "request_id", None)
 
 
 def register_exception_handlers(app: FastAPI, *, debug: bool) -> None:
@@ -27,8 +32,13 @@ def register_exception_handlers(app: FastAPI, *, debug: bool) -> None:
         return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=body)
 
     @app.exception_handler(Exception)
-    async def unhandled_exception_handler(_request: Request, exc: Exception) -> JSONResponse:
-        logger.exception("Unhandled exception")
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        sentry_sdk.capture_exception(exc)
+        rid = _request_id(request)
+        logger.exception(
+            "Unhandled exception",
+            extra={"request_id": rid} if rid else {},
+        )
         msg = "서버 내부 오류가 발생했습니다."
         if debug:
             msg = f"{msg} ({type(exc).__name__}: {exc})"

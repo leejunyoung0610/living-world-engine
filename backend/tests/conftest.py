@@ -86,3 +86,14 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "e2e: End-to-end tests")
     config.addinivalue_line("markers", "slow: Slow API tests")
     config.addinivalue_line("markers", "integration: Integration tests")
+    config.addinivalue_line("markers", "rate_limit: slowapi 한도 검증 (기본은 비활성)")
+
+
+@pytest.fixture(autouse=True)
+def _disable_rate_limits_for_unit_tests(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch):
+    """Epic F slowapi — 기본적으로 환경으로 끔 (`create_app` 이 설정을 반영). `@pytest.mark.rate_limit` 이면 유지."""
+    if request.node.get_closest_marker("rate_limit"):
+        yield
+    else:
+        monkeypatch.setenv("RATE_LIMITING_ENABLED", "false")
+        yield

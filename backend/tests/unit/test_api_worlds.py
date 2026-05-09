@@ -25,7 +25,6 @@ MIN_WORLD = {
     "world_variables": {},
 }
 MIN_CHARS = {
-    "player": {"name": "P", "class": "mage", "stats": {"hp": 10, "mana": 5, "focus": 5}},
     "npcs": [],
 }
 
@@ -95,6 +94,7 @@ def test_worlds_crud_flow(client: TestClient) -> None:
     uuid.UUID(wid)
     assert data["name"] == "My UGC"
     assert data["world"]["id"] == "ugc_test"
+    assert data["characters"] == {"npcs": []}
 
     r = client.get("/api/worlds/", headers=h)
     assert r.status_code == 200

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -15,6 +15,7 @@ from ...db.models import InviteCode, User
 from ...db.session import get_db
 from ...utils.config import get_settings
 from ..deps import get_current_user_email
+from ..limiter import limiter
 
 router = APIRouter()
 
@@ -43,6 +44,9 @@ class TokenResponse(BaseModel):
 class UserPublic(BaseModel):
     email: str
     username: str
+    auth_provider: str = "local"
+    has_password: bool = True
+    kakao_linked: bool = False
 
 
 def _create_access_token(email: str) -> str:
@@ -56,10 +60,21 @@ def _create_access_token(email: str) -> str:
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
+# 다른 인증 라우트(카카오 등)에서 동일 토큰 발급 형식을 재사용하기 위한 공개 헬퍼.
+def issue_access_token(email: str) -> str:
+    return _create_access_token(email)
+
+
+@limiter.limit("12/minute")
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
-def signup(body: SignupBody, db: Session = Depends(get_db)) -> dict[str, str]:
+def signup(request: Request, body: SignupBody, db: Session = Depends(get_db)) -> dict[str, str]:
     """`invite_code`: `require_invite_code_for_signup` 가 켜져 있을 때만 DB 검증."""
     settings = get_settings()
+    if settings.emergency_shutdown:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="긴급 점검 중에는 신규 가입을 받지 않습니다.",
+        )
     email = body.email.lower()
     existing = db.scalars(select(User).where(User.email == email)).first()
     if existing is not None:
@@ -112,11 +127,13 @@ def signup(body: SignupBody, db: Session = Depends(get_db)) -> dict[str, str]:
     return {"message": "created", "email": email}
 
 
+@limiter.limit("30/minute")
 @router.post("/login", response_model=TokenResponse)
-def login(body: LoginBody, db: Session = Depends(get_db)) -> TokenResponse:
+def login(request: Request, body: LoginBody, db: Session = Depends(get_db)) -> TokenResponse:
     email = body.email.lower()
     user = db.scalars(select(User).where(User.email == email)).first()
-    if user is None:
+    if user is None or not user.password_hash:
+        # password_hash 가 None 이면 소셜 전용 계정 → 비밀번호 로그인 불가
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
@@ -141,4 +158,10 @@ def me(
     user = db.scalars(select(User).where(User.email == email)).first()
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    return UserPublic(email=email, username=user.username)
+    return UserPublic(
+        email=email,
+        username=user.username,
+        auth_provider=user.auth_provider,
+        has_password=bool(user.password_hash),
+        kakao_linked=bool(user.kakao_sub),
+    )

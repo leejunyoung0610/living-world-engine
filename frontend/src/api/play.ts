@@ -2,6 +2,16 @@ import { apiFetch } from "./client";
 
 export const SESSION_EXPIRED = "SESSION_EXPIRED";
 
+export type PlayWorldBrief = {
+  world_uuid: string;
+  list_name: string;
+  story_title: string;
+  description: string;
+  world_setting: string;
+  npcs: Record<string, unknown>[];
+  suggested_player: Record<string, unknown> | null;
+};
+
 export type PlayStartResult = { session_id: string; world_name: string; resumed?: boolean };
 
 export type SessionSummary = {
@@ -44,18 +54,47 @@ async function failDetail(res: Response, fallback: string): Promise<never> {
   throw new Error(typeof j.detail === "string" ? j.detail : fallback);
 }
 
-export async function startPlay(
-  token: string,
-  worldId: string,
-  options?: { forceNew?: boolean },
-): Promise<PlayStartResult> {
+export async function fetchPlayWorldBrief(token: string, worldId: string): Promise<PlayWorldBrief> {
+  const res = await apiFetch(`/api/play/world/${worldId}/brief`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) await failDetail(res, "월드 정보를 불러오지 못했습니다");
+  return res.json() as Promise<PlayWorldBrief>;
+}
+
+/** 기존 세션만 이어하기. 새 세션이 필요하면 null. */
+export async function tryResumePlay(token: string, worldId: string): Promise<PlayStartResult | null> {
   const res = await apiFetch("/api/play/start", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ world_id: worldId, force_new: options?.forceNew === true }),
+    body: JSON.stringify({ world_id: worldId, force_new: false }),
+  });
+  if (res.status === 200) return res.json() as Promise<PlayStartResult>;
+  if (res.status === 401) throw new Error(SESSION_EXPIRED);
+  return null;
+}
+
+export async function startPlay(
+  token: string,
+  worldId: string,
+  options?: { forceNew?: boolean; player?: Record<string, unknown> },
+): Promise<PlayStartResult> {
+  const body: Record<string, unknown> = {
+    world_id: worldId,
+    force_new: options?.forceNew === true,
+  };
+  if (options?.player) body.player = options.player;
+  const res = await apiFetch("/api/play/start", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
   });
   if (!res.ok) await failDetail(res, "세션 시작 실패");
   return res.json() as Promise<PlayStartResult>;

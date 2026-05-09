@@ -22,7 +22,7 @@
 - **Docker:** 루트 `docker-compose.yml`(PostgreSQL, api, web), `docker/Dockerfile.api` 및 엔트리포인트(Alembic `upgrade head` 후 uvicorn), `frontend/Dockerfile`·`nginx.conf`(`/api`·`/health` → API), 루트·`frontend/.dockerignore`.
 - **배포 문서·CI:** [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)(호스팅·HTTPS·시크릿·초대 코드 운영), [`.github/workflows/docker-build.yml`](.github/workflows/docker-build.yml)(API·웹 이미지 빌드 검증). 실행 체크리스트는 [`docs/BETA_DEV_EXECUTION.md`](docs/BETA_DEV_EXECUTION.md)(Epic A·B·C 등).
 - **가입 게이트(Epic C):** Alembic `0005` `invite_codes`, 설정 `REQUIRE_INVITE_CODE_FOR_SIGNUP`(기본 false)·`MAX_TOTAL_USERS`, `backend/scripts/create_invite_code.py`. 초대 코드는 **신규 `signup`만** 제한; 기존 계정 로그인과 무관.
-- **README:** Docker Compose 복붙 절차, 상태 표·문서 링크 갱신. **BYOK·월드별 API 키**는 [`docs/BETA_DEV_EXECUTION.md`](docs/BETA_DEV_EXECUTION.md) Epic G·기획 [`docs/UGC_MVP_PLAN.md`](docs/UGC_MVP_PLAN.md)에 계획만 있고 미구현(서버 `ANTHROPIC_API_KEY` 단일).
+- **README:** Docker Compose 복붙 절차, 상태 표·문서 링크 갱신. LLM은 서버 **`ANTHROPIC_API_KEY` 단일**(per-user BYOK는 중단, `BETA_DEV_EXECUTION` Epic G 참고).
 
 ---
 
@@ -102,7 +102,7 @@
 - **프론트 라우팅:** 네비 `홈 | 탐색 | 마이페이지`. **`/my`** — 플레이 중 세션 + 내 월드(공개/비공개 뱃지). **`/explore`** — 공개 월드(내 공개 / 다른 크리에이터 구역). **`/worlds`**·**`/play`**(허브)는 **`/my`로 리다이렉트**. **`/play/:sessionId`** — 채팅. **`/worlds/new`**, **`/worlds/:id`** — JSON 편집기에서 공개 범위 라디오. Vite 5173 + API 8000 병행.
 - **내장 세계관:** `backend/src/worlds/campus`·`arcane_academy`는 **CLI `play_game` 전용** — 웹은 DB UGC만 사용.
 - **운영 메모:** DB 오류 시 핸들러가 마이그레이션 안내( `DEBUG` 시 `orig` ).
-- **다음(실행 로드맵):** 베타 필수 구현은 **[`docs/BETA_DEV_EXECUTION.md`](docs/BETA_DEV_EXECUTION.md)** (Epic·DoD·파일 힌트). 기획 정본은 [`docs/UGC_MVP_PLAN.md`](docs/UGC_MVP_PLAN.md). 남은 제품 과제 예: 공유 링크 정책(세션 vs 월드), BYOK(Epic G), 탐색 검색, 장기기억·스냅샷 단일화. **초대 검증(Epic C)** 는 플래그·`invite_codes`로 반영됨.
+- **다음(실행 로드맵):** 베타 필수 구현은 **[`docs/BETA_DEV_EXECUTION.md`](docs/BETA_DEV_EXECUTION.md)** (Epic·DoD·파일 힌트). 기획 정본은 [`docs/UGC_MVP_PLAN.md`](docs/UGC_MVP_PLAN.md). 남은 제품 과제 예: 공유 링크 정책(세션 vs 월드), 탐색 검색, 장기기억·스냅샷 단일화. **초대(C)** · **턴 쿼터(D)** · **비용·셧다운(E)** · **보안(F)** 는 반영됨. **Epic G(BYOK)** 는 플랫폼 단일 키로 대체(문서 참고).
 
 ---
 
