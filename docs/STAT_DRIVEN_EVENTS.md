@@ -3,9 +3,14 @@
 | 항목 | 내용 |
 |------|------|
 | 작성일 | 2026-05-10 |
-| 상태 | **계획 + 설계 초안** (아직 구현 전) |
-| 관련 문서 | `UGC_MVP_PLAN.md` · `ARCHITECTURE.md` · `BETA_DEV_EXECUTION.md` |
+| 상태 | **PR-1 백엔드 완료 / 베타 후 데이터 도입 보류** (코드는 들어갔지만 캠퍼스 `events.json` 이 옛 스키마라 실제 발동 0회) |
+| 관련 문서 | `UGC_MVP_PLAN.md` · `ARCHITECTURE.md` · `BETA_DEV_EXECUTION.md` · `STREAMING.md` |
 | 관련 코드 | `backend/src/engine/events.py`, `backend/src/engine/state.py`, `backend/src/engine/game_loop.py`, `backend/src/api/routes/play.py` |
+
+> **핵심 원칙 (사용자 명시)**
+> - **감정·관계** (affection / trust / romance / fear / respect) 는 LLM 의 이야기 흐름에서 자연스럽게 `update_relationship` 으로 변동 — *기존 그대로*.
+> - **자원 스탯** (hp / stress / focus 등) 과 **플래그** 만 이벤트의 `resource_stat` / `flag_set` / `narrative` 효과로 가끔 움직인다.
+> - 따라서 `apply_effects` 는 의도적으로 `relationship` 효과를 미지원 — 누가 실수로 써도 조용히 무시 (테스트 `test_relationship_effect_is_ignored_in_pr1` 로 박제).
 
 이 문서는 **이번 주 보고서 + 다음 스프린트 실행 계획**의 단일 진실 출처(single source of truth)다.
 대규모 PR로 가지 않고 **단계별로 쪼개어 PR**한다.
@@ -222,3 +227,36 @@ clamp는 월드의 `standard_stats[stat].min/max`(있으면)를 따른다.
 ## 8. 변경 로그
 
 - 2026-05-10 — 초안 작성 (계획 + 분리 작업 정리). 이번 주 보고서 기준점.
+- 2026-05-10 — **PR-1 백엔드 구현 완료**. 사용자 결정으로 데이터(이벤트 정의) 도입은 베타 피드백 후 결정.
+
+---
+
+## 9. PR-1 완료 보고 (2026-05-10)
+
+### 9-1. 무엇이 코드에 들어갔나
+
+| 영역 | 변경 |
+|------|------|
+| `engine/state.py` | `update_player_stat(key, change, clamp=None)`, `set_flag(key, value)`, `get_flag(key, default)` 추가. 자원 스탯 / 플래그 전용 — 관계 스탯은 기존 `update_relationship` 만 사용. |
+| `engine/events.py` | 모듈 docstring에 "감정 vs 자원" 분리 원칙 명시. 조건 4종(`resource_stat_threshold`, `flag`, `time_window`, `compound`) + 효과 3종(`resource_stat`, `flag_set`, `narrative`) + `_resolve_resource_clamp` (`world.stats_schema.resource[key].{min,max}` 기준 clamp). 같은 턴 발동 캡 기본값 `DEFAULT_MAX_EVENTS_PER_TURN=1`. |
+| `engine/game_loop.py` | `process_turn` 내부 이벤트 루프에서 `apply_effects` 호출, `applied_effects` 를 `events_triggered` 메타에 포함. 월드별 `world_variables.max_events_per_turn` 으로 캡 덮어쓰기 가능. |
+| `tests/unit/test_events.py` (+253 줄) | 새 조건/효과 + 우선순위 + relationship 효과 무시 회귀 테스트. |
+| `tests/unit/test_game_engine_events.py` (+17 줄) | 기본 캡 1 검증, 캡 풀었을 때 다중 발동 검증. |
+
+총 **+33 단위 테스트**, 전체 214 passed.
+
+### 9-2. 왜 "베타 후"로 보류했는가
+
+[`PRODUCTION_ROADMAP.md` § 갭 분석](PRODUCTION_ROADMAP.md) 의 카테고리 비교에서 **체감 임팩트가 큰 기능(스트리밍 / 재생성 / 페르소나 저장)** 이 우선이라는 결론에 따라:
+- 이 코드는 **백엔드 메커니즘만 들어가있는 상태** — 캠퍼스/아케인의 `events.json` 이 옛 `trigger:"random"+probability` 스키마라 새 `condition` 평가기에선 모두 False → 실제 발동 0.
+- 데이터(이벤트 정의)와 LLM 시스템 프롬프트의 `narrative_hint` 주입은 **베타 피드백 후 진행** 결정.
+
+### 9-3. 베타 후 재개 시 남은 작업
+
+| # | 작업 | 비고 |
+|---|------|------|
+| PR-A | 캠퍼스 `events.json` 신규 스키마로 마이그레이션 (`time_window` + `flag` + `resource_stat` 효과 1~2개) | 실제 발동 시작 |
+| PR-B | `narrative_hint` 를 다음 턴 `system_prompt` 의 dynamic 블록에 1턴만 주입 | "이야기 속에서 반영" 의 핵심 |
+| PR-C | 채팅의 `[이벤트] ...` 별도 메시지를 토스트/배지로 격리 | 이야기와 시스템 분리 |
+| PR-D | 헤더에 자원 스탯 게이지·배지 (`hp 80/100`, `stress 0→5↑`) | 변화 가시화 |
+| PR-5 (원래 계획) | UGC 에디터 — 조건 템플릿 (간편 모드) | UGC 진입 장벽 ↓ |

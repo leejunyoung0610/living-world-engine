@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from backend.src.engine.events import EventManager
+from backend.src.engine.state import WorldState
 
 
 @pytest.fixture
@@ -162,3 +163,255 @@ class TestTriggerAndCooldown:
         """없는 이벤트 발동 → 무시"""
         event_manager.trigger_event("nonexistent")
         assert len(event_manager.triggered_events) == 0
+
+
+# ── PR-1: 자원 스탯/플래그/시간/복합 조건 + 효과 적용 ────────────────────────
+
+
+@pytest.fixture
+def stats_world_state() -> WorldState:
+    """자원 스탯 clamp 검증을 위해 ``stats_schema.resource`` 가 있는 월드."""
+    state = WorldState()
+    state.world = {
+        "id": "test",
+        "name": "test",
+        "stats_schema": {
+            "resource": {
+                "hp": {"min": 0, "max": 100, "default": 80, "label": "체력"},
+                "stress": {"min": 0, "max": 10, "default": 0, "label": "스트레스"},
+                "focus": {"min": 0, "max": 10, "default": 5, "label": "집중력"},
+            }
+        },
+    }
+    state.player = {
+        "name": "Tester",
+        "class": "campus_resident",
+        "stats": {"hp": 80, "stress": 0, "focus": 5},
+        "flags": {"warned_burnout": False},
+        "relationships": {},
+    }
+    state.npcs = []
+    return state
+
+
+def _snap_with(player: dict | None = None, world: dict | None = None, **kw) -> dict:
+    return {
+        "world": world or {"world_variables": {}},
+        "player": player or {"stats": {}, "flags": {}, "relationships": {}},
+        "turn": kw.get("turn", 0),
+        "day": kw.get("day", 1),
+        **{k: v for k, v in kw.items() if k not in ("turn", "day")},
+    }
+
+
+class TestResourceStatThreshold:
+    """`resource_stat_threshold` 조건 — `player.stats[key]` 비교."""
+
+    def test_match_exact(self) -> None:
+        em = EventManager()
+        em.load_events([{
+            "id": "burnout",
+            "condition": {"type": "resource_stat_threshold", "stat": "stress", "op": ">=", "value": 8},
+            "cooldown": 5,
+        }])
+        snap = _snap_with(player={"stats": {"stress": 8}, "flags": {}, "relationships": {}})
+        assert [e["id"] for e in em.check_events(snap)] == ["burnout"]
+
+    def test_no_match_below(self) -> None:
+        em = EventManager()
+        em.load_events([{
+            "id": "burnout",
+            "condition": {"type": "resource_stat_threshold", "stat": "stress", "op": ">=", "value": 8},
+            "cooldown": 5,
+        }])
+        snap = _snap_with(player={"stats": {"stress": 7}, "flags": {}, "relationships": {}})
+        assert em.check_events(snap) == []
+
+    def test_missing_stat_treated_as_zero(self) -> None:
+        em = EventManager()
+        em.load_events([{
+            "id": "needs_focus",
+            "condition": {"type": "resource_stat_threshold", "stat": "focus", "op": "<=", "value": 1},
+            "cooldown": 1,
+        }])
+        snap = _snap_with(player={"stats": {}, "flags": {}, "relationships": {}})
+        assert [e["id"] for e in em.check_events(snap)] == ["needs_focus"]
+
+
+class TestFlagCondition:
+    def test_equals_match(self) -> None:
+        em = EventManager()
+        em.load_events([{
+            "id": "after_intro",
+            "condition": {"type": "flag", "key": "tutorial_done", "equals": True},
+            "cooldown": 1,
+        }])
+        snap = _snap_with(player={"stats": {}, "flags": {"tutorial_done": True}, "relationships": {}})
+        assert [e["id"] for e in em.check_events(snap)] == ["after_intro"]
+
+    def test_equals_string(self) -> None:
+        em = EventManager()
+        em.load_events([{
+            "id": "in_book_club",
+            "condition": {"type": "flag", "key": "club", "equals": "독서회"},
+            "cooldown": 1,
+        }])
+        snap = _snap_with(player={"stats": {}, "flags": {"club": "독서회"}, "relationships": {}})
+        assert [e["id"] for e in em.check_events(snap)] == ["in_book_club"]
+
+    def test_no_match_when_value_differs(self) -> None:
+        em = EventManager()
+        em.load_events([{
+            "id": "after_intro",
+            "condition": {"type": "flag", "key": "tutorial_done", "equals": True},
+            "cooldown": 1,
+        }])
+        snap = _snap_with(player={"stats": {}, "flags": {"tutorial_done": False}, "relationships": {}})
+        assert em.check_events(snap) == []
+
+
+class TestTimeWindow:
+    def test_min_max_day_inclusive(self) -> None:
+        em = EventManager()
+        em.load_events([{
+            "id": "midterm_week",
+            "condition": {"type": "time_window", "min_day": 5, "max_day": 7},
+            "cooldown": 1,
+        }])
+        for day, expected in [(4, []), (5, ["midterm_week"]), (7, ["midterm_week"]), (8, [])]:
+            snap = _snap_with(day=day)
+            assert [e["id"] for e in em.check_events(snap)] == expected
+
+    def test_phase_inferred_from_turn_when_state_phase_absent(self) -> None:
+        em = EventManager()
+        em.load_events([{
+            "id": "night_event",
+            "condition": {"type": "time_window", "phase": "night"},
+            "cooldown": 1,
+        }])
+        # 짝수 turn → day, 홀수 → night
+        assert [e["id"] for e in em.check_events(_snap_with(turn=4))] == []
+        assert [e["id"] for e in em.check_events(_snap_with(turn=5))] == ["night_event"]
+
+
+class TestCompound:
+    def test_and_all_must_match(self) -> None:
+        em = EventManager()
+        em.load_events([{
+            "id": "burnout_warning",
+            "condition": {
+                "type": "compound", "op": "and",
+                "conditions": [
+                    {"type": "resource_stat_threshold", "stat": "stress", "op": ">=", "value": 8},
+                    {"type": "flag", "key": "warned_burnout", "equals": False},
+                ],
+            },
+            "cooldown": 12,
+        }])
+        snap = _snap_with(player={"stats": {"stress": 9}, "flags": {"warned_burnout": False}, "relationships": {}})
+        assert [e["id"] for e in em.check_events(snap)] == ["burnout_warning"]
+        snap2 = _snap_with(player={"stats": {"stress": 9}, "flags": {"warned_burnout": True}, "relationships": {}})
+        assert em.check_events(snap2) == []
+
+    def test_or_any_match(self) -> None:
+        em = EventManager()
+        em.load_events([{
+            "id": "rest_needed",
+            "condition": {
+                "type": "compound", "op": "or",
+                "conditions": [
+                    {"type": "resource_stat_threshold", "stat": "stress", "op": ">=", "value": 8},
+                    {"type": "resource_stat_threshold", "stat": "hp", "op": "<=", "value": 30},
+                ],
+            },
+            "cooldown": 5,
+        }])
+        snap = _snap_with(player={"stats": {"stress": 1, "hp": 20}, "flags": {}, "relationships": {}})
+        assert [e["id"] for e in em.check_events(snap)] == ["rest_needed"]
+
+
+class TestPriorityOrdering:
+    def test_higher_priority_first(self) -> None:
+        em = EventManager()
+        em.load_events([
+            {"id": "low", "condition": {"type": "turn_range", "min_turn": 0, "max_turn": 99}, "priority": 1, "cooldown": 5},
+            {"id": "high", "condition": {"type": "turn_range", "min_turn": 0, "max_turn": 99}, "priority": 9, "cooldown": 5},
+            {"id": "mid", "condition": {"type": "turn_range", "min_turn": 0, "max_turn": 99}, "priority": 5, "cooldown": 5},
+        ])
+        ids = [e["id"] for e in em.check_events(_snap_with(turn=3))]
+        assert ids == ["high", "mid", "low"]
+
+
+class TestApplyEffects:
+    def test_resource_stat_increase_with_clamp(self, stats_world_state: WorldState) -> None:
+        em = EventManager()
+        applied = em.apply_effects(
+            stats_world_state,
+            [{"type": "resource_stat", "key": "stress", "change": 5}],
+        )
+        assert stats_world_state.player["stats"]["stress"] == 5
+        assert applied == [
+            {"type": "resource_stat", "key": "stress", "change": 5, "before": 0, "after": 5}
+        ]
+
+    def test_resource_stat_clamps_to_max(self, stats_world_state: WorldState) -> None:
+        em = EventManager()
+        applied = em.apply_effects(
+            stats_world_state,
+            [{"type": "resource_stat", "key": "stress", "change": 99}],
+        )
+        assert stats_world_state.player["stats"]["stress"] == 10
+        assert applied[0]["after"] == 10
+
+    def test_resource_stat_clamps_to_min(self, stats_world_state: WorldState) -> None:
+        em = EventManager()
+        applied = em.apply_effects(
+            stats_world_state,
+            [{"type": "resource_stat", "key": "hp", "change": -999}],
+        )
+        assert stats_world_state.player["stats"]["hp"] == 0
+        assert applied[0]["after"] == 0
+
+    def test_flag_set_records_before_and_after(self, stats_world_state: WorldState) -> None:
+        em = EventManager()
+        applied = em.apply_effects(
+            stats_world_state,
+            [{"type": "flag_set", "key": "warned_burnout", "value": True}],
+        )
+        assert stats_world_state.player["flags"]["warned_burnout"] is True
+        assert applied == [
+            {"type": "flag_set", "key": "warned_burnout", "before": False, "after": True}
+        ]
+
+    def test_narrative_does_not_change_state(self, stats_world_state: WorldState) -> None:
+        em = EventManager()
+        applied = em.apply_effects(
+            stats_world_state,
+            [{"type": "narrative", "text": "거울 속 얼굴이 낯설다."}],
+        )
+        assert stats_world_state.player["stats"] == {"hp": 80, "stress": 0, "focus": 5}
+        assert applied == [{"type": "narrative", "text": "거울 속 얼굴이 낯설다."}]
+
+    def test_relationship_effect_is_ignored_in_pr1(self, stats_world_state: WorldState) -> None:
+        """PR-1 에서 relationship 효과는 의도적으로 미지원 — 조용히 무시.
+        감정·관계는 LLM 의 이야기 흐름이 ``update_relationship`` 으로만 변동시킨다.
+        """
+        em = EventManager()
+        before = dict(stats_world_state.player.get("relationships", {}))
+        applied = em.apply_effects(
+            stats_world_state,
+            [{"type": "relationship", "npc_id": "elena", "stat": "affection", "change": 5}],
+        )
+        assert stats_world_state.player["relationships"] == before
+        assert applied == []
+
+    def test_player_stat_alias_still_works(self, stats_world_state: WorldState) -> None:
+        """호환 — 구 ``player_stat`` 이름의 효과도 동일하게 처리."""
+        em = EventManager()
+        applied = em.apply_effects(
+            stats_world_state,
+            [{"type": "player_stat", "key": "focus", "change": -2}],
+        )
+        assert stats_world_state.player["stats"]["focus"] == 3
+        assert applied[0]["type"] == "resource_stat"
+        assert applied[0]["after"] == 3

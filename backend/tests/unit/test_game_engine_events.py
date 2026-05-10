@@ -104,8 +104,9 @@ class TestGameEngineEventIntegration:
         assert not any(e["event_id"] == "chaos_event" for e in result2["events_triggered"])
 
     def test_multiple_events_trigger(self, mock_engine: GameEngine) -> None:
-        """여러 조건 동시 충족 → 여러 이벤트 트리거"""
+        """여러 조건 동시 충족 → 여러 이벤트 트리거 (월드별 캡을 풀어서 검증)"""
         mock_engine.state.world["world_variables"]["chaos_level"] = 0.7
+        mock_engine.state.world["world_variables"]["max_events_per_turn"] = 10
         mock_engine.state.player["relationships"]["elena"]["affection"] = 90
         # turn을 3으로 만들기 위해 미리 진행
         mock_engine.state.turn = 2  # process_turn에서 advance_turn → 3
@@ -115,6 +116,20 @@ class TestGameEngineEventIntegration:
         assert "chaos_event" in ids
         assert "love_event" in ids
         assert "turn_event" in ids
+
+    def test_default_cap_one_event_per_turn(self, mock_engine: GameEngine) -> None:
+        """월드 옵션이 없으면 같은 턴에 최대 1개만 발동 (priority 큰 것 우선)."""
+        # 모두 충족시키되, 우선순위로 turn_event 가 1등이 되게 한다.
+        mock_engine.state.world["world_variables"]["chaos_level"] = 0.7
+        mock_engine.state.player["relationships"]["elena"]["affection"] = 90
+        mock_engine.state.turn = 2  # → 3
+        for ev in mock_engine.event_manager.event_templates:
+            if ev["id"] == "turn_event":
+                ev["priority"] = 10
+
+        result = mock_engine.process_turn("안녕")
+        assert len(result["events_triggered"]) == 1
+        assert result["events_triggered"][0]["event_id"] == "turn_event"
 
     def test_triggered_event_includes_narrative_hint(self, mock_engine: GameEngine) -> None:
         """트리거된 이벤트에 narrative_hint 포함"""

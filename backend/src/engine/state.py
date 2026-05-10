@@ -147,6 +147,52 @@ class WorldState:
         logger.info(f"{npc_id} {stat}: {current} -> {new_value} ({change})")
         return new_value
 
+    # ── 자원 스탯·플래그 (이벤트 효과 적용용) ──
+    #
+    # 「감정·관계」 는 LLM 이 이야기 흐름에서 자연스럽게 update_relationship 으로 변동.
+    # 이 두 메서드는 **자원 스탯**(hp, stress, focus 등)과 **플래그**(불리언/문자열 마커) 전용
+    # 이벤트 효과에서만 호출한다.
+
+    def update_player_stat(
+        self,
+        key: str,
+        change: int,
+        *,
+        clamp: tuple[int, int] | None = None,
+    ) -> tuple[int, int]:
+        """``player.stats[key]`` 를 ``change`` 만큼 가감. ``clamp=(min,max)`` 면 범위 제한.
+
+        Returns:
+            (before, after) — 적용 전/후 정수값.
+        """
+        stats = self.player.get("stats")
+        if not isinstance(stats, dict):
+            stats = {}
+            self.player["stats"] = stats
+        before = int(stats.get(key, 0))
+        target = before + int(change)
+        if clamp is not None:
+            lo, hi = clamp
+            target = max(int(lo), min(int(hi), target))
+        stats[key] = target
+        return before, target
+
+    def set_flag(self, key: str, value: Any) -> tuple[Any, Any]:
+        """``player.flags[key]`` 를 ``value`` 로 설정. (before, after) 반환."""
+        flags = self.player.get("flags")
+        if not isinstance(flags, dict):
+            flags = {}
+            self.player["flags"] = flags
+        before = flags.get(key)
+        flags[key] = value
+        return before, value
+
+    def get_flag(self, key: str, default: Any = None) -> Any:
+        flags = self.player.get("flags", {})
+        if not isinstance(flags, dict):
+            return default
+        return flags.get(key, default)
+
     def apply_changes(self, changes: dict[str, Any]) -> dict[str, Any]:
         """검증된 상태 변경을 적용하고 적용된 변경 내역을 반환"""
         applied: dict[str, Any] = {"relationship_changes": [], "memories_added": []}
