@@ -9,13 +9,13 @@ TODO: Week 2 Day 13-14에 구현 완성
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from .state import WorldState
 from .llm import ClaudeClient
 from .validator import StateChangeValidator
 from .loop_detector import LoopDetector
-from .events import EventManager
+from .events import DEFAULT_MAX_EVENTS_PER_TURN, EventManager
 from .prompt_optimizer import SystemPromptOptimizer
 from ..utils.config import get_settings
 from ..utils.logger import get_logger
@@ -228,14 +228,36 @@ class GameEngine:
             events_triggered: list[dict[str, Any]] = []
             with self.performance.measure("event_system"):
                 triggered_events = self.event_manager.check_events(snapshot)
-                for event in triggered_events:
+                # 같은 턴 발동 캡 — 월드별 ``world_variables.max_events_per_turn`` 우선,
+                # 없으면 모듈 기본값(1).
+                world_vars = self.state.world.get("world_variables", {}) or {}
+                try:
+                    cap = int(world_vars.get("max_events_per_turn", DEFAULT_MAX_EVENTS_PER_TURN))
+                except (TypeError, ValueError):
+                    cap = DEFAULT_MAX_EVENTS_PER_TURN
+                cap = max(0, cap)
+
+                for event in triggered_events[:cap]:
                     self.event_manager.trigger_event(event["id"])
-                    events_triggered.append({
-                        "event_id": event["id"],
-                        "description": event.get("description", ""),
-                        "narrative_hint": event.get("narrative_hint", ""),
-                    })
-                    logger.info(f"🎲 이벤트 발생: {event.get('description', event['id'])}")
+                    applied_effects = self.event_manager.apply_effects(
+                        self.state, event.get("effects") or []
+                    )
+                    events_triggered.append(
+                        {
+                            "event_id": event["id"],
+                            "description": event.get("description", ""),
+                            "narrative_hint": event.get("narrative_hint", ""),
+                            "applied_effects": applied_effects,
+                        }
+                    )
+                    logger.info(
+                        f"🎲 이벤트 발생: {event.get('description', event['id'])}"
+                        + (
+                            f" — effects={len(applied_effects)}"
+                            if applied_effects
+                            else ""
+                        )
+                    )
 
                 # Loop Detection 비활성화
                 # if loop_result["detected"] and loop_result.get("severity", 0) >= 7:
@@ -293,6 +315,9 @@ class GameEngine:
         )
 
         return result
+
+    def process_turn_stream(self, user_input: str) -> Iterator[dict[str, Any]]:
+        yield from self._stream_turn_impl(user_input)
 
     def _build_system_blocks(
         self, relevant_memories: list[dict[str, Any]]
@@ -418,3 +443,139 @@ class GameEngine:
     def print_performance_report(self) -> None:
         """성능 모니터링 리포트 출력"""
         self.performance.print_report()
+
+    def _stream_turn_impl(self, user_input: str) -> Iterator[dict[str, Any]]:
+        logger.info("=== Turn %s (stream) ===", self.state.turn + 1)
+        logger.info("Player: %s", user_input)
+
+        relevant_memories = self.memory.search(
+            query=user_input,
+            player_id=self.state.player.get("id", "default"),
+            min_importance=7,
+            limit=10,
+        )
+        logger.info("Layer 3 (LongTermMemory): %s개 검색", len(relevant_memories))
+
+        system_blocks = self._build_system_blocks(relevant_memories)
+
+        full_history = self.conversation_history.copy()
+        full_history.append({"role": "user", "content": user_input})
+        optimized_history = self.context_manager.build_context(
+            user_input,
+            full_history,
+            max_tokens=ContextManager.MAX_CONTEXT_TOKENS,
+        )
+
+        llm_result: dict[str, Any] | None = None
+        for ev in self.llm.process_turn_stream(
+            user_input=user_input,
+            system_prompt=system_blocks,
+            conversation_history=optimized_history,
+            enable_single_pass=get_settings().enable_single_pass,
+        ):
+            if ev["type"] == "delta":
+                yield ev
+            elif ev["type"] == "done":
+                llm_result = ev["result"]
+
+        if llm_result is None:
+            llm_result = {
+                "response": "",
+                "state_changes": {},
+                "tool_used": False,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "cache_creation_tokens": 0,
+                "cache_read_tokens": 0,
+                "usage_segments": [],
+                "llm_api_calls": 0,
+            }
+
+        result = self._finalize_turn_after_llm(user_input, llm_result)
+        yield {"type": "done", "result": result}
+
+    def _finalize_turn_after_llm(
+        self, user_input: str, llm_result: dict[str, Any]
+    ) -> dict[str, Any]:
+        segments = llm_result.get("usage_segments")
+        if not segments:
+            segments = [
+                {
+                    "input_tokens": llm_result.get("input_tokens", 0),
+                    "output_tokens": llm_result.get("output_tokens", 0),
+                    "cache_creation_tokens": llm_result.get("cache_creation_tokens", 0),
+                    "cache_read_tokens": llm_result.get("cache_read_tokens", 0),
+                }
+            ]
+        turn_cost = self.usage_tracker.log_turn_anthropic(segments)
+        api_usage = _summarize_api_usage(segments)
+
+        state_changes = llm_result.get("state_changes", {})
+        if state_changes:
+            state_changes = self.validator.validate(state_changes)
+
+        applied = self.state.apply_changes(state_changes)
+        self.state.advance_turn()
+
+        for mem in state_changes.get("new_memories", []):
+            self.memory.add_memory(
+                content=mem["content"],
+                emotion=mem.get("emotion", "neutral"),
+                importance=mem.get("importance", 5),
+                player_id=self.state.player.get("id", "default"),
+            )
+        self.memory.maybe_compact_if_oversized()
+
+        snapshot = self.state.snapshot()
+        response_text = llm_result.get("response", "")
+        loop_result = {"detected": False, "severity": 0}
+
+        events_triggered: list[dict[str, Any]] = []
+        triggered_events = self.event_manager.check_events(snapshot)
+        world_vars = self.state.world.get("world_variables", {}) or {}
+        try:
+            cap = int(world_vars.get("max_events_per_turn", DEFAULT_MAX_EVENTS_PER_TURN))
+        except (TypeError, ValueError):
+            cap = DEFAULT_MAX_EVENTS_PER_TURN
+        cap = max(0, cap)
+
+        for event in triggered_events[:cap]:
+            self.event_manager.trigger_event(event["id"])
+            applied_effects = self.event_manager.apply_effects(
+                self.state, event.get("effects") or []
+            )
+            events_triggered.append(
+                {
+                    "event_id": event["id"],
+                    "description": event.get("description", ""),
+                    "narrative_hint": event.get("narrative_hint", ""),
+                    "applied_effects": applied_effects,
+                }
+            )
+
+        self.event_manager.tick_cooldowns()
+
+        self.conversation_history.append({"role": "user", "content": user_input})
+        self.conversation_history.append({"role": "assistant", "content": response_text})
+        if len(self.conversation_history) > 40:
+            self.conversation_history = self.conversation_history[-40:]
+
+        return {
+            "turn": self.state.turn,
+            "day": self.state.day,
+            "response": response_text,
+            "state_changes": applied,
+            "tool_used": llm_result.get("tool_used", False),
+            "loop_detected": loop_result["detected"],
+            "loop_severity": loop_result.get("severity", 0),
+            "events_triggered": events_triggered,
+            "turn_cost": round(turn_cost, 6),
+            "input_tokens": llm_result.get("input_tokens", 0),
+            "input_tokens_first": llm_result.get("input_tokens_first", 0),
+            "input_tokens_second": llm_result.get("input_tokens_second", 0),
+            "output_tokens": llm_result.get("output_tokens", 0),
+            "cache_creation_tokens": llm_result.get("cache_creation_tokens", 0),
+            "cache_read_tokens": llm_result.get("cache_read_tokens", 0),
+            "api_usage": api_usage,
+            "llm_api_calls": int(llm_result.get("llm_api_calls", 1)),
+        }

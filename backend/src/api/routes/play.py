@@ -8,8 +8,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -99,6 +101,8 @@ class PlayHistoryResponse(BaseModel):
     day: int
     world_name: str
     messages: list[PlayHistoryMessage]
+    #: 화자 분할 알고리즘이 클라이언트에서 점진 분할(스트리밍 중 화자 블록)에 사용한다.
+    npc_names: list[str] = Field(default_factory=list)
 
 
 def _memory_file(session_id: uuid.UUID) -> Path:
@@ -376,7 +380,13 @@ def play_history(
                 PlayHistoryMessage(role="assistant", content=content, segments=segs)
             )
 
-    return PlayHistoryResponse(turn=turn, day=day, world_name=world_name, messages=messages)
+    return PlayHistoryResponse(
+        turn=turn,
+        day=day,
+        world_name=world_name,
+        messages=messages,
+        npc_names=_npc_names_from_engine(eng),
+    )
 
 
 @router.post("/start")
@@ -538,3 +548,93 @@ def play_turn(
         response_segments=segs,
         events_triggered=safe_events,
     )
+
+
+def _sse_event(event: str, payload: dict[str, Any]) -> str:
+    return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+@limiter.limit("90/minute")
+@router.post("/{session_id}/turn/stream")
+def play_turn_stream(
+    request: Request,
+    session_id: uuid.UUID,
+    body: TurnBody,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> StreamingResponse:
+    bundle = _ensure_bundle(db, session_id, user.id)
+    if bundle is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
+    settings = get_settings()
+    db.refresh(user)
+    if settings.emergency_shutdown:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="긴급 점검 중입니다. 플레이가 일시 중단되었습니다.",
+        )
+
+    _ensure_platform_llm_key(bundle.engine)
+    turn_quota.check_platform_turn_quota_or_raise(db, user, settings)
+
+    ut = getattr(bundle.engine, "usage_tracker", None)
+    cost_before = float(ut.total_cost) if ut is not None else 0.0
+    msg = body.message.strip()
+
+    def _generate() -> Any:
+        final_result: dict[str, Any] | None = None
+        try:
+            for ev in bundle.engine.process_turn_stream(msg):
+                if ev.get("type") == "delta":
+                    text = ev.get("text") or ""
+                    if text:
+                        yield _sse_event("delta", {"text": text})
+                elif ev.get("type") == "done":
+                    final_result = ev.get("result")
+
+            if final_result is None:
+                yield _sse_event("error", {"detail": "엔진이 응답을 반환하지 못했습니다."})
+                return
+
+            turn_quota.record_platform_turn(db, user, settings)
+            if ut is not None:
+                delta = float(ut.total_cost) - cost_before
+                platform_cost.record_platform_cost_delta(db, delta, settings)
+            _persist_session(db, session_id, user.id, bundle.world_id, bundle.engine)
+
+            response_text = str(final_result.get("response", ""))
+            segs = _segments_for_assistant(bundle.engine, response_text)
+            ev_list = final_result.get("events_triggered") or []
+            safe_events: list[dict[str, str]] = []
+            for e in ev_list:
+                if isinstance(e, dict):
+                    safe_events.append(
+                        {
+                            "event_id": str(e.get("event_id", "")),
+                            "description": str(e.get("description", "")),
+                            "narrative_hint": str(e.get("narrative_hint", "")),
+                        }
+                    )
+
+            done_payload = {
+                "turn": int(final_result.get("turn", 0)),
+                "day": int(final_result.get("day", 1)),
+                "response": response_text,
+                "response_segments": [s.model_dump() for s in segs],
+                "events_triggered": safe_events,
+            }
+            yield _sse_event("done", done_payload)
+        except Exception as exc:
+            logger.exception("play turn stream failed")
+            detail = "스트리밍 처리 중 오류가 났습니다. 네트워크/API 키를 확인하세요."
+            if get_settings().debug:
+                detail = f"{detail} ({type(exc).__name__}: {exc})"
+            yield _sse_event("error", {"detail": detail})
+
+    headers = {
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+        "Connection": "keep-alive",
+    }
+    return StreamingResponse(_generate(), media_type="text/event-stream", headers=headers)

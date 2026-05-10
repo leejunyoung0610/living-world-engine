@@ -81,6 +81,27 @@ class StubGameEngine:
             "events_triggered": [{"event_id": "e1", "description": "이벤트", "narrative_hint": ""}],
         }
 
+    def process_turn_stream(self, msg: str):
+        self.conversation_history.append({"role": "user", "content": msg})
+        reply = f"stub:{msg}"
+        chunks = [reply[i : i + 2] for i in range(0, len(reply), 2)] or [""]
+        for c in chunks:
+            yield {"type": "delta", "text": c}
+        self.conversation_history.append({"role": "assistant", "content": reply})
+        self.state.turn = 2
+        self.state.day = 1
+        yield {
+            "type": "done",
+            "result": {
+                "turn": 2,
+                "day": 1,
+                "response": reply,
+                "events_triggered": [
+                    {"event_id": "e1", "description": "이벤트", "narrative_hint": ""}
+                ],
+            },
+        }
+
 
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:

@@ -188,6 +188,22 @@
 ## 참고 링크
 
 - [`docs/PRODUCTION_ROADMAP.md`](PRODUCTION_ROADMAP.md) — **실서비스 전환** 시 갭 분석·단계별 개발 계획(신뢰·법무·결제·월드 3트랙 등)
+- [`docs/STREAMING.md`](STREAMING.md) — **PR-1 완료**: SSE 스트리밍 + 점진 화자 분할 (옵션 A)
+- [`docs/STAT_DRIVEN_EVENTS.md`](STAT_DRIVEN_EVENTS.md) — **PR-1 백엔드 완료 / 베타 후 결정**: 자원 스탯 이벤트 (감정·관계는 LLM 의 이야기 흐름 그대로)
 - [`docs/UGC_MVP_PLAN.md`](UGC_MVP_PLAN.md) — 정책·비용·보안 원칙
 - [`DEVELOPMENT.md`](../DEVELOPMENT.md) — 엔진·UGC 코드 브리핑
 - [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) — 배포 후 UGC 흐름 다이어그램 반영 권장
+
+---
+
+## 진행 상황 (2026-05-10)
+
+| 트랙 | 상태 | 비고 |
+|------|------|------|
+| 클라이언트 플랫폼 (반응형 / PWA / 카카오 OAuth) | ✅ 이전 세션 완료 (`63654b6`) | [`CLIENT_PLATFORM_PLAN.md`](CLIENT_PLATFORM_PLAN.md) |
+| 응답 스트리밍 (SSE) | ✅ 완료 | [`STREAMING.md`](STREAMING.md) |
+| 자원 스탯 이벤트 (백엔드) | 🟡 코드만 (베타 후 결정) | [`STAT_DRIVEN_EVENTS.md`](STAT_DRIVEN_EVENTS.md) |
+| 재생성 / "다시" 버튼 | ⏳ 다음 PR-2 | `payload.conversation_history` 인덱스 방식 |
+| 메시지 편집 / 삭제 | ⏳ PR-3 | |
+| 페르소나 저장 | ⏳ PR-4 | `personas` 테이블 + PlaySetupPage 드롭다운 |
+| 베타 안내 페이지 + 피드백 폼 | ⏳ PR-5 | 친구 30명 풀어볼 베이스라인 |

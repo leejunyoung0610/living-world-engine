@@ -10,7 +10,7 @@ TODO: Week 1 Day 5-7에 구현 완성
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Iterator
 
 from anthropic import Anthropic
 
@@ -238,6 +238,71 @@ class ClaudeClient:
                 "usage_segments": [seg],
                 "llm_api_calls": 1,
             }
+
+    def process_turn_stream(
+        self,
+        user_input: str,
+        system_prompt: str | tuple[str, str],
+        conversation_history: list[dict[str, Any]] | None = None,
+        *,
+        enable_single_pass: bool = True,
+    ) -> Iterator[dict[str, Any]]:
+        """process_turn 의 스트리밍 버전 (옵션 A: 1차만 스트림).
+
+        Yields 두 종류의 이벤트:
+            - {"type": "delta", "text": str}: 1차 응답의 텍스트 청크.
+            - {"type": "done", "result": {...}}: 최종 결과 (process_turn 반환 dict 와 동일 형식).
+
+        동작 정책:
+            - 1차 호출만 stream 으로 실행. text_delta 만 흘려보내고 tool_use 입력은 누적.
+            - Single-Pass: 1차 응답에 텍스트가 있으면 그대로 done.
+            - Fallback: 1차에 텍스트 없고 stop_reason 이 tool_use → 비스트림 2차 호출 후 done.
+        """
+        messages = conversation_history or []
+        system_messages = self._system_messages_from_prompt(system_prompt)
+        tools = self._get_tools()
+
+        logger.debug("LLM 1차 stream 호출: %s...", user_input[:50])
+
+        with self.client.messages.stream(
+            model=self.model,
+            max_tokens=self.max_tokens,
+            system=system_messages,
+            tools=tools,
+            messages=messages,
+        ) as stream:
+            for chunk in stream.text_stream:
+                if chunk:
+                    yield {"type": "delta", "text": chunk}
+            final = stream.get_final_message()
+
+        if final.stop_reason == "tool_use":
+            result = self._handle_tool_use(
+                final,
+                messages,
+                system_messages,
+                tools,
+                enable_single_pass=enable_single_pass,
+            )
+        else:
+            text = self._extract_text(final)
+            in_tokens, out_tokens = self._extract_usage(final)
+            seg = self._usage_segment_from_response(final)
+            result = {
+                "response": text,
+                "state_changes": {},
+                "tool_used": False,
+                "input_tokens": in_tokens,
+                "input_tokens_first": in_tokens,
+                "input_tokens_second": 0,
+                "output_tokens": out_tokens,
+                "cache_creation_tokens": seg["cache_creation_tokens"],
+                "cache_read_tokens": seg["cache_read_tokens"],
+                "usage_segments": [seg],
+                "llm_api_calls": 1,
+            }
+
+        yield {"type": "done", "result": result}
 
     def _handle_tool_use(
         self,

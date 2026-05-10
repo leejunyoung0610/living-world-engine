@@ -3,11 +3,13 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { TOKEN_KEY } from "../api/client";
 import {
   fetchPlayHistory,
-  sendTurn,
+  sendTurnStream,
   SESSION_EXPIRED,
   type NpcSegment,
+  type TurnResult,
 } from "../api/play";
 import { LoggedInNav } from "../components/LoggedInNav";
+import { splitAssistantIntoSegments } from "../utils/dialogueSplit";
 
 type ChatLine =
   | { role: "user"; text: string }
@@ -48,6 +50,7 @@ export function PlayPage() {
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [meta, setMeta] = useState<{ turn: number; day: number } | null>(null);
+  const [npcNames, setNpcNames] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,6 +75,7 @@ export function PlayPage() {
       .then((h) => {
         if (cancelled) return;
         setMeta({ turn: h.turn, day: h.day });
+        setNpcNames(h.npc_names ?? []);
         const next: ChatLine[] = [];
         for (const m of h.messages) {
           if (m.role === "user") {
@@ -111,29 +115,63 @@ export function PlayPage() {
     const msg = input.trim();
     setInput("");
     setError(null);
-    setLines((prev) => [...prev, { role: "user", text: msg }]);
+
+    setLines((prev) => [
+      ...prev,
+      { role: "user", text: msg },
+      { role: "assistant", text: "", segments: [] },
+    ]);
     setLoading(true);
+
+    let streamedText = "";
+    let doneFired = false;
+
+    const updateAssistant = (text: string, segments: NpcSegment[]) => {
+      setLines((prev) => {
+        const next = [...prev];
+        for (let i = next.length - 1; i >= 0; i--) {
+          if (next[i].role === "assistant") {
+            next[i] = { role: "assistant", text, segments };
+            break;
+          }
+        }
+        return next;
+      });
+    };
+
     try {
-      const r = await sendTurn(token, sessionId, msg);
-      setMeta({ turn: r.turn, day: r.day });
-      setLines((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text: r.response,
-          segments: r.response_segments ?? [],
+      await sendTurnStream(token, sessionId, msg, {
+        onDelta: (chunk) => {
+          streamedText += chunk;
+          const segs = splitAssistantIntoSegments(streamedText, npcNames);
+          updateAssistant(streamedText, segs);
         },
-      ]);
-      if (r.events_triggered.length > 0) {
-        const ev = r.events_triggered.map((x) => x.description || x.event_id).join(" · ");
-        setLines((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            text: `[이벤트] ${ev}`,
-            segments: [{ speaker: "이벤트", text: `[이벤트] ${ev}` }],
-          },
-        ]);
+        onDone: (r: TurnResult) => {
+          doneFired = true;
+          setMeta({ turn: r.turn, day: r.day });
+          updateAssistant(r.response, r.response_segments ?? []);
+          if (r.events_triggered.length > 0) {
+            const ev = r.events_triggered.map((x) => x.description || x.event_id).join(" · ");
+            setLines((prev) => [
+              ...prev,
+              {
+                role: "assistant",
+                text: `[이벤트] ${ev}`,
+                segments: [{ speaker: "이벤트", text: `[이벤트] ${ev}` }],
+              },
+            ]);
+          }
+        },
+        onError: (m) => {
+          setError(m);
+          if (!doneFired) {
+            setLines((prev) => prev.slice(0, -2));
+          }
+        },
+      });
+      if (!doneFired && !streamedText) {
+        setLines((prev) => prev.slice(0, -2));
+        if (!error) setError("응답을 받지 못했습니다");
       }
     } catch (err) {
       const m = err instanceof Error ? err.message : "오류";
@@ -143,7 +181,7 @@ export function PlayPage() {
         return;
       }
       setError(m);
-      setLines((prev) => prev.slice(0, -1));
+      setLines((prev) => prev.slice(0, -2));
     } finally {
       setLoading(false);
     }

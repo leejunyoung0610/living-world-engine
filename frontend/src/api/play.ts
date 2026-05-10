@@ -46,6 +46,7 @@ export type PlayHistoryResult = {
   day: number;
   world_name: string;
   messages: PlayHistoryMessage[];
+  npc_names: string[];
 };
 
 async function failDetail(res: Response, fallback: string): Promise<never> {
@@ -137,4 +138,83 @@ export async function sendTurn(token: string, sessionId: string, message: string
   });
   if (!res.ok) await failDetail(res, "턴 처리 실패");
   return res.json() as Promise<TurnResult>;
+}
+
+export type StreamCallbacks = {
+  onDelta: (text: string) => void;
+  onDone: (result: TurnResult) => void;
+  onError: (message: string) => void;
+};
+
+export async function sendTurnStream(
+  token: string,
+  sessionId: string,
+  message: string,
+  cb: StreamCallbacks,
+  signal?: AbortSignal,
+): Promise<void> {
+  const res = await apiFetch(`/api/play/${sessionId}/turn/stream`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+    },
+    body: JSON.stringify({ message }),
+    signal,
+  });
+
+  if (!res.ok || !res.body) {
+    if (res.status === 401) throw new Error(SESSION_EXPIRED);
+    const j = (await res.json().catch(() => ({}))) as { detail?: string };
+    cb.onError(typeof j.detail === "string" ? j.detail : "스트리밍을 시작하지 못했습니다");
+    return;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  const handleEvent = (rawEvent: string) => {
+    let evType = "message";
+    const dataLines: string[] = [];
+    for (const line of rawEvent.split("\n")) {
+      if (line.startsWith("event:")) evType = line.slice(6).trim();
+      else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+    }
+    if (dataLines.length === 0) return;
+    let payload: unknown;
+    try {
+      payload = JSON.parse(dataLines.join("\n"));
+    } catch {
+      return;
+    }
+    if (evType === "delta") {
+      const text = (payload as { text?: string }).text ?? "";
+      if (text) cb.onDelta(text);
+    } else if (evType === "done") {
+      cb.onDone(payload as TurnResult);
+    } else if (evType === "error") {
+      cb.onError((payload as { detail?: string }).detail ?? "스트리밍 오류");
+    }
+  };
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let sepIdx = buffer.indexOf("\n\n");
+      while (sepIdx !== -1) {
+        const evtChunk = buffer.slice(0, sepIdx);
+        buffer = buffer.slice(sepIdx + 2);
+        if (evtChunk.trim().length > 0) handleEvent(evtChunk);
+        sepIdx = buffer.indexOf("\n\n");
+      }
+    }
+    if (buffer.trim().length > 0) handleEvent(buffer);
+  } catch (e) {
+    if ((e as { name?: string }).name === "AbortError") return;
+    cb.onError(e instanceof Error ? e.message : "스트리밍 중단");
+  }
 }
