@@ -330,14 +330,17 @@ export function PlayPage() {
   }
 
   return (
-    <div className="flex h-[100dvh] flex-col">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-slate-950">
       <LoggedInNav />
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 px-4 pt-4 pb-2 sm:gap-4 sm:px-6 sm:pt-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <Link to="/my" className="text-sm text-slate-400 hover:text-white">
-            ← 마이페이지
-          </Link>
-          <div className="flex flex-wrap items-center gap-2">
+      <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col gap-2 px-4 pt-2 pb-2 sm:gap-3 sm:px-6 sm:pt-3">
+        <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <Link to="/my" className="shrink-0 text-sm text-slate-400 hover:text-white">
+              ← 마이페이지
+            </Link>
+            <h1 className="truncate text-base font-semibold text-white sm:text-lg">플레이</h1>
+          </div>
+          <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
             {meta && (
               <span className="text-xs text-slate-500">
                 Turn {meta.turn} · Day {meta.day}
@@ -365,15 +368,15 @@ export function PlayPage() {
             </div>
           </div>
         </div>
-        <div>
-          <h1 className="text-lg font-semibold text-white">플레이</h1>
-          <p className="mt-1 hidden text-xs text-slate-500 sm:block">
-            대화는 같은 세션으로 돌아오면 서버에서 다시 불러옵니다.
-          </p>
-        </div>
+        <p className="hidden shrink-0 text-xs text-slate-500 sm:block">
+          대화는 같은 세션으로 돌아오면 서버에서 다시 불러옵니다.
+        </p>
 
-        <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-slate-800 bg-slate-900/40">
-          <div className="flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 shadow-inner">
+          <div
+            className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain scroll-smooth p-3 sm:p-4"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
             {historyLoading && <p className="text-sm text-slate-500">대화 불러오는 중…</p>}
             {!historyLoading && lines.length === 0 && (
               <p className="text-sm text-slate-500">첫 입력을 내면 NPC 응답이 옵니다.</p>
@@ -394,11 +397,11 @@ export function PlayPage() {
             <div ref={bottomRef} />
           </div>
           {error && (
-            <p className="border-t border-red-900/40 px-4 py-2 text-sm text-red-300">{error}</p>
+            <p className="shrink-0 border-t border-red-900/40 px-4 py-2 text-sm text-red-300">{error}</p>
           )}
           <form
             onSubmit={onSubmit}
-            className="flex gap-2 border-t border-slate-800 p-3"
+            className="shrink-0 flex gap-2 border-t border-slate-800 bg-slate-900/80 p-3"
             style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
           >
             <input
