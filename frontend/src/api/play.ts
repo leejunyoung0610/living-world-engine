@@ -218,3 +218,74 @@ export async function sendTurnStream(
     cb.onError(e instanceof Error ? e.message : "스트리밍 중단");
   }
 }
+
+/** 마지막 NPC 본문 응답만 다시 생성 (동일 SSE 프로토콜). 본문 바로 뒤의 [이벤트] 줄은 서버 복원 후 사라짐. */
+export async function sendRegenerateStream(
+  token: string,
+  sessionId: string,
+  cb: StreamCallbacks,
+  signal?: AbortSignal,
+): Promise<void> {
+  const res = await apiFetch(`/api/play/${sessionId}/turn/regenerate/stream`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "text/event-stream",
+    },
+    signal,
+  });
+
+  if (!res.ok || !res.body) {
+    if (res.status === 401) throw new Error(SESSION_EXPIRED);
+    const j = (await res.json().catch(() => ({}))) as { detail?: string };
+    cb.onError(typeof j.detail === "string" ? j.detail : "재생성 스트림을 시작하지 못했습니다");
+    return;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  const handleEvent = (rawEvent: string) => {
+    let evType = "message";
+    const dataLines: string[] = [];
+    for (const line of rawEvent.split("\n")) {
+      if (line.startsWith("event:")) evType = line.slice(6).trim();
+      else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+    }
+    if (dataLines.length === 0) return;
+    let payload: unknown;
+    try {
+      payload = JSON.parse(dataLines.join("\n"));
+    } catch {
+      return;
+    }
+    if (evType === "delta") {
+      const text = (payload as { text?: string }).text ?? "";
+      if (text) cb.onDelta(text);
+    } else if (evType === "done") {
+      cb.onDone(payload as TurnResult);
+    } else if (evType === "error") {
+      cb.onError((payload as { detail?: string }).detail ?? "재생성 스트리밍 오류");
+    }
+  };
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let sepIdx = buffer.indexOf("\n\n");
+      while (sepIdx !== -1) {
+        const evtChunk = buffer.slice(0, sepIdx);
+        buffer = buffer.slice(sepIdx + 2);
+        if (evtChunk.trim().length > 0) handleEvent(evtChunk);
+        sepIdx = buffer.indexOf("\n\n");
+      }
+    }
+    if (buffer.trim().length > 0) handleEvent(buffer);
+  } catch (e) {
+    if ((e as { name?: string }).name === "AbortError") return;
+    cb.onError(e instanceof Error ? e.message : "재생성 스트리밍 중단");
+  }
+}

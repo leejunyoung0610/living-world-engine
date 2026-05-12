@@ -20,7 +20,12 @@ from ...db.models import User, World
 from ...db.session import get_db
 from ...engine.dialogue_split import split_assistant_into_segments
 from ...engine.game_loop import GameEngine
-from ...engine.play_persistence import apply_play_payload, sync_engine_after_restore
+from ...engine.play_persistence import (
+    apply_play_payload,
+    export_play_payload,
+    strip_nested_regenerate_checkpoint,
+    sync_engine_after_restore,
+)
 from ...services import platform_cost
 from ...services import play_session_db
 from ...services import play_sessions
@@ -243,8 +248,18 @@ def _ensure_bundle(
         created_at=row.created_at,
         last_active=datetime.now(timezone.utc),
     )
+    _hydrate_regenerate_checkpoint(bundle, row.payload)
     play_sessions.put_session(session_id, bundle)
     return play_sessions.take_session(session_id, user_id)
+
+
+def _hydrate_regenerate_checkpoint(
+    bundle: play_sessions.PlaySessionBundle, payload: Any
+) -> None:
+    pl = payload if isinstance(payload, dict) else {}
+    rc = pl.get("regenerate_checkpoint")
+    if isinstance(rc, dict) and rc.get("world_state"):
+        bundle.regenerate_checkpoint = rc
 
 
 def _persist_session(
@@ -253,6 +268,8 @@ def _persist_session(
     user_id: uuid.UUID,
     world_id: uuid.UUID,
     engine: Any,
+    *,
+    bundle: play_sessions.PlaySessionBundle | None = None,
 ) -> None:
     play_session_db.upsert_play_session(
         db,
@@ -261,6 +278,7 @@ def _persist_session(
         world_id,
         engine,
         last_preview=_last_message_preview(engine),
+        regenerate_checkpoint=bundle.regenerate_checkpoint if bundle else None,
     )
 
 
@@ -426,6 +444,7 @@ def play_start(
                 created_at=row.created_at,
                 last_active=datetime.now(timezone.utc),
             )
+            _hydrate_regenerate_checkpoint(bundle, row.payload)
             play_sessions.put_session(row.id, bundle)
             payload = PlayStartResponse(
                 session_id=row.id,
@@ -469,7 +488,13 @@ def play_start(
             world_id=w.id,
         ),
     )
-    _persist_session(db, session_id, user.id, w.id, engine)
+    bundle = play_sessions.take_session(session_id, user.id)
+    if bundle is None:
+        raise HTTPException(status_code=500, detail="세션 등록 실패")
+    bundle.regenerate_checkpoint = strip_nested_regenerate_checkpoint(
+        export_play_payload(engine)
+    )
+    _persist_session(db, session_id, user.id, w.id, engine, bundle=bundle)
 
     payload = PlayStartResponse(
         session_id=session_id,
@@ -507,6 +532,10 @@ def play_turn(
     ut = getattr(bundle.engine, "usage_tracker", None)
     cost_before = float(ut.total_cost) if ut is not None else 0.0
 
+    bundle.regenerate_checkpoint = strip_nested_regenerate_checkpoint(
+        export_play_payload(bundle.engine)
+    )
+
     try:
         result = bundle.engine.process_turn(body.message.strip())
     except Exception as exc:
@@ -524,7 +553,7 @@ def play_turn(
         delta = float(ut.total_cost) - cost_before
         platform_cost.record_platform_cost_delta(db, delta, settings)
 
-    _persist_session(db, session_id, user.id, bundle.world_id, bundle.engine)
+    _persist_session(db, session_id, user.id, bundle.world_id, bundle.engine, bundle=bundle)
 
     ev = result.get("events_triggered") or []
     safe_events: list[dict[str, str]] = []
@@ -580,6 +609,9 @@ def play_turn_stream(
 
     ut = getattr(bundle.engine, "usage_tracker", None)
     cost_before = float(ut.total_cost) if ut is not None else 0.0
+    bundle.regenerate_checkpoint = strip_nested_regenerate_checkpoint(
+        export_play_payload(bundle.engine)
+    )
     msg = body.message.strip()
 
     def _generate() -> Any:
@@ -601,7 +633,7 @@ def play_turn_stream(
             if ut is not None:
                 delta = float(ut.total_cost) - cost_before
                 platform_cost.record_platform_cost_delta(db, delta, settings)
-            _persist_session(db, session_id, user.id, bundle.world_id, bundle.engine)
+            _persist_session(db, session_id, user.id, bundle.world_id, bundle.engine, bundle=bundle)
 
             response_text = str(final_result.get("response", ""))
             segs = _segments_for_assistant(bundle.engine, response_text)
@@ -628,6 +660,123 @@ def play_turn_stream(
         except Exception as exc:
             logger.exception("play turn stream failed")
             detail = "스트리밍 처리 중 오류가 났습니다. 네트워크/API 키를 확인하세요."
+            if get_settings().debug:
+                detail = f"{detail} ({type(exc).__name__}: {exc})"
+            yield _sse_event("error", {"detail": detail})
+
+    headers = {
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+        "Connection": "keep-alive",
+    }
+    return StreamingResponse(_generate(), media_type="text/event-stream", headers=headers)
+
+
+@limiter.limit("90/minute")
+@router.post("/{session_id}/turn/regenerate/stream")
+def play_regenerate_stream(
+    request: Request,
+    session_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> StreamingResponse:
+    """마지막 NPC 응답만 다시 생성. 턴 직전 스냅샷으로 상태를 되돌린 뒤 동일 사용자 메시지로 스트림 재실행."""
+    bundle = _ensure_bundle(db, session_id, user.id)
+    if bundle is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
+    settings = get_settings()
+    db.refresh(user)
+    if settings.emergency_shutdown:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="긴급 점검 중입니다. 플레이가 일시 중단되었습니다.",
+        )
+
+    _ensure_platform_llm_key(bundle.engine)
+
+    cp = bundle.regenerate_checkpoint
+    if not isinstance(cp, dict) or not cp.get("world_state"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="재생성할 수 있는 이전 상태가 없습니다. 메시지를 한 번 더 보낸 뒤 다시 시도해 주세요.",
+        )
+
+    hist = bundle.engine.conversation_history
+    if (
+        len(hist) < 2
+        or hist[-1].get("role") != "assistant"
+        or hist[-2].get("role") != "user"
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="마지막 메시지가 플레이어 다음 NPC 응답이 아니면 재생성할 수 없습니다.",
+        )
+    user_msg = str(hist[-2].get("content", "")).strip()
+    if not user_msg:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="빈 사용자 메시지는 재생성할 수 없습니다.",
+        )
+
+    apply_play_payload(bundle.engine, cp)
+    sync_engine_after_restore(bundle.engine)
+
+    turn_quota.check_platform_turn_quota_or_raise(db, user, settings)
+
+    ut = getattr(bundle.engine, "usage_tracker", None)
+    cost_before = float(ut.total_cost) if ut is not None else 0.0
+
+    bundle.regenerate_checkpoint = strip_nested_regenerate_checkpoint(
+        export_play_payload(bundle.engine)
+    )
+
+    def _generate() -> Any:
+        final_result: dict[str, Any] | None = None
+        try:
+            for ev in bundle.engine.process_turn_stream(user_msg):
+                if ev.get("type") == "delta":
+                    text = ev.get("text") or ""
+                    if text:
+                        yield _sse_event("delta", {"text": text})
+                elif ev.get("type") == "done":
+                    final_result = ev.get("result")
+
+            if final_result is None:
+                yield _sse_event("error", {"detail": "엔진이 응답을 반환하지 못했습니다."})
+                return
+
+            turn_quota.record_platform_turn(db, user, settings)
+            if ut is not None:
+                delta = float(ut.total_cost) - cost_before
+                platform_cost.record_platform_cost_delta(db, delta, settings)
+            _persist_session(db, session_id, user.id, bundle.world_id, bundle.engine, bundle=bundle)
+
+            response_text = str(final_result.get("response", ""))
+            segs = _segments_for_assistant(bundle.engine, response_text)
+            ev_list = final_result.get("events_triggered") or []
+            safe_events: list[dict[str, str]] = []
+            for e in ev_list:
+                if isinstance(e, dict):
+                    safe_events.append(
+                        {
+                            "event_id": str(e.get("event_id", "")),
+                            "description": str(e.get("description", "")),
+                            "narrative_hint": str(e.get("narrative_hint", "")),
+                        }
+                    )
+
+            done_payload = {
+                "turn": int(final_result.get("turn", 0)),
+                "day": int(final_result.get("day", 1)),
+                "response": response_text,
+                "response_segments": [s.model_dump() for s in segs],
+                "events_triggered": safe_events,
+            }
+            yield _sse_event("done", done_payload)
+        except Exception as exc:
+            logger.exception("play regenerate stream failed")
+            detail = "재생성 스트리밍 중 오류가 났습니다. 네트워크/API 키를 확인하세요."
             if get_settings().debug:
                 detail = f"{detail} ({type(exc).__name__}: {exc})"
             yield _sse_event("error", {"detail": detail})

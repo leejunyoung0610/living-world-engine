@@ -63,7 +63,7 @@
 | 기능 | 상태 | 비고 |
 |------|------|------|
 | **응답 스트리밍 (SSE)** | ✅ **완료** (PR-1, 옵션 A) | 1차 LLM 호출 stream + 점진 화자 분할. 휴대폰에서 NPC 별 박스로 글자 흐름 확인. 자세한 사항: [`STREAMING.md`](STREAMING.md) |
-| 재생성 / "다시" 버튼 | ⏳ 다음 PR-2 | `payload.conversation_history` 인덱스 방식 (B-1) — 베타 후 정규화 검토 |
+| 재생성 / 「다시 생성」 | ✅ **완료** (PR-2) | `regenerate_checkpoint` 스냅샷 복원 + `POST /turn/regenerate/stream`. B-1(페이로드 인덱스·스냅샷) — 메시지 테이블 정규화는 베타 후 검토 |
 | 메시지 편집 / 삭제 | ⏳ PR-3 | |
 | **페르소나(플레이어 캐릭터) 저장** | ⏳ PR-4 | `personas` 테이블 + PlaySetupPage 드롭다운 |
 | 스왑(여러 후보 보관) | 비후순위 | 베타 피드백에서 요청 시 결정 |

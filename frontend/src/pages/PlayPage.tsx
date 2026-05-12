@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { TOKEN_KEY } from "../api/client";
 import {
   fetchPlayHistory,
+  sendRegenerateStream,
   sendTurnStream,
   SESSION_EXPIRED,
   type NpcSegment,
@@ -14,6 +15,17 @@ import { splitAssistantIntoSegments } from "../utils/dialogueSplit";
 type ChatLine =
   | { role: "user"; text: string }
   | { role: "assistant"; text: string; segments: NpcSegment[] };
+
+/** 마지막 본문 assistant(이벤트 시스템 줄 제외) 인덱스 — 바로 앞이 user 여야 함. */
+function findRegenerateTargetIndex(lines: ChatLine[]): number | null {
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const ln = lines[i];
+    if (ln.role !== "assistant") continue;
+    if (ln.text.startsWith("[이벤트]")) continue;
+    if (i > 0 && lines[i - 1].role === "user") return i;
+  }
+  return null;
+}
 
 function showSpeakerLabel(speaker: string, segmentCount: number): boolean {
   if (segmentCount > 1) return true;
@@ -187,6 +199,83 @@ export function PlayPage() {
     }
   }
 
+  const canRegenerate =
+    !loading && !historyLoading && findRegenerateTargetIndex(lines) !== null;
+
+  async function onRegenerate() {
+    if (!token || !sessionId || loading || historyLoading) return;
+    const ai = findRegenerateTargetIndex(lines);
+    if (ai === null) return;
+
+    const before = [...lines];
+    setError(null);
+    setLines((prev) => [...prev.slice(0, ai), { role: "assistant", text: "", segments: [] }]);
+    setLoading(true);
+
+    let streamedText = "";
+    let doneFired = false;
+
+    const updateAssistant = (text: string, segments: NpcSegment[]) => {
+      setLines((prev) => {
+        const next = [...prev];
+        for (let i = next.length - 1; i >= 0; i--) {
+          if (next[i].role === "assistant") {
+            next[i] = { role: "assistant", text, segments };
+            break;
+          }
+        }
+        return next;
+      });
+    };
+
+    try {
+      await sendRegenerateStream(token, sessionId, {
+        onDelta: (chunk) => {
+          streamedText += chunk;
+          const segs = splitAssistantIntoSegments(streamedText, npcNames);
+          updateAssistant(streamedText, segs);
+        },
+        onDone: (r: TurnResult) => {
+          doneFired = true;
+          setMeta({ turn: r.turn, day: r.day });
+          updateAssistant(r.response, r.response_segments ?? []);
+          if (r.events_triggered.length > 0) {
+            const ev = r.events_triggered.map((x) => x.description || x.event_id).join(" · ");
+            setLines((prev) => [
+              ...prev,
+              {
+                role: "assistant",
+                text: `[이벤트] ${ev}`,
+                segments: [{ speaker: "이벤트", text: `[이벤트] ${ev}` }],
+              },
+            ]);
+          }
+        },
+        onError: (m) => {
+          setError(m);
+          if (!doneFired) {
+            setLines(before);
+          }
+        },
+      });
+      if (!doneFired && !streamedText) {
+        setLines(before);
+        setError("응답을 받지 못했습니다");
+      }
+    } catch (err) {
+      const m = err instanceof Error ? err.message : "오류";
+      if (m === SESSION_EXPIRED) {
+        localStorage.removeItem(TOKEN_KEY);
+        nav("/login");
+        return;
+      }
+      setError(m);
+      setLines(before);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   if (!token || !sessionId) {
     return <p className="px-4 py-8 text-slate-400">준비 중…</p>;
   }
@@ -199,11 +288,21 @@ export function PlayPage() {
           <Link to="/my" className="text-sm text-slate-400 hover:text-white">
             ← 마이페이지
           </Link>
-          {meta && (
-            <span className="text-xs text-slate-500">
-              Turn {meta.turn} · Day {meta.day}
-            </span>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {meta && (
+              <span className="text-xs text-slate-500">
+                Turn {meta.turn} · Day {meta.day}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => void onRegenerate()}
+              disabled={!canRegenerate}
+              className="rounded-md border border-slate-600 px-2 py-1 text-xs text-slate-300 hover:border-slate-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              다시 생성
+            </button>
+          </div>
         </div>
         <div>
           <h1 className="text-lg font-semibold text-white">플레이</h1>

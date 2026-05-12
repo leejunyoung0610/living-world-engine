@@ -23,6 +23,7 @@ from backend.src.engine.state import WorldState
 from backend.src.main import create_app
 from backend.src.services.play_session_db import delete_all_play_sessions
 from backend.src.services.play_sessions import clear_all_sessions
+from backend.src.utils.usage_tracker import UsageTracker
 
 MIN_WORLD = {
     "id": "p_test",
@@ -57,6 +58,7 @@ class StubGameEngine:
             memories=[],
             _save=lambda: None,
         )
+        self.usage_tracker = UsageTracker(llm_model="claude-sonnet-4-20250514")
 
     def initialize_from_dicts(self, *args: object, **kwargs: object) -> None:
         world_data = args[0] if args else MIN_WORLD
@@ -67,6 +69,7 @@ class StubGameEngine:
         )
         self.conversation_history = []
         self.event_manager = SimpleNamespace(triggered_events=[], cooldowns={})
+        self.usage_tracker = UsageTracker(llm_model="claude-sonnet-4-20250514")
 
     def process_turn(self, msg: str) -> dict:
         self.conversation_history.append({"role": "user", "content": msg})

@@ -203,7 +203,7 @@
 | 클라이언트 플랫폼 (반응형 / PWA / 카카오 OAuth) | ✅ 이전 세션 완료 (`63654b6`) | [`CLIENT_PLATFORM_PLAN.md`](CLIENT_PLATFORM_PLAN.md) |
 | 응답 스트리밍 (SSE) | ✅ 완료 | [`STREAMING.md`](STREAMING.md) |
 | 자원 스탯 이벤트 (백엔드) | 🟡 코드만 (베타 후 결정) | [`STAT_DRIVEN_EVENTS.md`](STAT_DRIVEN_EVENTS.md) |
-| 재생성 / "다시" 버튼 | ⏳ 다음 PR-2 | `payload.conversation_history` 인덱스 방식 |
+| 재생성 / 「다시 생성」 | ✅ PR-2 완료 | `regenerate_checkpoint` + `/turn/regenerate/stream` |
 | 메시지 편집 / 삭제 | ⏳ PR-3 | |
 | 페르소나 저장 | ⏳ PR-4 | `personas` 테이블 + PlaySetupPage 드롭다운 |
 | 베타 안내 페이지 + 피드백 폼 | ⏳ PR-5 | 친구 30명 풀어볼 베이스라인 |

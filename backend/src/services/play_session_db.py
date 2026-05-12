@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import uuid
+from copy import deepcopy
+from typing import Any
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from ..db.models import PlaySession
 from ..engine.game_loop import GameEngine
-from ..engine.play_persistence import export_play_payload
+from ..engine.play_persistence import export_play_payload, strip_nested_regenerate_checkpoint
 
 
 def upsert_play_session(
@@ -20,8 +22,15 @@ def upsert_play_session(
     engine: GameEngine,
     *,
     last_preview: str,
+    regenerate_checkpoint: dict[str, Any] | None = None,
 ) -> None:
     blob = export_play_payload(engine)
+    if regenerate_checkpoint is not None:
+        blob["regenerate_checkpoint"] = strip_nested_regenerate_checkpoint(
+            deepcopy(regenerate_checkpoint)
+        )
+    else:
+        blob.pop("regenerate_checkpoint", None)
     row = db.get(PlaySession, session_id)
     if row is None:
         row = PlaySession(

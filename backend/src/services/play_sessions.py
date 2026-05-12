@@ -6,6 +6,7 @@ import threading
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Any
 
 from ..engine.game_loop import GameEngine
 
@@ -21,6 +22,8 @@ class PlaySessionBundle:
     world_id: uuid.UUID
     created_at: datetime = field(default_factory=_utc_now)
     last_active: datetime = field(default_factory=_utc_now)
+    #: 직전 완료 턴의 **시작 시점** 스냅샷(``export_play_payload``). ``/turn/regenerate`` 복원용.
+    regenerate_checkpoint: dict[str, Any] | None = None
 
 
 _lock = threading.Lock()
