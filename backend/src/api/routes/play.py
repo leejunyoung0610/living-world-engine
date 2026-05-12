@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -80,6 +80,12 @@ class SessionSummary(BaseModel):
 
 class TurnBody(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
+
+
+class RegenerateStreamBody(BaseModel):
+    """재생성 스트림 선택 본문 — `message`가 있으면 마지막 플레이어 대사를 이 내용으로 바꿔 다시 실행."""
+
+    message: str | None = Field(default=None, min_length=1, max_length=4000)
 
 
 class NpcLineSegment(BaseModel):
@@ -677,10 +683,11 @@ def play_turn_stream(
 def play_regenerate_stream(
     request: Request,
     session_id: uuid.UUID,
+    body: RegenerateStreamBody = Body(default_factory=RegenerateStreamBody),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
-    """마지막 NPC 응답만 다시 생성. 턴 직전 스냅샷으로 상태를 되돌린 뒤 동일 사용자 메시지로 스트림 재실행."""
+    """마지막 NPC 응답만 다시 생성. 턴 직전 스냅샷으로 상태를 되돌린 뒤 사용자 메시지(본문에 주면 교체)로 스트림 재실행."""
     bundle = _ensure_bundle(db, session_id, user.id)
     if bundle is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
@@ -719,6 +726,16 @@ def play_regenerate_stream(
             detail="빈 사용자 메시지는 재생성할 수 없습니다.",
         )
 
+    replacement: str | None = None
+    if body.message is not None:
+        replacement = body.message.strip()
+        if not replacement:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="바꿀 플레이어 대사가 비어 있으면 안 됩니다.",
+            )
+    effective_msg = replacement if replacement is not None else user_msg
+
     apply_play_payload(bundle.engine, cp)
     sync_engine_after_restore(bundle.engine)
 
@@ -734,7 +751,7 @@ def play_regenerate_stream(
     def _generate() -> Any:
         final_result: dict[str, Any] | None = None
         try:
-            for ev in bundle.engine.process_turn_stream(user_msg):
+            for ev in bundle.engine.process_turn_stream(effective_msg):
                 if ev.get("type") == "delta":
                     text = ev.get("text") or ""
                     if text:

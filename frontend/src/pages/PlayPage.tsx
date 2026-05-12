@@ -64,6 +64,9 @@ export function PlayPage() {
   const [meta, setMeta] = useState<{ turn: number; day: number } | null>(null);
   const [npcNames, setNpcNames] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editDraft, setEditDraft] = useState("");
+  const [editFieldError, setEditFieldError] = useState<string | null>(null);
 
   useEffect(() => {
     const t = localStorage.getItem(TOKEN_KEY);
@@ -120,6 +123,15 @@ export function PlayPage() {
       cancelled = true;
     };
   }, [token, sessionId, nav]);
+
+  useEffect(() => {
+    if (!editOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setEditOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [editOpen]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -199,17 +211,38 @@ export function PlayPage() {
     }
   }
 
+  const regenerateAi = findRegenerateTargetIndex(lines);
   const canRegenerate =
-    !loading && !historyLoading && findRegenerateTargetIndex(lines) !== null;
+    !loading && !historyLoading && regenerateAi !== null;
 
-  async function onRegenerate() {
+  function openEditLastUserModal() {
+    if (!canRegenerate || regenerateAi === null) return;
+    const ui = regenerateAi - 1;
+    if (ui < 0 || lines[ui]?.role !== "user") return;
+    setEditDraft(lines[ui].text);
+    setEditFieldError(null);
+    setEditOpen(true);
+  }
+
+  async function runRegenerate(options?: { userMessageOverride?: string }) {
     if (!token || !sessionId || loading || historyLoading) return;
     const ai = findRegenerateTargetIndex(lines);
     if (ai === null) return;
+    const ui = ai - 1;
+    if (ui < 0 || lines[ui].role !== "user") return;
 
     const before = [...lines];
+    const override = options?.userMessageOverride?.trim();
     setError(null);
-    setLines((prev) => [...prev.slice(0, ai), { role: "assistant", text: "", segments: [] }]);
+    setLines((prev) => {
+      const head = prev.slice(0, ai);
+      if (override) {
+        const nextHead = [...head];
+        nextHead[nextHead.length - 1] = { role: "user", text: override };
+        return [...nextHead, { role: "assistant", text: "", segments: [] }];
+      }
+      return [...head, { role: "assistant", text: "", segments: [] }];
+    });
     setLoading(true);
 
     let streamedText = "";
@@ -229,35 +262,41 @@ export function PlayPage() {
     };
 
     try {
-      await sendRegenerateStream(token, sessionId, {
-        onDelta: (chunk) => {
-          streamedText += chunk;
-          const segs = splitAssistantIntoSegments(streamedText, npcNames);
-          updateAssistant(streamedText, segs);
+      await sendRegenerateStream(
+        token,
+        sessionId,
+        {
+          onDelta: (chunk) => {
+            streamedText += chunk;
+            const segs = splitAssistantIntoSegments(streamedText, npcNames);
+            updateAssistant(streamedText, segs);
+          },
+          onDone: (r: TurnResult) => {
+            doneFired = true;
+            setMeta({ turn: r.turn, day: r.day });
+            updateAssistant(r.response, r.response_segments ?? []);
+            if (r.events_triggered.length > 0) {
+              const ev = r.events_triggered.map((x) => x.description || x.event_id).join(" · ");
+              setLines((prev) => [
+                ...prev,
+                {
+                  role: "assistant",
+                  text: `[이벤트] ${ev}`,
+                  segments: [{ speaker: "이벤트", text: `[이벤트] ${ev}` }],
+                },
+              ]);
+            }
+          },
+          onError: (m) => {
+            setError(m);
+            if (!doneFired) {
+              setLines(before);
+            }
+          },
         },
-        onDone: (r: TurnResult) => {
-          doneFired = true;
-          setMeta({ turn: r.turn, day: r.day });
-          updateAssistant(r.response, r.response_segments ?? []);
-          if (r.events_triggered.length > 0) {
-            const ev = r.events_triggered.map((x) => x.description || x.event_id).join(" · ");
-            setLines((prev) => [
-              ...prev,
-              {
-                role: "assistant",
-                text: `[이벤트] ${ev}`,
-                segments: [{ speaker: "이벤트", text: `[이벤트] ${ev}` }],
-              },
-            ]);
-          }
-        },
-        onError: (m) => {
-          setError(m);
-          if (!doneFired) {
-            setLines(before);
-          }
-        },
-      });
+        undefined,
+        override ? { message: override } : undefined,
+      );
       if (!doneFired && !streamedText) {
         setLines(before);
         setError("응답을 받지 못했습니다");
@@ -274,6 +313,16 @@ export function PlayPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function submitEditAndRegenerate() {
+    const t = editDraft.trim();
+    if (!t) {
+      setEditFieldError("대사를 입력해 주세요.");
+      return;
+    }
+    setEditOpen(false);
+    void runRegenerate({ userMessageOverride: t });
   }
 
   if (!token || !sessionId) {
@@ -294,14 +343,26 @@ export function PlayPage() {
                 Turn {meta.turn} · Day {meta.day}
               </span>
             )}
-            <button
-              type="button"
-              onClick={() => void onRegenerate()}
-              disabled={!canRegenerate}
-              className="rounded-md border border-slate-600 px-2 py-1 text-xs text-slate-300 hover:border-slate-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              다시 생성
-            </button>
+            <div className="flex overflow-hidden rounded-lg border border-slate-600/80 bg-slate-950/60 shadow-sm">
+              <button
+                type="button"
+                onClick={() => void runRegenerate()}
+                disabled={!canRegenerate}
+                title="같은 플레이어 대사로 NPC 응답만 다시 받습니다"
+                className="border-r border-slate-600/80 px-2.5 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800/80 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                다시 생성
+              </button>
+              <button
+                type="button"
+                onClick={openEditLastUserModal}
+                disabled={!canRegenerate}
+                title="마지막 플레이어 대사를 고친 뒤 다시 받기"
+                className="px-2.5 py-1.5 text-xs font-medium text-indigo-200 hover:bg-indigo-950/50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                대사 수정
+              </button>
+            </div>
           </div>
         </div>
         <div>
@@ -359,6 +420,70 @@ export function PlayPage() {
           </form>
         </div>
       </div>
+
+      {editOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4"
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setEditOpen(false);
+          }}
+        >
+          <div
+            className="flex max-h-[min(90dvh,32rem)] w-full max-w-lg flex-col rounded-t-2xl border border-slate-700 bg-slate-900 shadow-2xl sm:rounded-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-user-line-title"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-slate-800 px-4 py-3 sm:px-5">
+              <h2 id="edit-user-line-title" className="text-base font-semibold text-white">
+                플레이어 대사 수정
+              </h2>
+              <p className="mt-1 text-xs text-slate-500">
+                마지막으로 보낸 말만 바꿉니다. 적용 시 새 턴과 같이 호출 · 사용량이
+                적용됩니다.
+              </p>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 sm:px-5">
+              <label htmlFor="edit-user-line" className="sr-only">
+                플레이어 대사
+              </label>
+              <textarea
+                id="edit-user-line"
+                value={editDraft}
+                onChange={(e) => {
+                  setEditDraft(e.target.value);
+                  if (editFieldError) setEditFieldError(null);
+                }}
+                rows={5}
+                autoFocus
+                className="w-full resize-y rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                placeholder="NPC에게 보낼 문장을 수정하세요"
+              />
+              {editFieldError && (
+                <p className="mt-2 text-xs text-amber-400">{editFieldError}</p>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-800 px-4 py-3 sm:px-5">
+              <button
+                type="button"
+                onClick={() => setEditOpen(false)}
+                className="rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={submitEditAndRegenerate}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+              >
+                이 대사로 다시 받기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

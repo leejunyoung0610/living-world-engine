@@ -143,6 +143,41 @@ def test_regenerate_stream_after_turn(client: TestClient) -> None:
     assert msgs[1]["content"] == "stub:안녕"
 
 
+def test_regenerate_stream_with_edited_user_message(client: TestClient) -> None:
+    token = _signup_token(client, "regen_edit@example.com")
+    wid = _create_world(client, token)
+    sid = _start_session(client, token, wid)
+    h = {"Authorization": f"Bearer {token}"}
+
+    r = client.post(
+        f"/api/play/{sid}/turn/stream",
+        headers=h,
+        json={"message": "원문"},
+    )
+    assert r.status_code == 200, r.text
+    ev1 = _parse_sse(r.text)
+    assert ev1[-1]["event"] == "done"
+    assert ev1[-1]["data"]["response"] == "stub:원문"
+
+    r2 = client.post(
+        f"/api/play/{sid}/turn/regenerate/stream",
+        headers={**h, "Content-Type": "application/json"},
+        json={"message": "고친말"},
+    )
+    assert r2.status_code == 200, r2.text
+    ev2 = _parse_sse(r2.text)
+    assert ev2[-1]["event"] == "done"
+    assert ev2[-1]["data"]["response"] == "stub:고친말"
+
+    r3 = client.get(f"/api/play/{sid}/history", headers=h)
+    assert r3.status_code == 200, r3.text
+    msgs = r3.json()["messages"]
+    assert len(msgs) == 2
+    assert msgs[0]["role"] == "user"
+    assert msgs[0]["content"] == "고친말"
+    assert msgs[1]["content"] == "stub:고친말"
+
+
 def test_regenerate_409_without_checkpoint(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     from backend.src.api.routes import play as play_mod
 

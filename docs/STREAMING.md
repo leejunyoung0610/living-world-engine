@@ -114,7 +114,7 @@ Connection: keep-alive
 3. 모르는 세션 ID → 404
 4. 다른 유저 → 404 (404 위장으로 권한 정보 누설 방지)
 
-`backend/tests/unit/test_api_play_regenerate.py` — 재생성 스트림 정상(히스토리 2개 유지), 체크포인트 없을 때 409, 401.
+`backend/tests/unit/test_api_play_regenerate.py` — 재생성 스트림 정상(히스토리 2개 유지), **편집 재생성** 시 히스토리 user 내용 갱신, 체크포인트 없을 때 409, 401.
 
 전체 테스트 217+ passed (스트림·재생성 포함).
 
@@ -124,12 +124,13 @@ Connection: keep-alive
 
 | 항목 | 내용 |
 |------|------|
-| 엔드포인트 | `POST /api/play/{session_id}/turn/regenerate/stream` (본문 없음, SSE 프로토콜은 `/turn/stream` 과 동일) |
-| 동작 | 직전 완료 턴 **시작 시점** 스냅샷(`regenerate_checkpoint`)으로 `WorldState`·대화·이벤트 쿨다운·LTM 메모리·**usage_tracker** 를 복원한 뒤, 마지막 사용자 메시지로 `process_turn_stream` 재실행. |
+| 엔드포인트 | `POST /api/play/{session_id}/turn/regenerate/stream` (선택 JSON 본문, SSE 프로토콜은 `/turn/stream` 과 동일) |
+| 본문 | 생략 또는 `{}` — 직전 플레이어 대사 그대로 재실행. `{"message":"..."}` — **마지막 플레이어 대사를 이 문자열로 바꾼 뒤** 같은 스냅샷에서 `process_turn_stream` 재실행. |
+| 동작 | 직전 완료 턴 **시작 시점** 스냅샷(`regenerate_checkpoint`)으로 `WorldState`·대화·이벤트 쿨다운·LTM 메모리·**usage_tracker** 를 복원한 뒤, 위 `message`(또는 직전 사용자 메시지)로 `process_turn_stream` 재실행. |
 | 스냅샷 시점 | 매 `/turn`·`/turn/stream` 요청이 **LLM 호출 전** `export_play_payload(engine)` 로 갱신; `play/start` 직후에도 초기 스냅샷 저장. DB `payload.regenerate_checkpoint` 에 같이 영속화. |
 | 제약 | 마지막 교환이 `user` 다음 `assistant` 가 아니면 422. 체크포인트 없음(구 세션 등)이면 **409**. |
 | 쿼터·비용 | 일반 턴과 동일 — 재생성도 턴 1회·API 비용 델타 1회. |
-| 프론트 | `PlayPage` 상단 「다시 생성」— 마지막 **본문** assistant 만 대상(`[이벤트]` 줄은 건너뜀). |
+| 프론트 | `PlayPage` 상단 「다시 생성」 / 「대사 수정」(시트에서 편집 후 스트림) — 마지막 **본문** assistant 만 대상(`[이벤트]` 줄은 건너뜀). |
 
 ---
 
@@ -137,7 +138,7 @@ Connection: keep-alive
 
 | # | 작업 | 예상 |
 |---|------|------|
-| **PR-3 편집/삭제** | 마지막 사용자 메시지 편집 → 이후 재생성. 메시지 단위 삭제. | 1.5일 |
+| **PR-3 편집/삭제** | 마지막 사용자 메시지 **편집 → 재생성**(API·UI). 메시지 단위 삭제는 미구현. | 1일 |
 | **PR-4 페르소나 저장** | `personas` 테이블 + CRUD + PlaySetupPage 드롭다운. 매번 폼 입력 제거. | 1.5일 |
 | **베타 안내 페이지** | 친구 30명용 안내 / 피드백 폼 / 메트릭 핀포인트 | 0.5일 |
 
@@ -146,4 +147,5 @@ Connection: keep-alive
 ## 9. 변경 로그
 
 - 2026-05-10 — PR-1 완료. 옵션 A 채택. 점진 화자 분할 추가 (사용자 요청). 휴대폰 (`http://172.16.100.133:8080`) 에서 NPC 별 박스 흐름 확인.
+- 2026-05-12 — **PR-3 (일부)** 재생성 `POST` 에 선택 `message` 본문 + Play UI 「대사 수정」 모달/시트.
 - 2026-05-10 — **PR-2** `regenerate_checkpoint` + `POST .../turn/regenerate/stream` + Play UI 「다시 생성」.

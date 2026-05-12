@@ -219,19 +219,23 @@ export async function sendTurnStream(
   }
 }
 
-/** 마지막 NPC 본문 응답만 다시 생성 (동일 SSE 프로토콜). 본문 바로 뒤의 [이벤트] 줄은 서버 복원 후 사라짐. */
+/** 마지막 NPC 본문 응답만 다시 생성 (동일 SSE 프로토콜). `options.message`가 있으면 마지막 플레이어 대사를 교체한 뒤 실행. */
 export async function sendRegenerateStream(
   token: string,
   sessionId: string,
   cb: StreamCallbacks,
   signal?: AbortSignal,
+  options?: { message?: string },
 ): Promise<void> {
+  const hasBody = options?.message != null && options.message !== "";
   const res = await apiFetch(`/api/play/${sessionId}/turn/regenerate/stream`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "text/event-stream",
+      ...(hasBody ? { "Content-Type": "application/json" } : {}),
     },
+    body: hasBody ? JSON.stringify({ message: options!.message }) : undefined,
     signal,
   });
 
