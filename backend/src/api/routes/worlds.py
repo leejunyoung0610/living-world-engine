@@ -202,6 +202,7 @@ class PublicWorldDetail(BaseModel):
     play_start_count: int = 0
     like_count: int = 0
     liked_by_me: bool = False
+    cover_image_url: str = ""
     created_at: datetime
     updated_at: datetime
 
@@ -246,6 +247,24 @@ def _public_blurbs(wd: dict[str, Any]) -> tuple[str, str, str]:
     wt = wd.get("time")
     time_s = wt.strip() if isinstance(wt, str) else ""
     return desc_s, setting, time_s
+
+
+_MAX_COVER_URL_LEN = 2048
+
+
+def _cover_image_url(wd: dict[str, Any]) -> str:
+    """공개 상세용 커버 — HTTPS URL만 (XSS·스킴 혼합 방지)."""
+    for key in ("cover_image_url", "hero_image_url", "thumbnail_url"):
+        v = wd.get(key)
+        if not isinstance(v, str):
+            continue
+        u = v.strip()
+        if not u.startswith("https://") or len(u) > _MAX_COVER_URL_LEN:
+            continue
+        if "\n" in u or "\r" in u or " " in u:
+            continue
+        return u
+    return ""
 
 
 def _npc_count(chars: dict[str, Any]) -> int:
@@ -464,6 +483,7 @@ def get_public_world_detail(
         play_start_count=int(getattr(w, "play_start_count", 0) or 0),
         like_count=int(getattr(w, "like_count", 0) or 0),
         liked_by_me=liked,
+        cover_image_url=_cover_image_url(wd),
         created_at=w.created_at,
         updated_at=w.updated_at,
     )

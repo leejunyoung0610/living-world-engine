@@ -490,6 +490,22 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
                 </div>
 
                 <div>
+                  <label className="block text-sm font-medium text-slate-300">커버 이미지 URL</label>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    공개 상세 상단 히어로로 쓰입니다. <strong className="text-slate-400">https://</strong> 만
+                    허용. AI 이미지 도구가 준 링크·CDN URL을 붙여 넣으면 됩니다.
+                  </p>
+                  <input
+                    type="url"
+                    inputMode="url"
+                    value={simpleForm.coverImageUrl}
+                    onChange={(e) => setSimpleForm((s) => ({ ...s, coverImageUrl: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 font-mono text-sm text-white"
+                    placeholder="https://…"
+                  />
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-slate-300">세계관 설정 (상세)</label>
                   <p className="mt-0.5 text-xs text-slate-500">
                     시대·지리·분위기·금지 사항 등 LLM이 따를 긴 설명. JSON 키는{" "}
@@ -606,7 +622,9 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
                 <div>
                   <label className="block text-sm font-medium text-slate-300">world (JSON)</label>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    필수 키: id, name — 선택: description, world_setting, time, regions, facts …
+                    필수 키: id, name — 선택: description, world_setting, time,{" "}
+                    <code className="text-slate-400">cover_image_url</code>(공개 상세 히어로, HTTPS), regions,
+                    facts …
                   </p>
                   <textarea
                     value={worldText}

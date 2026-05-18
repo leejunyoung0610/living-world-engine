@@ -386,6 +386,7 @@ def test_public_world_detail_and_like_toggle(client: TestClient) -> None:
                 "id": "like_pub_w",
                 "description": "한 줄 소개입니다.",
                 "time": "겨울 방학",
+                "cover_image_url": "https://example.com/hero.webp",
             },
             "characters": {**MIN_CHARS, "npcs": [{"name": "NPC1"}]},
             "visibility": "public",
@@ -405,6 +406,7 @@ def test_public_world_detail_and_like_toggle(client: TestClient) -> None:
     assert d["npc_count"] == 1
     assert len(d["npcs"]) == 1
     assert d["npcs"][0]["name"] == "NPC1"
+    assert d["cover_image_url"] == "https://example.com/hero.webp"
     assert d["like_count"] == 0
     assert d["liked_by_me"] is False
 
@@ -443,3 +445,28 @@ def test_public_world_not_visible_private(client: TestClient) -> None:
 
     r3 = client.post(f"/api/worlds/{wid}/like", headers=h)
     assert r3.status_code == 404
+
+
+def test_public_world_cover_image_https_only(client: TestClient) -> None:
+    t = _signup_login(client, "covhttp@example.com")
+    h = {"Authorization": f"Bearer {t}"}
+    r = client.post(
+        "/api/worlds/",
+        headers=h,
+        json={
+            "name": "http커버",
+            "world": {
+                **MIN_WORLD,
+                "id": "cov_http_w",
+                "cover_image_url": "http://example.com/insecure.png",
+            },
+            "characters": MIN_CHARS,
+            "visibility": "public",
+            "genres": MIN_GENRES,
+        },
+    )
+    assert r.status_code == 201, r.text
+    wid = r.json()["id"]
+    r2 = client.get(f"/api/worlds/public/{wid}", headers=h)
+    assert r2.status_code == 200
+    assert r2.json()["cover_image_url"] == ""

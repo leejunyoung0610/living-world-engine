@@ -137,6 +137,7 @@ export type PublicWorldDetail = {
   play_start_count: number;
   like_count: number;
   liked_by_me: boolean;
+  cover_image_url: string;
   created_at: string;
   updated_at: string;
 };

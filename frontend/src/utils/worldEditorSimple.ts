@@ -13,6 +13,8 @@ export type SimpleWorldFormState = {
   description: string;
   /** 스토리·LLM용 상세 세계관 (목록용 한 줄 설명과 별도) */
   worldSetting: string;
+  /** 공개 상세 상단 히어로 — HTTPS 이미지 URL (AI 생성 URL·CDN 등). 비우면 표시 안 함. */
+  coverImageUrl: string;
   time: string;
   npcs: SimpleNpcRow[];
 };
@@ -23,6 +25,7 @@ export function defaultSimpleForm(): SimpleWorldFormState {
     worldStoryName: "서울대학교",
     description: "관악 캠퍼스. 수업과 동아리가 얽인 하루하루.",
     worldSetting: "",
+    coverImageUrl: "",
     time: "개강 첫 주",
     npcs: [],
   };
@@ -57,17 +60,23 @@ export function formToWorldPayload(s: SimpleWorldFormState): {
 
   const wid = s.worldSlug.trim() || slugifyWorldId(s.worldStoryName);
 
+  const world: Record<string, unknown> = {
+    id: wid,
+    name: s.worldStoryName.trim() || "새 세계",
+    description: s.description.trim(),
+    world_setting: s.worldSetting.trim(),
+    time: s.time.trim() || "Day 1",
+    regions: [],
+    facts: [],
+    world_variables: {},
+  };
+  const cover = s.coverImageUrl.trim();
+  if (cover) {
+    world.cover_image_url = cover;
+  }
+
   return {
-    world: {
-      id: wid,
-      name: s.worldStoryName.trim() || "새 세계",
-      description: s.description.trim(),
-      world_setting: s.worldSetting.trim(),
-      time: s.time.trim() || "Day 1",
-      regions: [],
-      facts: [],
-      world_variables: {},
-    },
+    world,
     characters: {
       npcs,
     },
@@ -107,6 +116,12 @@ export function tryImportSimpleFromJson(
     worldStoryName: world.name,
     description: typeof world.description === "string" ? world.description : "",
     worldSetting,
+    coverImageUrl:
+      typeof world.cover_image_url === "string"
+        ? world.cover_image_url
+        : typeof world.hero_image_url === "string"
+          ? world.hero_image_url
+          : "",
     time: typeof world.time === "string" ? world.time : "Day 1",
     npcs,
   };
@@ -121,6 +136,7 @@ export function campusSampleForm(): SimpleWorldFormState {
     worldSetting:
       "무대는 관악 캠퍼스. 셔틀·지하철로 등하교가 오가고, 중앙도서관·학생회관·단과대·실험동이 하루의 축이다.\n\n" +
       "현실 기반 슬라이스 오브 라이프로 유지한다. 판타지·실존 비판·정치 선동은 넣지 않는다. 강의·팀플·조교·동아리 행사·취업 상담 같은 일상 단위로 전개한다.",
+    coverImageUrl: "",
     time: "12주차 · 레포트 마감 전날",
     npcs: [
       {

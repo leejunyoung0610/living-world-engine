@@ -33,6 +33,7 @@
 - **API:** `GET /api/worlds/public/{id}` (소개, 세계 설정, 시점, NPC 미리보기 목록), `POST /api/worlds/{id}/like` 토글.
 - **DB:** Alembic `0012` — `worlds.like_count`, `world_user_likes`.
 - **NPC 미리보기:** 이름, 역할·전공, 장소, 성격/배경/설명 중 한 줄 요약(길이 제한).
+- **커버 이미지:** `world_json.cover_image_url`(HTTPS만)·간편 에디터「커버 이미지 URL」→ 공개 상세 상단 히어로. Claude는 이미지 생성 미지원 — DALL·E·Replicate 등 **별도 이미지 API**로 만들고 URL만 저장하는 흐름이 일반적.
 
 ### 시드·스크립트
 

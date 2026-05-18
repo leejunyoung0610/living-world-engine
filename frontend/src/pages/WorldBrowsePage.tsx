@@ -110,25 +110,59 @@ export function WorldBrowsePage() {
           <p className="mt-8 text-slate-500">불러오는 중…</p>
         ) : data ? (
           <article className="mt-6 space-y-6">
-            <header>
-              <h1 className="text-2xl font-semibold text-white">{data.name}</h1>
-              <p className="mt-2 text-sm text-slate-500">
-                <span className="text-slate-400">{data.owner_username}</span>
-                {data.is_mine && (
-                  <span className="ml-2 rounded bg-emerald-950/80 px-1.5 py-0.5 text-emerald-200">내 월드</span>
-                )}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {(data.genres ?? []).map((g) => (
-                  <span
-                    key={g}
-                    className="rounded-md border border-slate-700 bg-slate-950/80 px-2 py-0.5 text-xs text-slate-400"
-                  >
-                    {genreLabel(g)}
-                  </span>
-                ))}
+            {data.cover_image_url ? (
+              <div className="relative w-full overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
+                <div className="aspect-[3/4] max-h-[min(72vh,560px)] w-full sm:aspect-[16/10] sm:max-h-[min(50vh,420px)]">
+                  <img
+                    src={data.cover_image_url}
+                    alt=""
+                    className="h-full w-full object-cover object-center"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/35 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
+                  <h1 className="text-2xl font-bold leading-tight text-white drop-shadow-md">{data.name}</h1>
+                  <p className="mt-1 text-sm text-slate-200">
+                    <span className="text-slate-100">{data.owner_username}</span>
+                    {data.is_mine && (
+                      <span className="ml-2 rounded bg-emerald-950/90 px-1.5 py-0.5 text-emerald-200">내 월드</span>
+                    )}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {(data.genres ?? []).map((g) => (
+                      <span
+                        key={g}
+                        className="rounded-md border border-white/10 bg-black/35 px-2 py-0.5 text-[11px] text-slate-200 backdrop-blur-sm"
+                      >
+                        {genreLabel(g)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </header>
+            ) : (
+              <header>
+                <h1 className="text-2xl font-semibold text-white">{data.name}</h1>
+                <p className="mt-2 text-sm text-slate-500">
+                  <span className="text-slate-400">{data.owner_username}</span>
+                  {data.is_mine && (
+                    <span className="ml-2 rounded bg-emerald-950/80 px-1.5 py-0.5 text-emerald-200">내 월드</span>
+                  )}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {(data.genres ?? []).map((g) => (
+                    <span
+                      key={g}
+                      className="rounded-md border border-slate-700 bg-slate-950/80 px-2 py-0.5 text-xs text-slate-400"
+                    >
+                      {genreLabel(g)}
+                    </span>
+                  ))}
+                </div>
+              </header>
+            )}
 
             <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
               <button
