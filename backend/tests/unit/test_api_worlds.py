@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -51,6 +52,31 @@ def client() -> TestClient:
     app.dependency_overrides[get_db] = override_get_db
     try:
         yield TestClient(app)
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def client_db():
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    def override_get_db():
+        db = TestSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app = create_app()
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        yield TestClient(app), TestSessionLocal
     finally:
         app.dependency_overrides.clear()
 
@@ -299,3 +325,45 @@ def test_worlds_explore_genre_and_popular(client: TestClient) -> None:
     )
     r_pop = client.get("/api/worlds/explore?sort=popular", headers=h)
     assert r_pop.json()["items"][0]["play_start_count"] >= 1
+
+
+def test_explore_recommended_cold_prioritizes_latest_over_popularity(client_db) -> None:
+    """플레이 이력이 없는 추천은 인기순과 달리 최신 월드를 앞에 둔다."""
+    client, SessionLocal = client_db
+    token = _signup_login(client, "rec_cold@example.com")
+    h = {"Authorization": f"Bearer {token}"}
+    for name, slug in [
+        ("OldPopular", "wp_old"),
+        ("NewFresh", "wp_new"),
+    ]:
+        r = client.post(
+            "/api/worlds/",
+            headers=h,
+            json={
+                "name": name,
+                "world": {**MIN_WORLD, "id": slug},
+                "characters": MIN_CHARS,
+                "visibility": "public",
+                "genres": ["fantasy"],
+            },
+        )
+        assert r.status_code == 201, r.text
+    db = SessionLocal()
+    try:
+        old = db.scalars(select(World).where(World.name == "OldPopular")).first()
+        new = db.scalars(select(World).where(World.name == "NewFresh")).first()
+        assert old is not None and new is not None
+        old.play_start_count = 500
+        now = datetime.now(timezone.utc)
+        old.updated_at = now - timedelta(days=7)
+        new.updated_at = now
+        db.commit()
+    finally:
+        db.close()
+
+    r_pop = client.get("/api/worlds/explore?sort=popular", headers=h)
+    r_rec = client.get("/api/worlds/explore?sort=recommended", headers=h)
+    assert r_pop.status_code == 200
+    assert r_rec.status_code == 200
+    assert r_pop.json()["items"][0]["name"] == "OldPopular"
+    assert r_rec.json()["items"][0]["name"] == "NewFresh"

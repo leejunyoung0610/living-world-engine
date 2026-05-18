@@ -108,6 +108,13 @@ export function MyPage() {
           <p className="mt-1 text-sm text-slate-400">
             만든 월드와 진행 중인 플레이를 한곳에서 관리합니다.
           </p>
+          <p className="mt-3 text-sm text-slate-500">
+            다른 사람의 공개 월드는{" "}
+            <Link to="/" className="font-medium text-indigo-400 hover:text-indigo-300">
+              홈
+            </Link>
+            에서 추천·최신·인기 순으로 골라 플레이할 수 있습니다.
+          </p>
         </header>
 
         {error && (

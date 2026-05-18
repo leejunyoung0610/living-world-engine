@@ -14,13 +14,32 @@ import {
 import { LoggedInNav } from "../components/LoggedInNav";
 
 const PAGE_SIZE = 20;
+const SORT_STORAGE_KEY = "homeExploreSort";
+
+function readStoredSort(): ExploreSort {
+  try {
+    const raw = localStorage.getItem(SORT_STORAGE_KEY);
+    if (raw === "recommended" || raw === "latest" || raw === "popular") return raw;
+  } catch {
+    /* ignore */
+  }
+  return "recommended";
+}
+
+function persistSort(next: ExploreSort) {
+  try {
+    localStorage.setItem(SORT_STORAGE_KEY, next);
+  } catch {
+    /* ignore */
+  }
+}
 
 export function HomePage() {
   const nav = useNavigate();
   const [token, setToken] = useState<string | null>(null);
   const [me, setMe] = useState<MeResponse | null>(null);
   const [genreMeta, setGenreMeta] = useState<GenreEntry[]>([]);
-  const [sort, setSort] = useState<ExploreSort>("recommended");
+  const [sort, setSort] = useState<ExploreSort>(() => readStoredSort());
   const [genreFilter, setGenreFilter] = useState<string>("");
   const [searchDraft, setSearchDraft] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -214,21 +233,42 @@ export function HomePage() {
         </p>
 
         <div className="mt-6 flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-base font-semibold text-white">공개 월드 탐색</h2>
+            <select
+              id="home-sort"
+              aria-label="목록 정렬"
+              value={sort}
+              onChange={(e) => {
+                const v = e.target.value as ExploreSort;
+                setSort(v);
+                persistSort(v);
+              }}
+              className="w-full max-w-[11rem] rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white sm:hidden"
+            >
+              <option value="recommended">추천 순</option>
+              <option value="latest">최신 순</option>
+              <option value="popular">인기 순</option>
+            </select>
+          </div>
+          <div className="hidden flex-wrap gap-2 sm:flex" role="group" aria-label="목록 정렬">
             {(
               [
-                ["recommended", "추천"],
-                ["latest", "최신"],
-                ["popular", "인기"],
+                ["recommended", "추천 순"],
+                ["latest", "최신 순"],
+                ["popular", "인기 순"],
               ] as const
             ).map(([k, label]) => (
               <button
                 key={k}
                 type="button"
-                onClick={() => setSort(k)}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                onClick={() => {
+                  setSort(k);
+                  persistSort(k);
+                }}
+                className={`rounded-lg px-3 py-2 text-sm font-medium ${
                   sort === k
-                    ? "bg-indigo-600 text-white"
+                    ? "bg-indigo-600 text-white shadow-sm"
                     : "border border-slate-600 text-slate-300 hover:bg-slate-800"
                 }`}
               >
@@ -237,7 +277,8 @@ export function HomePage() {
             ))}
           </div>
           <p className="text-xs text-slate-500">
-            추천: 최근에 플레이한 월드와 겹치는 장르가 앞에 오고, 그다음 플레이 시작 획·최신 순으로 정렬합니다.
+            추천: 플레이한 월드가 있으면 비슷한 장르를 앞에 둡니다. 아직 없으면 최신 월드 위주로 보여요. 인기는 플레이
+            시작 횟수 기준입니다.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
             <div className="min-w-[10rem] flex-1">

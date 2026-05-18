@@ -265,12 +265,16 @@ def explore_worlds(
         if updated.tzinfo is None:
             updated = updated.replace(tzinfo=timezone.utc)
         pop = int(getattr(w, "play_start_count", 0) or 0)
+        ts = -updated.timestamp()
         if sort == "popular":
-            return (-pop, -updated.timestamp())
+            return (-pop, ts)
         if sort == "recommended":
-            ov = overlap_score(w)
-            return (-ov, -pop, -updated.timestamp())
-        return (-updated.timestamp(),)
+            if pref:
+                ov = overlap_score(w)
+                return (-ov, -pop, ts)
+            # 플레이 이력이 없을 때는 인기순과 겹치지 않도록 최신·발견 위주
+            return (ts, -pop)
+        return (ts,)
 
     rows.sort(key=sort_key)
     total = len(rows)
