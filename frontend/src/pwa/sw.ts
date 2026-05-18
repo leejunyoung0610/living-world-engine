@@ -13,14 +13,20 @@ self.addEventListener("message", (event) => {
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
-// SPA — 네비게이션 폴백 (단, /api/*, /health 는 제외)
+// SPA — 네비게이션: 네트워크 우선(배포 직후 UI 반영), 실패 시 프리캐시 폴백
 const handler = new NavigationRoute(
-  // index.html를 precache에서 찾아서 응답
   async ({ event }) => {
+    const req = (event as FetchEvent).request;
+    try {
+      const res = await fetch(req);
+      if (res.ok) return res;
+    } catch {
+      /* offline */
+    }
     const cache = await caches.open("workbox-precache-v2");
     const match = await cache.match("/index.html");
     if (match) return match;
-    return fetch((event as FetchEvent).request);
+    return fetch(req);
   },
   { denylist: [/^\/api\//, /^\/health/] },
 );
