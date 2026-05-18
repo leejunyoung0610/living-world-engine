@@ -167,8 +167,8 @@ export function PlaySetupPage() {
             마이페이지
           </Link>
           {" · "}
-          <Link to="/explore" className="text-indigo-400 hover:text-indigo-300">
-            탐색
+          <Link to="/" className="text-indigo-400 hover:text-indigo-300">
+            홈
           </Link>
         </p>
         <h1 className="mt-4 text-2xl font-semibold text-white">입장 캐릭터</h1>

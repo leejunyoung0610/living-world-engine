@@ -4,7 +4,6 @@ import { TOKEN_KEY } from "../api/client";
 
 const LINKS: { to: string; label: string; end?: boolean }[] = [
   { to: "/", label: "홈", end: true },
-  { to: "/explore", label: "탐색" },
   { to: "/my", label: "마이페이지" },
 ];
 

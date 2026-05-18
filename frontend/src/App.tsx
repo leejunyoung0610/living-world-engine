@@ -3,7 +3,6 @@ import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { OAuthCallbackPage } from "./pages/OAuthCallbackPage";
 import { SignupPage } from "./pages/SignupPage";
-import { ExplorePage } from "./pages/ExplorePage";
 import { MyPage } from "./pages/MyPage";
 import { PlayPage } from "./pages/PlayPage";
 import { PlaySetupPage } from "./pages/PlaySetupPage";
@@ -19,7 +18,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
-        <Route path="/explore" element={<ExplorePage />} />
+        <Route path="/explore" element={<Navigate to="/" replace />} />
         <Route path="/my" element={<MyPage />} />
         <Route path="/worlds" element={<Navigate to="/my" replace />} />
         <Route path="/play" element={<Navigate to="/my" replace />} />

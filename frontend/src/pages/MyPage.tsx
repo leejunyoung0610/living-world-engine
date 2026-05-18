@@ -131,7 +131,7 @@ export function MyPage() {
             <div className="mt-6 rounded-xl border border-dashed border-slate-700 bg-slate-900/40 px-6 py-10 text-center">
               <p className="text-slate-400">진행 중인 게임이 없습니다.</p>
               <p className="mt-2 text-xs text-slate-500">
-                아래「내가 만든 월드」에서 플레이를 시작하거나, 상단「탐색」에서 공개 월드를 플레이하세요.
+                아래「내가 만든 월드」에서 플레이를 시작하거나, 상단 「홈」에서 공개 월드를 플레이하세요.
               </p>
             </div>
           ) : (
@@ -272,7 +272,7 @@ export function MyPage() {
           </h2>
           <p className="mt-1 text-sm text-slate-500">곧 추가됩니다.</p>
           <div className="mt-4 rounded-xl border border-dashed border-slate-700 bg-slate-900/30 px-6 py-10 text-center text-sm text-slate-500">
-            좋아요 목록은 추후 연결됩니다. 지금은「탐색」에서 공개 월드를 찾을 수 있습니다.
+            좋아요 목록은 추후 연결됩니다. 지금은 「홈」에서 공개 월드를 찾을 수 있습니다.
           </div>
         </section>
       </div>
