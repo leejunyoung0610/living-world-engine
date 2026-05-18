@@ -17,14 +17,21 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+# ``python backend/scripts/이파일.py`` 로 실행하면 sys.path[0] 이 ``scripts/`` 가 되어
+# ``import backend`` 가 실패한다. 레포 루트(``backend/`` 의 부모)를 path 앞에 둔다.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
-from backend.src.db.models import User, World
-from backend.src.db.session import get_session_local
+from sqlalchemy import select  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
+
+from backend.src.db.models import User, World  # noqa: E402
+from backend.src.db.session import get_session_local  # noqa: E402
 
 WORLDS_ROOT = Path(__file__).resolve().parents[1] / "src" / "worlds"
 SYSTEM_EMAIL = "system@platform.local"
