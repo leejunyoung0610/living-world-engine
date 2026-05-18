@@ -1,5 +1,9 @@
 # 로컬·스테이징용: PostgreSQL + API + 웹(Nginx)
 # 사용법: docs/BETA_DEV_EXECUTION.md / README 「Docker」절 참고
+#
+# 소스 수정 후 UI/API에 반영하려면 이미지를 다시 빌드해야 함(볼륨 마운트 없음):
+#   docker compose build web api && docker compose up -d --force-recreate web api
+# 또는 README처럼: docker compose up --build -d
 
 services:
   db:
