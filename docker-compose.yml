@@ -25,7 +25,8 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/living_world
       DEBUG: "false"
-      CORS_ORIGINS: http://localhost:8080,http://127.0.0.1:8080,http://localhost:8000,http://127.0.0.1:8000,http://172.16.100.133:8080,http://172.16.100.133:8000
+      # `.env` 의 CORS_ORIGINS 가 있으면 그걸 씀(휴대폰: http://맥LAN_IP:8080 추가)
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080,http://localhost:8000,http://127.0.0.1:8000,http://172.16.100.133:8080,http://172.16.100.133:8000}
       HOST: 0.0.0.0
       PORT: "8000"
     env_file:
