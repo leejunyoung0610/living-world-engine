@@ -13,7 +13,7 @@ import json
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from ...db.models import User, World
@@ -501,6 +501,13 @@ def play_start(
         export_play_payload(engine)
     )
     _persist_session(db, session_id, user.id, w.id, engine, bundle=bundle)
+
+    db.execute(
+        update(World)
+        .where(World.id == w.id)
+        .values(play_start_count=World.play_start_count + 1)
+    )
+    db.commit()
 
     payload = PlayStartResponse(
         session_id=session_id,

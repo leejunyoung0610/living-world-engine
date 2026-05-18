@@ -27,6 +27,7 @@ MIN_WORLD = {
 MIN_CHARS = {
     "npcs": [],
 }
+MIN_GENRES = ["fantasy"]
 
 
 @pytest.fixture
@@ -86,6 +87,7 @@ def test_worlds_crud_flow(client: TestClient) -> None:
         "world": MIN_WORLD,
         "characters": MIN_CHARS,
         "events": None,
+        "genres": MIN_GENRES,
     }
     r = client.post("/api/worlds/", headers=h, json=body)
     assert r.status_code == 201, r.text
@@ -95,6 +97,7 @@ def test_worlds_crud_flow(client: TestClient) -> None:
     assert data["name"] == "My UGC"
     assert data["world"]["id"] == "ugc_test"
     assert data["characters"] == {"npcs": []}
+    assert data.get("genres") == ["fantasy"]
 
     r = client.get("/api/worlds/", headers=h)
     assert r.status_code == 200
@@ -102,6 +105,7 @@ def test_worlds_crud_flow(client: TestClient) -> None:
     assert len(lst) == 1
     assert lst[0]["world_id"] == "ugc_test"
     assert lst[0].get("visibility") == "private"
+    assert lst[0].get("genres") == ["fantasy"]
 
     r = client.get(f"/api/worlds/{wid}", headers=h)
     assert r.status_code == 200
@@ -109,9 +113,11 @@ def test_worlds_crud_flow(client: TestClient) -> None:
 
     body["name"] = "Renamed"
     body["world"] = {**MIN_WORLD, "name": "Renamed world"}
+    body["genres"] = ["fantasy", "romance"]
     r = client.put(f"/api/worlds/{wid}", headers=h, json=body)
     assert r.status_code == 200
     assert r.json()["name"] == "Renamed"
+    assert r.json().get("genres") == ["fantasy", "romance"]
 
     r = client.delete(f"/api/worlds/{wid}", headers=h)
     assert r.status_code == 204
@@ -130,6 +136,7 @@ def test_worlds_limit_and_isolation(client: TestClient) -> None:
         "name": "W",
         "world": MIN_WORLD,
         "characters": MIN_CHARS,
+        "genres": MIN_GENRES,
     }
     for i in range(3):
         r = client.post(
@@ -177,6 +184,7 @@ def test_worlds_explore_public_only(client: TestClient) -> None:
             "world": {**MIN_WORLD, "id": "priv_w"},
             "characters": MIN_CHARS,
             "visibility": "private",
+            "genres": MIN_GENRES,
         },
     )
     client.post(
@@ -187,6 +195,7 @@ def test_worlds_explore_public_only(client: TestClient) -> None:
             "world": {**MIN_WORLD, "id": "pub_w"},
             "characters": MIN_CHARS,
             "visibility": "public",
+            "genres": MIN_GENRES,
         },
     )
 
@@ -212,6 +221,7 @@ def test_worlds_explore_pagination(client: TestClient) -> None:
         "world": MIN_WORLD,
         "characters": MIN_CHARS,
         "visibility": "public",
+        "genres": MIN_GENRES,
     }
     # 계정당 월드 상한(기본 3)에 맞춤
     for i in range(3):
@@ -247,3 +257,45 @@ def test_worlds_explore_pagination(client: TestClient) -> None:
 def test_worlds_explore_unauthenticated(client: TestClient) -> None:
     r = client.get("/api/worlds/explore")
     assert r.status_code == 401
+
+
+def test_genre_catalog_public(client: TestClient) -> None:
+    r = client.get("/api/worlds/meta/genres")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data, list) and len(data) >= 5
+    assert {"slug", "label"} == set(data[0].keys())
+
+
+def test_worlds_explore_genre_and_popular(client: TestClient) -> None:
+    token = _signup_login(client, "sort@example.com")
+    h = {"Authorization": f"Bearer {token}"}
+    for i, g in enumerate([["romance"], ["fantasy", "romance"], ["sf"]]):
+        client.post(
+            "/api/worlds/",
+            headers=h,
+            json={
+                "name": f"G{i}",
+                "world": {**MIN_WORLD, "id": f"sort_{i}"},
+                "characters": MIN_CHARS,
+                "visibility": "public",
+                "genres": g,
+            },
+        )
+    r = client.get("/api/worlds/explore?genre=romance", headers=h)
+    assert r.status_code == 200
+    names = [x["name"] for x in r.json()["items"]]
+    assert "G0" in names and "G1" in names and "G2" not in names
+
+    r_all = client.get("/api/worlds/explore?sort=latest", headers=h)
+    wid = next(x["id"] for x in r_all.json()["items"] if x["name"] == "G0")
+    assert (
+        client.post(
+            "/api/play/start",
+            headers=h,
+            json={"world_id": wid, "player": {"name": "x", "class": "c", "stats": {"hp": 1}}},
+        ).status_code
+        == 201
+    )
+    r_pop = client.get("/api/worlds/explore?sort=popular", headers=h)
+    assert r_pop.json()["items"][0]["play_start_count"] >= 1

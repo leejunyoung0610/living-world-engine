@@ -7,6 +7,7 @@ export type WorldSummary = {
   name: string;
   visibility: WorldVisibility;
   world_id: string;
+  genres: string[];
   created_at: string;
 };
 
@@ -17,6 +18,7 @@ export type WorldDetail = {
   world: Record<string, unknown>;
   characters: Record<string, unknown>;
   events: Record<string, unknown> | null;
+  genres: string[];
   created_at: string;
   updated_at: string;
 };
@@ -27,6 +29,8 @@ export type ExploreWorldSummary = {
   world_id: string;
   owner_username: string;
   is_mine: boolean;
+  genres: string[];
+  play_start_count: number;
   created_at: string;
   updated_at: string;
 };
@@ -77,13 +81,32 @@ export async function listWorlds(token: string): Promise<WorldSummary[]> {
   return readJson<WorldSummary[]>(res);
 }
 
+export type ExploreSort = "latest" | "popular" | "recommended";
+
+export type GenreEntry = { slug: string; label: string };
+
+export async function fetchGenreMeta(): Promise<GenreEntry[]> {
+  const res = await apiFetch("/api/worlds/meta/genres");
+  if (!res.ok) throw new Error(await textDetail(res));
+  return res.json() as Promise<GenreEntry[]>;
+}
+
 export async function exploreWorlds(
   token: string,
-  opts?: { limit?: number; offset?: number },
+  opts?: {
+    limit?: number;
+    offset?: number;
+    sort?: ExploreSort;
+    genre?: string | null;
+    q?: string | null;
+  },
 ): Promise<ExploreWorldsPage> {
   const q = new URLSearchParams();
   if (opts?.limit != null) q.set("limit", String(opts.limit));
   if (opts?.offset != null) q.set("offset", String(opts.offset));
+  if (opts?.sort != null) q.set("sort", opts.sort);
+  if (opts?.genre != null && opts.genre !== "") q.set("genre", opts.genre);
+  if (opts?.q != null && opts.q.trim() !== "") q.set("q", opts.q.trim());
   const qs = q.toString();
   const path = qs ? `/api/worlds/explore?${qs}` : "/api/worlds/explore";
   const res = await apiFetch(path, { headers: authHeaders(token) });
@@ -103,6 +126,7 @@ export async function createWorld(
     characters: Record<string, unknown>;
     events?: Record<string, unknown> | null;
     visibility?: WorldVisibility;
+    genres: string[];
   },
 ): Promise<WorldDetail> {
   const res = await apiFetch("/api/worlds/", {
@@ -112,6 +136,7 @@ export async function createWorld(
       ...body,
       events: body.events ?? null,
       visibility: body.visibility ?? "private",
+      genres: body.genres,
     }),
   });
   return readJson<WorldDetail>(res);
@@ -126,6 +151,7 @@ export async function updateWorld(
     characters: Record<string, unknown>;
     events?: Record<string, unknown> | null;
     visibility?: WorldVisibility;
+    genres: string[];
   },
 ): Promise<WorldDetail> {
   const res = await apiFetch(`/api/worlds/${id}`, {
@@ -135,6 +161,7 @@ export async function updateWorld(
       ...body,
       events: body.events ?? null,
       visibility: body.visibility ?? "private",
+      genres: body.genres,
     }),
   });
   return readJson<WorldDetail>(res);

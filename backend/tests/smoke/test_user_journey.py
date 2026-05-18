@@ -39,7 +39,7 @@ def test_signup_create_world_start_play_one_turn(smoke_api_client: TestClient) -
     r_world = c.post(
         "/api/worlds/",
         headers=h,
-        json={"name": "SmokeWorld", "world": MIN_WORLD, "characters": MIN_CHARS},
+        json={"name": "SmokeWorld", "world": MIN_WORLD, "characters": MIN_CHARS, "genres": ["fantasy"]},
     )
     assert r_world.status_code == 201, r_world.text
     world_id = r_world.json()["id"]

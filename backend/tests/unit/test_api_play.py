@@ -37,6 +37,7 @@ MIN_WORLD = {
 MIN_CHARS = {
     "npcs": [],
 }
+MIN_GENRES = ["fantasy"]
 PLAYER_START = {
     "name": "P",
     "class": "c",
@@ -159,7 +160,7 @@ def _create_world(client: TestClient, token: str) -> str:
     r = client.post(
         "/api/worlds/",
         headers={"Authorization": f"Bearer {token}"},
-        json={"name": "W", "world": MIN_WORLD, "characters": MIN_CHARS},
+        json={"name": "W", "world": MIN_WORLD, "characters": MIN_CHARS, "genres": MIN_GENRES},
     )
     assert r.status_code == 201, r.text
     return r.json()["id"]
@@ -239,6 +240,7 @@ def test_play_start_public_world_other_user(client: TestClient) -> None:
             "world": {**MIN_WORLD, "id": "open_ugc"},
             "characters": MIN_CHARS,
             "visibility": "public",
+            "genres": MIN_GENRES,
         },
     )
     assert r.status_code == 201, r.text
@@ -285,6 +287,7 @@ def test_play_world_brief_returns_world_setting(client: TestClient) -> None:
             "name": "WS",
             "world": {**MIN_WORLD, "id": "ws_test", "world_setting": "상세\n설명문"},
             "characters": MIN_CHARS,
+            "genres": MIN_GENRES,
         },
     )
     assert r.status_code == 201, r.text

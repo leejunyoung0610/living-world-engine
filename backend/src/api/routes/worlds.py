@@ -3,22 +3,34 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ...db.models import User, World
+from ...db.models import PlaySession, User, World
 from ...db.session import get_db
 from ...utils.config import get_settings
+from ...worlds.genre_catalog import GENRE_DEFINITIONS, normalize_genres
 from ..deps import get_current_user
 
 router = APIRouter()
 
 WorldVisibility = Literal["private", "public"]
+
+
+def _genres_from_model(w: World) -> list[str]:
+    raw = w.genres
+    if not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    for x in raw:
+        if isinstance(x, str) and x.strip():
+            out.append(x.strip())
+    return out
 
 
 def world_to_detail(w: World) -> WorldDetail:
@@ -29,6 +41,7 @@ def world_to_detail(w: World) -> WorldDetail:
         world=w.world_data,
         characters=w.characters_data,
         events=w.events_data,
+        genres=_genres_from_model(w),
         created_at=w.created_at,
         updated_at=w.updated_at,
     )
@@ -61,12 +74,30 @@ def _normalize_characters_for_storage(characters: dict[str, Any]) -> dict[str, A
     return out
 
 
+def _parse_genres_for_save(raw: list[str]) -> list[str]:
+    try:
+        return normalize_genres(raw, min_count=1)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="장르는 허용된 슬러그 중 최소 1개 필요합니다.",
+        ) from None
+
+
 class WorldCreateBody(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     world: dict[str, Any]
     characters: WorldCharactersBody
     events: dict[str, Any] | None = None
     visibility: WorldVisibility = "private"
+    genres: list[str] = Field(min_length=1)
+
+    @field_validator("genres", mode="before")
+    @classmethod
+    def _strip_genres(cls, v: object) -> object:
+        if v is None:
+            return []
+        return v
 
 
 class WorldUpdateBody(BaseModel):
@@ -75,6 +106,14 @@ class WorldUpdateBody(BaseModel):
     characters: WorldCharactersBody
     events: dict[str, Any] | None = None
     visibility: WorldVisibility = "private"
+    genres: list[str] = Field(min_length=1)
+
+    @field_validator("genres", mode="before")
+    @classmethod
+    def _strip_genres(cls, v: object) -> object:
+        if v is None:
+            return []
+        return v
 
 
 class WorldSummary(BaseModel):
@@ -84,6 +123,7 @@ class WorldSummary(BaseModel):
     name: str
     visibility: WorldVisibility
     world_slug: str = Field(serialization_alias="world_id")
+    genres: list[str] = Field(default_factory=list)
     created_at: datetime
 
     @classmethod
@@ -99,6 +139,7 @@ class WorldSummary(BaseModel):
             name=w.name,
             visibility=vis,
             world_slug=slug,
+            genres=_genres_from_model(w),
             created_at=w.created_at,
         )
 
@@ -112,6 +153,7 @@ class WorldDetail(BaseModel):
     world: dict[str, Any]
     characters: dict[str, Any]
     events: dict[str, Any] | None
+    genres: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
@@ -126,6 +168,8 @@ class ExploreWorldSummary(BaseModel):
     world_slug: str = Field(serialization_alias="world_id")
     owner_username: str
     is_mine: bool
+    genres: list[str] = Field(default_factory=list)
+    play_start_count: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -137,10 +181,41 @@ class ExploreWorldsPage(BaseModel):
     offset: int
 
 
+class GenreEntry(BaseModel):
+    slug: str
+    label: str
+
+
 def _get_owned_world(db: Session, world_id: uuid.UUID, owner_id: uuid.UUID) -> World | None:
     return db.scalars(
         select(World).where(World.id == world_id, World.owner_id == owner_id)
     ).first()
+
+
+def _user_preferred_genre_slugs(db: Session, user_id: uuid.UUID) -> set[str]:
+    pws = db.scalars(
+        select(PlaySession.world_id)
+        .where(PlaySession.user_id == user_id)
+        .order_by(PlaySession.updated_at.desc())
+        .limit(12)
+    ).all()
+    if not pws:
+        return set()
+    worlds = db.scalars(select(World).where(World.id.in_(pws))).all()
+    pref: set[str] = set()
+    for w in worlds:
+        for g in _genres_from_model(w):
+            pref.add(g)
+    return pref
+
+
+ExploreSort = Literal["latest", "popular", "recommended"]
+
+
+@router.get("/meta/genres", response_model=list[GenreEntry])
+def list_genre_meta() -> list[GenreEntry]:
+    """장르 슬러그·라벨 (월드 생성·필터 UI용, 인증 불필요)."""
+    return [GenreEntry(slug=s, label=L) for s, L in GENRE_DEFINITIONS]
 
 
 @router.get("/", response_model=list[WorldSummary])
@@ -158,19 +233,51 @@ def explore_worlds(
     db: Session = Depends(get_db),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    sort: ExploreSort = Query(default="latest"),
+    genre: str | None = Query(default=None, description="장르 슬러그 1개 — 해당 장르가 포함된 월드만"),
+    q: str | None = Query(default=None, description="월드 이름 부분 검색"),
 ) -> ExploreWorldsPage:
     public = World.visibility == "public"
-    total = int(db.scalar(select(func.count()).select_from(World).where(public)) or 0)
-    rows = db.execute(
+    stmt = (
         select(World, User.username)
         .join(User, World.owner_id == User.id)
         .where(public)
-        .order_by(World.updated_at.desc())
-        .limit(limit)
-        .offset(offset)
-    ).all()
+    )
+    if q and q.strip():
+        stmt = stmt.where(World.name.ilike(f"%{q.strip()}%"))
+    rows = list(db.execute(stmt).all())
+
+    if genre and genre.strip():
+        gslug = genre.strip().lower()
+        rows = [(w, un) for w, un in rows if gslug in _genres_from_model(w)]
+
+    pref = _user_preferred_genre_slugs(db, user.id) if sort == "recommended" else set()
+
+    def overlap_score(w: World) -> int:
+        if not pref:
+            return 0
+        ws = set(_genres_from_model(w))
+        return len(pref & ws)
+
+    def sort_key(t: tuple[World, Any]) -> tuple[Any, ...]:
+        w, _ = t
+        updated = w.updated_at or datetime.now(timezone.utc)
+        if updated.tzinfo is None:
+            updated = updated.replace(tzinfo=timezone.utc)
+        pop = int(getattr(w, "play_start_count", 0) or 0)
+        if sort == "popular":
+            return (-pop, -updated.timestamp())
+        if sort == "recommended":
+            ov = overlap_score(w)
+            return (-ov, -pop, -updated.timestamp())
+        return (-updated.timestamp(),)
+
+    rows.sort(key=sort_key)
+    total = len(rows)
+    page = rows[offset : offset + limit]
+
     out: list[ExploreWorldSummary] = []
-    for w, owner_username in rows:
+    for w, owner_username in page:
         slug = w.world_data.get("id", "")
         if not isinstance(slug, str):
             slug = str(slug)
@@ -181,6 +288,8 @@ def explore_worlds(
                 world_slug=slug,
                 owner_username=str(owner_username),
                 is_mine=w.owner_id == user.id,
+                genres=_genres_from_model(w),
+                play_start_count=int(getattr(w, "play_start_count", 0) or 0),
                 created_at=w.created_at,
                 updated_at=w.updated_at,
             )
@@ -197,6 +306,7 @@ def create_world(
     settings = get_settings()
     _validate_world(body.world)
     chars_raw = body.characters.model_dump(mode="python", exclude_none=False)
+    genres_save = _parse_genres_for_save(list(body.genres))
     n = db.scalar(select(func.count(World.id)).where(World.owner_id == user.id))
     if n is not None and n >= settings.max_worlds_per_user:
         raise HTTPException(
@@ -210,6 +320,8 @@ def create_world(
         world_data=body.world,
         characters_data=_normalize_characters_for_storage(chars_raw),
         events_data=body.events,
+        genres=genres_save,
+        play_start_count=0,
     )
     db.add(w)
     db.commit()
@@ -241,11 +353,13 @@ def update_world(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="World not found")
     _validate_world(body.world)
     chars_raw = body.characters.model_dump(mode="python", exclude_none=False)
+    genres_save = _parse_genres_for_save(list(body.genres))
     w.name = body.name.strip()
     w.visibility = body.visibility
     w.world_data = body.world
     w.characters_data = _normalize_characters_for_storage(chars_raw)
     w.events_data = body.events
+    w.genres = genres_save
     db.commit()
     db.refresh(w)
     return world_to_detail(w)

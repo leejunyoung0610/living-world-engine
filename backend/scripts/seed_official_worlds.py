@@ -29,6 +29,12 @@ from backend.src.db.session import get_session_local
 WORLDS_ROOT = Path(__file__).resolve().parents[1] / "src" / "worlds"
 SYSTEM_EMAIL = "system@platform.local"
 
+# 공식 폴더 슬러그 → DB ``worlds.genres`` (장르 슬러그 배열)
+OFFICIAL_WORLD_GENRES: dict[str, list[str]] = {
+    "arcane_academy": ["fantasy", "academy", "adventure"],
+    "campus": ["academy", "slice_of_life", "romance"],
+}
+
 
 def _load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -74,6 +80,8 @@ def _seed_world(db: Session, owner: User, slug: str, *, force: bool) -> str:
 
     name = str(world_data.get("name") or slug)
 
+    genres = OFFICIAL_WORLD_GENRES.get(slug, ["fantasy"])
+
     # 이름 기준 매칭 — JSON 인덱싱은 DB 별로 다르므로 단순화.
     existing = db.scalars(
         select(World).where(World.owner_id == owner.id, World.name == name)
@@ -93,6 +101,8 @@ def _seed_world(db: Session, owner: User, slug: str, *, force: bool) -> str:
                 world_data=world_data,
                 characters_data=chars_data,
                 events_data=events_data,
+                genres=genres,
+                play_start_count=0,
             )
         )
         return f"  + {slug}: created → {name!r}"
@@ -101,6 +111,7 @@ def _seed_world(db: Session, owner: User, slug: str, *, force: bool) -> str:
     existing.characters_data = chars_data
     existing.events_data = events_data
     existing.visibility = "public"
+    existing.genres = genres
     return f"  ~ {slug}: updated → {name!r}"
 
 

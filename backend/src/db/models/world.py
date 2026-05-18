@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Optional
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String, Uuid, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..base import Base
@@ -30,6 +30,10 @@ class World(Base):
     world_data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     characters_data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     events_data: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    #: 장르 슬러그 배열 (``genre_catalog.ALLOWED_GENRE_SLUGS``)
+    genres: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    #: 신규 플레이 세션 시작(이어하기 제외) 시 증가 — 인기 정렬용
+    play_start_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

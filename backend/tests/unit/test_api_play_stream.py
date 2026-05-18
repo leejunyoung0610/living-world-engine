@@ -23,7 +23,7 @@ from backend.src.main import create_app
 from backend.src.services.play_session_db import delete_all_play_sessions
 from backend.src.services.play_sessions import clear_all_sessions
 
-from .test_api_play import MIN_CHARS, MIN_WORLD, PLAYER_START, StubGameEngine
+from .test_api_play import MIN_CHARS, MIN_GENRES, MIN_WORLD, PLAYER_START, StubGameEngine
 
 
 @pytest.fixture
@@ -75,7 +75,7 @@ def _create_world(client: TestClient, token: str) -> str:
     r = client.post(
         "/api/worlds/",
         headers={"Authorization": f"Bearer {token}"},
-        json={"name": "W", "world": MIN_WORLD, "characters": MIN_CHARS},
+        json={"name": "W", "world": MIN_WORLD, "characters": MIN_CHARS, "genres": MIN_GENRES},
     )
     assert r.status_code == 201, r.text
     return r.json()["id"]

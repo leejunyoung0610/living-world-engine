@@ -5,9 +5,11 @@ import {
   createWorld,
   EMPTY_CHARACTERS,
   EMPTY_WORLD,
+  fetchGenreMeta,
   getWorld,
   SESSION_EXPIRED,
   updateWorld,
+  type GenreEntry,
   type WorldVisibility,
 } from "../api/worlds";
 import { LoggedInNav } from "../components/LoggedInNav";
@@ -44,6 +46,8 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
   const [loading, setLoading] = useState(!isCreate);
   const [saving, setSaving] = useState(false);
   const [visibility, setVisibility] = useState<WorldVisibility>("private");
+  const [genreCatalog, setGenreCatalog] = useState<GenreEntry[]>([]);
+  const [selectedGenres, setSelectedGenres] = useState<string[]>(["fantasy"]);
   const [simpleImportWarn, setSimpleImportWarn] = useState<string | null>(null);
 
   useEffect(() => {
@@ -53,9 +57,13 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
       return;
     }
     setToken(t);
+    void fetchGenreMeta()
+      .then(setGenreCatalog)
+      .catch(() => setGenreCatalog([]));
 
     if (isCreate) {
       setLoading(false);
+      setSelectedGenres(["fantasy"]);
       const init = defaultSimpleForm();
       setSimpleForm(init);
       setName(init.worldStoryName);
@@ -76,6 +84,8 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
         const w = await getWorld(t, id);
         setName(w.name);
         setVisibility(w.visibility === "public" ? "public" : "private");
+        const g = Array.isArray(w.genres) ? w.genres.filter((x): x is string => typeof x === "string") : [];
+        setSelectedGenres(g.length > 0 ? g : ["fantasy"]);
         setWorldText(stringifyJson(w.world));
         setCharsText(stringifyJson(w.characters));
         setEventsText(w.events ? stringifyJson(w.events) : "");
@@ -257,6 +267,10 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
       setParseError(parsed.message);
       return;
     }
+    if (selectedGenres.length === 0) {
+      setParseError("장르를 최소 1개 선택해 주세요.");
+      return;
+    }
     setSaving(true);
     try {
       if (isCreate) {
@@ -266,6 +280,7 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
           characters: parsed.characters,
           events: parsed.events,
           visibility,
+          genres: selectedGenres,
         });
       } else if (worldId) {
         await updateWorld(token, worldId, {
@@ -274,6 +289,7 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
           characters: parsed.characters,
           events: parsed.events,
           visibility,
+          genres: selectedGenres,
         });
       }
       nav("/my");
@@ -357,6 +373,37 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
             </div>
 
             <fieldset className="rounded-lg border border-slate-800 bg-slate-900/40 px-4 py-3">
+              <legend className="px-1 text-sm font-medium text-slate-300">장르 (필수 · 복수 선택)</legend>
+              <p className="mt-1 text-xs text-slate-500">홈 정렬·추천·필터에 사용됩니다.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {genreCatalog.map((g) => {
+                  const on = selectedGenres.includes(g.slug);
+                  return (
+                    <button
+                      key={g.slug}
+                      type="button"
+                      onClick={() =>
+                        setSelectedGenres((prev) =>
+                          on ? prev.filter((x) => x !== g.slug) : [...prev, g.slug],
+                        )
+                      }
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                        on
+                          ? "border-indigo-500 bg-indigo-950/80 text-indigo-100"
+                          : "border-slate-600 bg-slate-950 text-slate-400 hover:border-slate-500"
+                      }`}
+                    >
+                      {g.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedGenres.length === 0 && (
+                <p className="mt-2 text-xs text-amber-400">최소 1개를 선택해 주세요.</p>
+              )}
+            </fieldset>
+
+            <fieldset className="rounded-lg border border-slate-800 bg-slate-900/40 px-4 py-3">
               <legend className="px-1 text-sm font-medium text-slate-300">공개 범위</legend>
               <label className="mt-2 flex cursor-pointer items-start gap-2 text-sm text-slate-300">
                 <input
@@ -380,9 +427,9 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
                   className="mt-1"
                 />
                 <span>
-                  <span className="font-medium text-white">공개 (탐색)</span>
+                  <span className="font-medium text-white">공개 (홈)</span>
                   <span className="mt-0.5 block text-xs text-slate-500">
-                    탐색에 노출되며, 로그인한 다른 유저도 플레이할 수 있습니다. 편집은 여전히 나만 가능합니다.
+                    홈 공개 목록에 노출되며, 로그인한 다른 유저도 플레이할 수 있습니다. 편집은 여전히 나만 가능합니다.
                   </span>
                 </span>
               </label>
