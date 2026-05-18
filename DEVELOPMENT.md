@@ -17,6 +17,36 @@
 
 ---
 
+## 2026-05-12 — 홈 탐색 UX, 공개 월드 상세, 따봉, Docker/PWA 반영성
+
+요약 커밋 범위(대략 `4205902`…`a41c172`).
+
+### 탐색·홈 (`frontend/src/pages/HomePage.tsx`, `backend/src/api/routes/worlds.py`)
+
+- **정렬:** 추천 / 최신 / 인기 (`sort` 쿼리). 플레이 이력이 없을 때 **추천**은 인기와 겹치지 않도록 **최신 우선** 콜드스타트.
+- **UI:** 상단 **돋보기 검색 바**, **장르 + 정렬** 한 줄. 정렬 선택은 `localStorage`(`homeExploreSort`) 유지.
+- **탐색 응답:** `like_count`, `liked_by_me` 포함.
+
+### 공개 월드 상세·따봉
+
+- **라우트:** `/world/:worldId` → `WorldBrowsePage` (제목 클릭으로 진입).
+- **API:** `GET /api/worlds/public/{id}` (소개, 세계 설정, 시점, NPC 미리보기 목록), `POST /api/worlds/{id}/like` 토글.
+- **DB:** Alembic `0012` — `worlds.like_count`, `world_user_likes`.
+- **NPC 미리보기:** 이름, 역할·전공, 장소, 성격/배경/설명 중 한 줄 요약(길이 제한).
+
+### 시드·스크립트
+
+- `seed_official_worlds.py`: `python backend/scripts/...` 직접 실행 시 `sys.path` 보정(Docker `/app` 기준).
+
+### Docker / PWA (배포 후 UI 안 바뀌는 문제)
+
+- **Compose:** 소스는 이미지에 bake — 변경 후 `docker compose build … && up`. 주석에 502 시 `logs api` 안내.
+- **`web`은 `api` healthcheck 통과 후 기동** — 업스트림 미준비로 인한 502 완화.
+- **PWA `sw.ts`:** SPA 네비게이션 **네트워크 우선**, `index.html` 옛 프리캐시에 묶이지 않도록.
+- **nginx:** `sw.js`·`webmanifest` no-cache, `/api` `proxy_connect_timeout`.
+
+---
+
 ## 2026-03-29 — 베타 인프라·가입 게이트·문서
 
 - **Docker:** 루트 `docker-compose.yml`(PostgreSQL, api, web), `docker/Dockerfile.api` 및 엔트리포인트(Alembic `upgrade head` 후 uvicorn), `frontend/Dockerfile`·`nginx.conf`(`/api`·`/health` → API), 루트·`frontend/.dockerignore`.
