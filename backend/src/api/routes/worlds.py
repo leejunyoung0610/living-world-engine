@@ -176,6 +176,15 @@ class ExploreWorldSummary(BaseModel):
     updated_at: datetime
 
 
+class PublicNpcBrief(BaseModel):
+    """공개 상세 — NPC 이름·역할·한 줄 요약(성격/배경 등)."""
+
+    name: str
+    role: str = ""
+    location: str = ""
+    summary: str = ""
+
+
 class PublicWorldDetail(BaseModel):
     """공개 월드 브라우징용 — 스포일 최소(설정·소개 위주)."""
 
@@ -189,6 +198,7 @@ class PublicWorldDetail(BaseModel):
     world_setting: str = ""
     time_label: str = Field(default="", serialization_alias="time")
     npc_count: int = 0
+    npcs: list[PublicNpcBrief] = Field(default_factory=list)
     play_start_count: int = 0
     like_count: int = 0
     liked_by_me: bool = False
@@ -241,6 +251,51 @@ def _public_blurbs(wd: dict[str, Any]) -> tuple[str, str, str]:
 def _npc_count(chars: dict[str, Any]) -> int:
     npcs = chars.get("npcs")
     return len(npcs) if isinstance(npcs, list) else 0
+
+
+def _public_npc_briefs(
+    chars: dict[str, Any],
+    *,
+    max_npcs: int = 48,
+    summary_max: int = 280,
+) -> list[PublicNpcBrief]:
+    npcs_raw = chars.get("npcs")
+    if not isinstance(npcs_raw, list):
+        return []
+    out: list[PublicNpcBrief] = []
+    for raw in npcs_raw[:max_npcs]:
+        if not isinstance(raw, dict):
+            continue
+        name_v = raw.get("name")
+        if not isinstance(name_v, str) or not name_v.strip():
+            continue
+        role_v = raw.get("role")
+        role_s = role_v.strip() if isinstance(role_v, str) else ""
+        loc_v = raw.get("location")
+        loc_s = loc_v.strip() if isinstance(loc_v, str) else ""
+        major_v = raw.get("major")
+        if isinstance(major_v, str) and major_v.strip():
+            if not role_s:
+                role_s = major_v.strip()
+            elif major_v.strip() not in role_s:
+                role_s = f"{role_s} · {major_v.strip()}"
+        summary = ""
+        for key in ("personality", "background", "description"):
+            v = raw.get(key)
+            if isinstance(v, str) and v.strip():
+                summary = v.strip()
+                break
+        if len(summary) > summary_max:
+            summary = summary[: summary_max - 1] + "…"
+        out.append(
+            PublicNpcBrief(
+                name=name_v.strip(),
+                role=role_s,
+                location=loc_s,
+                summary=summary,
+            )
+        )
+    return out
 
 
 def _user_preferred_genre_slugs(db: Session, user_id: uuid.UUID) -> set[str]:
@@ -405,6 +460,7 @@ def get_public_world_detail(
         world_setting=setting,
         time_label=time_s,
         npc_count=_npc_count(chars),
+        npcs=_public_npc_briefs(chars),
         play_start_count=int(getattr(w, "play_start_count", 0) or 0),
         like_count=int(getattr(w, "like_count", 0) or 0),
         liked_by_me=liked,

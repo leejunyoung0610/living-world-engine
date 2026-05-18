@@ -115,6 +115,13 @@ export async function exploreWorlds(
   return readJson<ExploreWorldsPage>(res);
 }
 
+export type PublicNpcBrief = {
+  name: string;
+  role: string;
+  location: string;
+  summary: string;
+};
+
 export type PublicWorldDetail = {
   id: string;
   name: string;
@@ -126,6 +133,7 @@ export type PublicWorldDetail = {
   world_setting: string;
   time: string;
   npc_count: number;
+  npcs: PublicNpcBrief[];
   play_start_count: number;
   like_count: number;
   liked_by_me: boolean;

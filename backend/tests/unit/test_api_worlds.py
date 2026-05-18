@@ -403,6 +403,8 @@ def test_public_world_detail_and_like_toggle(client: TestClient) -> None:
     assert d["description"] == "한 줄 소개입니다."
     assert d["time"] == "겨울 방학"
     assert d["npc_count"] == 1
+    assert len(d["npcs"]) == 1
+    assert d["npcs"][0]["name"] == "NPC1"
     assert d["like_count"] == 0
     assert d["liked_by_me"] is False
 
