@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ...db.models import PlaySession, User, World
+from ...db.models import PlaySession, User, World, WorldUserLike
 from ...db.session import get_db
 from ...utils.config import get_settings
 from ...worlds.genre_catalog import GENRE_DEFINITIONS, normalize_genres
@@ -170,8 +170,35 @@ class ExploreWorldSummary(BaseModel):
     is_mine: bool
     genres: list[str] = Field(default_factory=list)
     play_start_count: int = 0
+    like_count: int = 0
+    liked_by_me: bool = False
     created_at: datetime
     updated_at: datetime
+
+
+class PublicWorldDetail(BaseModel):
+    """공개 월드 브라우징용 — 스포일 최소(설정·소개 위주)."""
+
+    id: uuid.UUID
+    name: str
+    world_slug: str = Field(serialization_alias="world_id")
+    owner_username: str
+    is_mine: bool
+    genres: list[str] = Field(default_factory=list)
+    description: str = ""
+    world_setting: str = ""
+    time_label: str = Field(default="", serialization_alias="time")
+    npc_count: int = 0
+    play_start_count: int = 0
+    like_count: int = 0
+    liked_by_me: bool = False
+    created_at: datetime
+    updated_at: datetime
+
+
+class WorldLikeState(BaseModel):
+    liked: bool
+    like_count: int
 
 
 class ExploreWorldsPage(BaseModel):
@@ -190,6 +217,30 @@ def _get_owned_world(db: Session, world_id: uuid.UUID, owner_id: uuid.UUID) -> W
     return db.scalars(
         select(World).where(World.id == world_id, World.owner_id == owner_id)
     ).first()
+
+
+def _public_blurbs(wd: dict[str, Any]) -> tuple[str, str, str]:
+    """(description, world_setting, time)."""
+    desc = wd.get("description")
+    desc_s = desc.strip() if isinstance(desc, str) else ""
+    setting = ""
+    raw_ws = wd.get("world_setting")
+    if isinstance(raw_ws, str) and raw_ws.strip():
+        setting = raw_ws.strip()
+    elif isinstance(raw_ws, list):
+        parts = [str(x).strip() for x in raw_ws if isinstance(x, str) and str(x).strip()]
+        setting = "\n\n".join(parts)
+    leg = wd.get("setting")
+    if not setting and isinstance(leg, str) and leg.strip():
+        setting = leg.strip()
+    wt = wd.get("time")
+    time_s = wt.strip() if isinstance(wt, str) else ""
+    return desc_s, setting, time_s
+
+
+def _npc_count(chars: dict[str, Any]) -> int:
+    npcs = chars.get("npcs")
+    return len(npcs) if isinstance(npcs, list) else 0
 
 
 def _user_preferred_genre_slugs(db: Session, user_id: uuid.UUID) -> set[str]:
@@ -280,6 +331,17 @@ def explore_worlds(
     total = len(rows)
     page = rows[offset : offset + limit]
 
+    page_ids = [w.id for w, _ in page]
+    liked_ids: set[uuid.UUID] = set()
+    if page_ids:
+        liked_rows = db.scalars(
+            select(WorldUserLike.world_id).where(
+                WorldUserLike.user_id == user.id,
+                WorldUserLike.world_id.in_(page_ids),
+            )
+        ).all()
+        liked_ids = set(liked_rows)
+
     out: list[ExploreWorldSummary] = []
     for w, owner_username in page:
         slug = w.world_data.get("id", "")
@@ -294,11 +356,89 @@ def explore_worlds(
                 is_mine=w.owner_id == user.id,
                 genres=_genres_from_model(w),
                 play_start_count=int(getattr(w, "play_start_count", 0) or 0),
+                like_count=int(getattr(w, "like_count", 0) or 0),
+                liked_by_me=w.id in liked_ids,
                 created_at=w.created_at,
                 updated_at=w.updated_at,
             )
         )
     return ExploreWorldsPage(items=out, total=total, limit=limit, offset=offset)
+
+
+@router.get("/public/{world_id}", response_model=PublicWorldDetail)
+def get_public_world_detail(
+    world_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PublicWorldDetail:
+    row = db.execute(
+        select(World, User.username)
+        .join(User, World.owner_id == User.id)
+        .where(World.id == world_id, World.visibility == "public")
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="World not found")
+    w, owner_username = row[0], row[1]
+    wd = w.world_data if isinstance(w.world_data, dict) else {}
+    desc, setting, time_s = _public_blurbs(wd)
+    slug = wd.get("id", "")
+    if not isinstance(slug, str):
+        slug = str(slug)
+    liked = (
+        db.scalars(
+            select(WorldUserLike).where(
+                WorldUserLike.world_id == world_id,
+                WorldUserLike.user_id == user.id,
+            )
+        ).first()
+        is not None
+    )
+    chars = w.characters_data if isinstance(w.characters_data, dict) else {}
+    return PublicWorldDetail(
+        id=w.id,
+        name=w.name,
+        world_slug=slug,
+        owner_username=str(owner_username),
+        is_mine=w.owner_id == user.id,
+        genres=_genres_from_model(w),
+        description=desc,
+        world_setting=setting,
+        time_label=time_s,
+        npc_count=_npc_count(chars),
+        play_start_count=int(getattr(w, "play_start_count", 0) or 0),
+        like_count=int(getattr(w, "like_count", 0) or 0),
+        liked_by_me=liked,
+        created_at=w.created_at,
+        updated_at=w.updated_at,
+    )
+
+
+@router.post("/{world_id}/like", response_model=WorldLikeState)
+def toggle_world_like(
+    world_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> WorldLikeState:
+    w = db.get(World, world_id)
+    if w is None or w.visibility != "public":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="World not found")
+    existing = db.scalars(
+        select(WorldUserLike).where(
+            WorldUserLike.world_id == world_id,
+            WorldUserLike.user_id == user.id,
+        )
+    ).first()
+    if existing is not None:
+        db.delete(existing)
+        w.like_count = max(0, int(w.like_count or 0) - 1)
+        liked = False
+    else:
+        db.add(WorldUserLike(world_id=world_id, user_id=user.id))
+        w.like_count = int(w.like_count or 0) + 1
+        liked = True
+    db.commit()
+    db.refresh(w)
+    return WorldLikeState(liked=liked, like_count=int(w.like_count or 0))
 
 
 @router.post("/", response_model=WorldDetail, status_code=status.HTTP_201_CREATED)
@@ -326,6 +466,7 @@ def create_world(
         events_data=body.events,
         genres=genres_save,
         play_start_count=0,
+        like_count=0,
     )
     db.add(w)
     db.commit()

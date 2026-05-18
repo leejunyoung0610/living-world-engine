@@ -31,6 +31,8 @@ export type ExploreWorldSummary = {
   is_mine: boolean;
   genres: string[];
   play_start_count: number;
+  like_count: number;
+  liked_by_me: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -111,6 +113,42 @@ export async function exploreWorlds(
   const path = qs ? `/api/worlds/explore?${qs}` : "/api/worlds/explore";
   const res = await apiFetch(path, { headers: authHeaders(token) });
   return readJson<ExploreWorldsPage>(res);
+}
+
+export type PublicWorldDetail = {
+  id: string;
+  name: string;
+  world_id: string;
+  owner_username: string;
+  is_mine: boolean;
+  genres: string[];
+  description: string;
+  world_setting: string;
+  time: string;
+  npc_count: number;
+  play_start_count: number;
+  like_count: number;
+  liked_by_me: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WorldLikeState = {
+  liked: boolean;
+  like_count: number;
+};
+
+export async function fetchPublicWorld(token: string, id: string): Promise<PublicWorldDetail> {
+  const res = await apiFetch(`/api/worlds/public/${id}`, { headers: authHeaders(token) });
+  return readJson<PublicWorldDetail>(res);
+}
+
+export async function toggleWorldLike(token: string, id: string): Promise<WorldLikeState> {
+  const res = await apiFetch(`/api/worlds/${id}/like`, {
+    method: "POST",
+    headers: authHeaders(token),
+  });
+  return readJson<WorldLikeState>(res);
 }
 
 export async function getWorld(token: string, id: string): Promise<WorldDetail> {

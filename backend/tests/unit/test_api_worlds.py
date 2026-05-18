@@ -12,7 +12,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.src.db.base import Base
-from backend.src.db.models import User, World  # noqa: F401
+from backend.src.db.models import User, World, WorldUserLike  # noqa: F401
 from backend.src.db.session import get_db
 from backend.src.main import create_app
 
@@ -234,6 +234,8 @@ def test_worlds_explore_public_only(client: TestClient) -> None:
     assert data["items"][0]["world_id"] == "pub_w"
     assert data["items"][0]["owner_username"] == "W"
     assert data["items"][0]["is_mine"] is False
+    assert data["items"][0]["like_count"] == 0
+    assert data["items"][0]["liked_by_me"] is False
 
     r = client.get("/api/worlds/explore", headers=h_a)
     assert r.json()["items"][0]["is_mine"] is True
@@ -367,3 +369,75 @@ def test_explore_recommended_cold_prioritizes_latest_over_popularity(client_db) 
     assert r_rec.status_code == 200
     assert r_pop.json()["items"][0]["name"] == "OldPopular"
     assert r_rec.json()["items"][0]["name"] == "NewFresh"
+
+
+def test_public_world_detail_and_like_toggle(client: TestClient) -> None:
+    t_owner = _signup_login(client, "owner_like@example.com")
+    t_fan = _signup_login(client, "fan_like@example.com")
+    h_o = {"Authorization": f"Bearer {t_owner}"}
+    h_f = {"Authorization": f"Bearer {t_fan}"}
+    r = client.post(
+        "/api/worlds/",
+        headers=h_o,
+        json={
+            "name": "공개판타지",
+            "world": {
+                **MIN_WORLD,
+                "id": "like_pub_w",
+                "description": "한 줄 소개입니다.",
+                "time": "겨울 방학",
+            },
+            "characters": {**MIN_CHARS, "npcs": [{"name": "NPC1"}]},
+            "visibility": "public",
+            "genres": MIN_GENRES,
+        },
+    )
+    assert r.status_code == 201, r.text
+    wid = r.json()["id"]
+
+    r = client.get(f"/api/worlds/public/{wid}", headers=h_f)
+    assert r.status_code == 200
+    d = r.json()
+    assert d["name"] == "공개판타지"
+    assert d["world_id"] == "like_pub_w"
+    assert d["description"] == "한 줄 소개입니다."
+    assert d["time"] == "겨울 방학"
+    assert d["npc_count"] == 1
+    assert d["like_count"] == 0
+    assert d["liked_by_me"] is False
+
+    r = client.post(f"/api/worlds/{wid}/like", headers=h_f)
+    assert r.status_code == 200
+    assert r.json() == {"liked": True, "like_count": 1}
+
+    r = client.get("/api/worlds/explore", headers=h_f)
+    item = next(x for x in r.json()["items"] if x["id"] == wid)
+    assert item["like_count"] == 1
+    assert item["liked_by_me"] is True
+
+    r = client.post(f"/api/worlds/{wid}/like", headers=h_f)
+    assert r.status_code == 200
+    assert r.json() == {"liked": False, "like_count": 0}
+
+
+def test_public_world_not_visible_private(client: TestClient) -> None:
+    t = _signup_login(client, "priv_pub@example.com")
+    h = {"Authorization": f"Bearer {t}"}
+    r = client.post(
+        "/api/worlds/",
+        headers=h,
+        json={
+            "name": "비공개",
+            "world": {**MIN_WORLD, "id": "only_priv"},
+            "characters": MIN_CHARS,
+            "visibility": "private",
+            "genres": MIN_GENRES,
+        },
+    )
+    assert r.status_code == 201, r.text
+    wid = r.json()["id"]
+    r2 = client.get(f"/api/worlds/public/{wid}", headers=h)
+    assert r2.status_code == 404
+
+    r3 = client.post(f"/api/worlds/{wid}/like", headers=h)
+    assert r3.status_code == 404

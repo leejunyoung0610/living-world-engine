@@ -34,6 +34,8 @@ class World(Base):
     genres: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
     #: 신규 플레이 세션 시작(이어하기 제외) 시 증가 — 인기 정렬용
     play_start_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    #: 공개 월드 따봉 수(``world_user_likes`` 와 동기화)
+    like_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

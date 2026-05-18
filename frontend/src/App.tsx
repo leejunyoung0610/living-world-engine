@@ -6,6 +6,7 @@ import { SignupPage } from "./pages/SignupPage";
 import { MyPage } from "./pages/MyPage";
 import { PlayPage } from "./pages/PlayPage";
 import { PlaySetupPage } from "./pages/PlaySetupPage";
+import { WorldBrowsePage } from "./pages/WorldBrowsePage";
 import { WorldEditorPage } from "./pages/WorldEditorPage";
 import { InstallToast } from "./pwa/InstallToast";
 
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/my" element={<MyPage />} />
         <Route path="/worlds" element={<Navigate to="/my" replace />} />
         <Route path="/play" element={<Navigate to="/my" replace />} />
+        <Route path="/world/:worldId" element={<WorldBrowsePage />} />
         <Route path="/worlds/new" element={<WorldEditorPage create />} />
         <Route path="/worlds/:worldId" element={<WorldEditorPage />} />
         <Route path="/play/setup/:worldId" element={<PlaySetupPage />} />

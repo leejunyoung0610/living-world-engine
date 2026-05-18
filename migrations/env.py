@@ -29,6 +29,7 @@ from backend.src.db.models import (  # noqa: E402, F401
     User,
     UserDailyTurnUsage,
     World,
+    WorldUserLike,
 )
 from backend.src.utils.config import get_settings  # noqa: E402
 

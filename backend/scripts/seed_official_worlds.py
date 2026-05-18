@@ -110,6 +110,7 @@ def _seed_world(db: Session, owner: User, slug: str, *, force: bool) -> str:
                 events_data=events_data,
                 genres=genres,
                 play_start_count=0,
+                like_count=0,
             )
         )
         return f"  + {slug}: created → {name!r}"

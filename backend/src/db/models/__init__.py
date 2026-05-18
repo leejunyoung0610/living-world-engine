@@ -4,10 +4,12 @@ from .play_session import PlaySession
 from .user import User
 from .user_daily_turn_usage import UserDailyTurnUsage
 from .world import World
+from .world_user_like import WorldUserLike
 
 __all__ = [
     "User",
     "World",
+    "WorldUserLike",
     "PlaySession",
     "InviteCode",
     "UserDailyTurnUsage",

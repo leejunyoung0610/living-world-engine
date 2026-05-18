@@ -186,8 +186,12 @@ export function HomePage() {
     return (
       <li className="card">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <h3 className="font-medium text-white">{w.name}</h3>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-medium text-white">
+              <Link to={`/world/${w.id}`} className="hover:text-indigo-300">
+                {w.name}
+              </Link>
+            </h3>
             <p className="mt-1 text-xs text-slate-500">
               by <span className="text-slate-400">{w.owner_username}</span>
               {w.is_mine && (
@@ -208,7 +212,8 @@ export function HomePage() {
           </div>
         </div>
         <p className="mt-2 text-xs text-slate-600">
-          플레이 시작 {w.play_start_count ?? 0}회 · 업데이트 {new Date(w.updated_at).toLocaleString()}
+          👍 {w.like_count ?? 0} · 플레이 시작 {w.play_start_count ?? 0}회 ·{" "}
+          {new Date(w.updated_at).toLocaleString()}
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <button
