@@ -6,6 +6,8 @@ import {
   EMPTY_CHARACTERS,
   EMPTY_WORLD,
   fetchGenreMeta,
+  generateNpcPortrait,
+  generateWorldCover,
   getWorld,
   SESSION_EXPIRED,
   updateWorld,
@@ -29,6 +31,14 @@ function stringifyJson(v: unknown): string {
 
 type EditorMode = "simple" | "json";
 
+type CoverSourceMode = "url" | "ai";
+
+function stripCoverKeysFromWorld(w: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...w };
+  delete out.cover_image_url;
+  return out;
+}
+
 export function WorldEditorPage({ create }: { create?: boolean }) {
   const { worldId } = useParams<{ worldId: string }>();
   const nav = useNavigate();
@@ -49,6 +59,11 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
   const [genreCatalog, setGenreCatalog] = useState<GenreEntry[]>([]);
   const [selectedGenres, setSelectedGenres] = useState<string[]>(["fantasy"]);
   const [simpleImportWarn, setSimpleImportWarn] = useState<string | null>(null);
+  const [coverGenerating, setCoverGenerating] = useState(false);
+  const [coverGenInfo, setCoverGenInfo] = useState<string | null>(null);
+  /** 커버: URL 입력 vs AI 생성 — 둘 중 하나만 활성 */
+  const [coverSource, setCoverSource] = useState<CoverSourceMode>(() => (isCreate ? "ai" : "url"));
+  const [npcPortraitBusyIndex, setNpcPortraitBusyIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const t = localStorage.getItem(TOKEN_KEY);
@@ -101,6 +116,11 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
           setEditorMode("json");
           setSimpleImportWarn("이 월드는 구조가 복잡해 간편 모드를 쓸 수 없습니다. JSON으로 편집하세요.");
         }
+        const wd = w.world as Record<string, unknown>;
+        const cu = wd.cover_image_url;
+        const hasCover =
+          typeof cu === "string" && cu.trim().startsWith("https://");
+        setCoverSource(hasCover ? "url" : "ai");
       } catch (e) {
         if (e instanceof Error && e.message === SESSION_EXPIRED) {
           localStorage.removeItem(TOKEN_KEY);
@@ -191,7 +211,7 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
   function addNpc() {
     setSimpleForm((s) => ({
       ...s,
-      npcs: [...s.npcs, { id: "", name: "", role: "", location: "" }],
+      npcs: [...s.npcs, { id: "", name: "", role: "", appearanceForAi: "" }],
     }));
   }
 
@@ -257,6 +277,172 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
     };
   }
 
+  function readCoverUrlFromWorldJson(): string {
+    try {
+      const w = JSON.parse(worldText) as Record<string, unknown>;
+      const u = w.cover_image_url;
+      return typeof u === "string" ? u.trim() : "";
+    } catch {
+      return "";
+    }
+  }
+
+  function patchWorldCoverUrl(raw: string): void {
+    try {
+      const w = JSON.parse(worldText) as Record<string, unknown>;
+      const v = raw.trim();
+      if (v && v.startsWith("https://")) {
+        w.cover_image_url = v;
+      } else {
+        delete w.cover_image_url;
+      }
+      setWorldText(stringifyJson(w));
+    } catch {
+      /* malformed json — 무시 */
+    }
+  }
+
+  function clearCoverFieldsEverywhere(): void {
+    setCoverGenInfo(null);
+    setSimpleForm((s) => ({ ...s, coverImageUrl: "" }));
+    setWorldText((text) => {
+      try {
+        const w = JSON.parse(text) as Record<string, unknown>;
+        delete w.cover_image_url;
+        return stringifyJson(w);
+      } catch {
+        return text;
+      }
+    });
+  }
+
+  function selectCoverSource(next: CoverSourceMode): void {
+    if (next === coverSource) return;
+    clearCoverFieldsEverywhere();
+    setCoverSource(next);
+  }
+
+  function currentCoverPreviewUrl(): string {
+    if (editorMode === "simple") return simpleForm.coverImageUrl.trim();
+    try {
+      const w = JSON.parse(worldText) as Record<string, unknown>;
+      const u = w.cover_image_url;
+      return typeof u === "string" ? u.trim() : "";
+    } catch {
+      return "";
+    }
+  }
+
+  function effectiveNpcRowId(row: SimpleNpcRow, index: number): string {
+    return row.id.trim() || slugifyWorldId(row.name.replace(/\s+/g, "_")) || `npc_${index + 1}`;
+  }
+
+  async function onGenerateCover() {
+    if (!token) return;
+    setCoverGenInfo(null);
+    setApiError(null);
+    const parsed = parseBodies();
+    if (!parsed.ok) {
+      setParseError(parsed.message);
+      return;
+    }
+    if (selectedGenres.length === 0) {
+      setParseError("장르를 최소 1개 선택해 주세요.");
+      return;
+    }
+    setCoverGenerating(true);
+    try {
+      if (isCreate) {
+        const worldPayload = stripCoverKeysFromWorld(parsed.world);
+        const created = await createWorld(token, {
+          name: name.trim() || "이름 없음",
+          world: worldPayload,
+          characters: parsed.characters,
+          events: parsed.events,
+          visibility,
+          genres: selectedGenres,
+        });
+        try {
+          const genRes = await generateWorldCover(token, created.id);
+          const parts: string[] = [];
+          if (genRes.remaining_user_monthly !== null) {
+            parts.push(`이번 달 계정 ${genRes.remaining_user_monthly}회 남음`);
+          }
+          if (genRes.remaining_world_monthly !== null) {
+            parts.push(`이 월드 ${genRes.remaining_world_monthly}회 남음`);
+          }
+          setCoverGenInfo(parts.join(" · ") || null);
+        } catch (genErr) {
+          if (genErr instanceof Error && genErr.message === SESSION_EXPIRED) {
+            localStorage.removeItem(TOKEN_KEY);
+            nav("/login");
+            return;
+          }
+          setApiError(genErr instanceof Error ? genErr.message : "커버 생성 실패");
+        }
+        nav(`/worlds/${created.id}`, { replace: true });
+        return;
+      }
+      if (!worldId) return;
+      const res = await generateWorldCover(token, worldId);
+      const url = res.cover_image_url.trim();
+      if (editorMode === "simple") {
+        setSimpleForm((s) => ({ ...s, coverImageUrl: url }));
+      } else {
+        try {
+          const w = JSON.parse(worldText) as Record<string, unknown>;
+          w.cover_image_url = url;
+          setWorldText(stringifyJson(w));
+        } catch {
+          /* malformed json — 사용자가 수정할 때까지 스킵 */
+        }
+      }
+      const parts: string[] = [];
+      if (res.remaining_user_monthly !== null) {
+        parts.push(`이번 달 계정 ${res.remaining_user_monthly}회 남음`);
+      }
+      if (res.remaining_world_monthly !== null) {
+        parts.push(`이 월드 ${res.remaining_world_monthly}회 남음`);
+      }
+      setCoverGenInfo(parts.join(" · ") || null);
+    } catch (err) {
+      if (err instanceof Error && err.message === SESSION_EXPIRED) {
+        localStorage.removeItem(TOKEN_KEY);
+        nav("/login");
+        return;
+      }
+      setApiError(err instanceof Error ? err.message : "커버 생성 실패");
+    } finally {
+      setCoverGenerating(false);
+    }
+  }
+
+  async function onGenerateNpcPortrait(index: number) {
+    if (!token || !worldId || isCreate || editorMode !== "simple") return;
+    const row = simpleForm.npcs[index];
+    if (!row) return;
+    const npcId = effectiveNpcRowId(row, index);
+    setApiError(null);
+    setNpcPortraitBusyIndex(index);
+    try {
+      const res = await generateNpcPortrait(token, worldId, npcId);
+      const url = res.portrait_image_url.trim();
+      setSimpleForm((s) => {
+        const npcs = s.npcs.map((r, j) => (j === index ? { ...r, portraitImageUrl: url } : r));
+        return { ...s, npcs };
+      });
+    } catch (err) {
+      if (err instanceof Error && err.message === SESSION_EXPIRED) {
+        localStorage.removeItem(TOKEN_KEY);
+        nav("/login");
+        return;
+      }
+      setApiError(err instanceof Error ? err.message : "초상 생성 실패");
+    } finally {
+      setNpcPortraitBusyIndex(null);
+    }
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!token) return;
@@ -274,7 +460,7 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
     setSaving(true);
     try {
       if (isCreate) {
-        await createWorld(token, {
+        const created = await createWorld(token, {
           name: name.trim() || "이름 없음",
           world: parsed.world,
           characters: parsed.characters,
@@ -282,6 +468,9 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
           visibility,
           genres: selectedGenres,
         });
+        // 첫 저장 직후 편집 화면으로 — AI 커버·NPC 초상 API는 world UUID가 있어야 동작
+        nav(`/worlds/${created.id}`, { replace: true });
+        return;
       } else if (worldId) {
         await updateWorld(token, worldId, {
           name: name.trim() || "이름 없음",
@@ -359,6 +548,137 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
                 {simpleImportWarn}
               </p>
             )}
+
+            <fieldset className="rounded-lg border border-slate-800 bg-slate-900/40 px-4 py-3">
+              <legend className="px-1 text-sm font-medium text-slate-300">커버 이미지 (공개 상세)</legend>
+              <p className="mt-1 text-xs text-slate-500">
+                <strong className="text-slate-400">두 방식 중 하나만</strong> 씁니다. 바꿀 때 기존 커버 값은 초기화됩니다.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-4">
+                <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-300">
+                  <input
+                    type="radio"
+                    name="coverSource"
+                    className="mt-1"
+                    checked={coverSource === "url"}
+                    onChange={() => selectCoverSource("url")}
+                  />
+                  <span>
+                    <span className="font-medium text-white">HTTPS URL 직접 입력</span>
+                    <span className="mt-0.5 block text-xs text-slate-500">
+                      CDN·이미지 호스트에서 받은 주소만 붙여 넣습니다.
+                    </span>
+                  </span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-300">
+                  <input
+                    type="radio"
+                    name="coverSource"
+                    className="mt-1"
+                    checked={coverSource === "ai"}
+                    onChange={() => selectCoverSource("ai")}
+                  />
+                  <span>
+                    <span className="font-medium text-white">AI로 생성</span>
+                    <span className="mt-0.5 block text-xs text-slate-500">
+                      세계 이름·설명·세계관을 바탕으로 16:9 커버 URL을 만듭니다(Replicate 설정·크레딧 필요).
+                    </span>
+                  </span>
+                </label>
+              </div>
+
+              {coverSource === "url" && editorMode === "simple" && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-slate-300">커버 이미지 URL</label>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    <strong className="text-slate-400">https://</strong> 만 허용됩니다.
+                  </p>
+                  <input
+                    type="url"
+                    inputMode="url"
+                    value={simpleForm.coverImageUrl}
+                    onChange={(e) => setSimpleForm((s) => ({ ...s, coverImageUrl: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 font-mono text-sm text-white"
+                    placeholder="https://…"
+                  />
+                  {currentCoverPreviewUrl().startsWith("https://") && (
+                    <div className="mt-3">
+                      <p className="text-xs text-slate-500">미리보기</p>
+                      <img
+                        src={currentCoverPreviewUrl()}
+                        alt=""
+                        className="mt-1 max-h-40 w-full max-w-xl rounded-md border border-slate-700 object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {coverSource === "url" && editorMode === "json" && (
+                <div className="mt-4 space-y-2">
+                  <label className="block text-sm font-medium text-slate-300">
+                    커버 URL — JSON의 <code className="text-slate-400">cover_image_url</code>
+                  </label>
+                  <p className="text-xs text-slate-500">
+                    아래에 입력하면 world JSON 에 반영됩니다. 또는 하단 편집기에서 직접 수정해도 됩니다.
+                  </p>
+                  <input
+                    type="url"
+                    inputMode="url"
+                    value={readCoverUrlFromWorldJson()}
+                    onChange={(e) => patchWorldCoverUrl(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 font-mono text-sm text-white"
+                    placeholder="https://…"
+                  />
+                  {readCoverUrlFromWorldJson().startsWith("https://") && (
+                    <div className="mt-2">
+                      <p className="text-xs text-slate-500">미리보기</p>
+                      <img
+                        src={readCoverUrlFromWorldJson()}
+                        alt=""
+                        className="mt-1 max-h-40 w-full max-w-xl rounded-md border border-slate-700 object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {coverSource === "ai" && (
+                <div className="mt-4 space-y-2">
+                  {isCreate && (
+                    <p className="text-xs text-slate-500">
+                      새 월드에서는 버튼을 누르면 <strong className="text-slate-400">먼저 저장(생성)</strong>한 뒤 곧바로 AI
+                      커버를 생성하고, 편집 화면으로 이동합니다.
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      disabled={coverGenerating}
+                      onClick={() => void onGenerateCover()}
+                      className="rounded-lg border border-violet-600 bg-violet-950/50 px-3 py-2 text-sm font-medium text-violet-100 hover:bg-violet-900/60 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {coverGenerating
+                        ? "생성 중…"
+                        : isCreate
+                          ? "AI 커버 생성 (저장 후 실행)"
+                          : "AI 커버 생성"}
+                    </button>
+                    {coverGenInfo && <span className="text-xs text-slate-400">{coverGenInfo}</span>}
+                  </div>
+                  {currentCoverPreviewUrl().startsWith("https://") && (
+                    <div className="mt-2">
+                      <p className="text-xs text-slate-500">미리보기</p>
+                      <img
+                        src={currentCoverPreviewUrl()}
+                        alt=""
+                        className="mt-1 max-h-40 w-full max-w-xl rounded-md border border-slate-700 object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </fieldset>
 
             <div>
               <label className="block text-sm font-medium text-slate-300">목록에 보이는 이름</label>
@@ -490,22 +810,6 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300">커버 이미지 URL</label>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    공개 상세 상단 히어로로 쓰입니다. <strong className="text-slate-400">https://</strong> 만
-                    허용. AI 이미지 도구가 준 링크·CDN URL을 붙여 넣으면 됩니다.
-                  </p>
-                  <input
-                    type="url"
-                    inputMode="url"
-                    value={simpleForm.coverImageUrl}
-                    onChange={(e) => setSimpleForm((s) => ({ ...s, coverImageUrl: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 font-mono text-sm text-white"
-                    placeholder="https://…"
-                  />
-                </div>
-
-                <div>
                   <label className="block text-sm font-medium text-slate-300">세계관 설정 (상세)</label>
                   <p className="mt-0.5 text-xs text-slate-500">
                     시대·지리·분위기·금지 사항 등 LLM이 따를 긴 설명. JSON 키는{" "}
@@ -578,14 +882,46 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
                             onChange={(e) => updateNpc(i, { role: e.target.value })}
                             className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white"
                           />
-                          <input
-                            type="text"
-                            placeholder="장소"
-                            value={row.location}
-                            onChange={(e) => updateNpc(i, { location: e.target.value })}
-                            className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white"
-                          />
-                          <div className="sm:col-span-2 flex justify-end">
+                          <div className="sm:col-span-2">
+                            <label className="text-xs font-medium text-slate-400">
+                              캐릭터 특징 (AI 초상·얼굴 생성에만 사용)
+                            </label>
+                            <textarea
+                              value={row.appearanceForAi}
+                              onChange={(e) => updateNpc(i, { appearanceForAi: e.target.value })}
+                              rows={3}
+                              spellCheck={false}
+                              placeholder="예: 검은 숏컷·날카로운 인상·교복 블레이저, 말 없는 타입. 연령대·복장 무드까지."
+                              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white placeholder:text-slate-600"
+                            />
+                            <p className="mt-1 text-[11px] text-slate-500">
+                              플레이 LLM용 <code className="text-slate-500">location</code> 은 여기서 빼 두었습니다.
+                              이미 JSON에 있던 값은 저장 시 그대로 유지되고, 바꾸려면 「JSON」 탭에서 수정하세요.
+                            </p>
+                          </div>
+                          {row.portraitImageUrl ? (
+                            <div className="sm:col-span-2 flex items-center gap-2">
+                              <span className="text-xs text-slate-500">초상</span>
+                              <img
+                                src={row.portraitImageUrl}
+                                alt=""
+                                className="h-14 w-14 rounded-md border border-slate-700 object-cover"
+                              />
+                            </div>
+                          ) : null}
+                          <div className="sm:col-span-2 flex flex-wrap items-center justify-between gap-2">
+                            {!isCreate && worldId && token ? (
+                              <button
+                                type="button"
+                                disabled={npcPortraitBusyIndex !== null}
+                                onClick={() => void onGenerateNpcPortrait(i)}
+                                className="rounded-lg border border-cyan-800 bg-cyan-950/40 px-2 py-1 text-xs font-medium text-cyan-100 hover:bg-cyan-950/70 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {npcPortraitBusyIndex === i ? "초상 생성 중…" : "AI 초상"}
+                              </button>
+                            ) : (
+                              <span />
+                            )}
                             <button
                               type="button"
                               onClick={() => removeNpc(i)}
@@ -624,7 +960,7 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
                   <p className="mt-0.5 text-xs text-slate-500">
                     필수 키: id, name — 선택: description, world_setting, time,{" "}
                     <code className="text-slate-400">cover_image_url</code>(공개 상세 히어로, HTTPS), regions,
-                    facts …
+                    facts … — NPC 초상은 <code className="text-slate-400">npcs[].portrait_image_url</code>
                   </p>
                   <textarea
                     value={worldText}
@@ -637,7 +973,10 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
 
                 <div>
                   <label className="block text-sm font-medium text-slate-300">characters (JSON)</label>
-                  <p className="mt-0.5 text-xs text-slate-500">필수 키: npcs 배열</p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    필수 키: npcs 배열 — 초상 생성 문구는 <code className="text-slate-400">appearance_for_ai</code>(권장) 또는 기존
+                    personality 등. 초상 HTTPS URL 은 선택 필드 <code className="text-slate-400">portrait_image_url</code>
+                  </p>
                   <textarea
                     value={charsText}
                     onChange={(e) => setCharsText(e.target.value)}

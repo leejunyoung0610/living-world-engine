@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { OAuthCallbackPage } from "./pages/OAuthCallbackPage";
@@ -9,6 +9,15 @@ import { PlaySetupPage } from "./pages/PlaySetupPage";
 import { WorldBrowsePage } from "./pages/WorldBrowsePage";
 import { WorldEditorPage } from "./pages/WorldEditorPage";
 import { InstallToast } from "./pwa/InstallToast";
+
+function WorldEditorNewRoute() {
+  return <WorldEditorPage key="world-route-new" create />;
+}
+
+function WorldEditorEditRoute() {
+  const { worldId } = useParams<{ worldId: string }>();
+  return <WorldEditorPage key={`world-route-${worldId ?? ""}`} />;
+}
 
 export default function App() {
   return (
@@ -24,8 +33,8 @@ export default function App() {
         <Route path="/worlds" element={<Navigate to="/my" replace />} />
         <Route path="/play" element={<Navigate to="/my" replace />} />
         <Route path="/world/:worldId" element={<WorldBrowsePage />} />
-        <Route path="/worlds/new" element={<WorldEditorPage create />} />
-        <Route path="/worlds/:worldId" element={<WorldEditorPage />} />
+        <Route path="/worlds/new" element={<WorldEditorNewRoute />} />
+        <Route path="/worlds/:worldId" element={<WorldEditorEditRoute />} />
         <Route path="/play/setup/:worldId" element={<PlaySetupPage />} />
         <Route path="/play/:sessionId" element={<PlayPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

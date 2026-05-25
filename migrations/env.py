@@ -23,12 +23,17 @@ if str(ROOT) not in sys.path:
 
 from backend.src.db.base import Base  # noqa: E402
 from backend.src.db.models import (  # noqa: E402, F401
+    ImageGenCostDaily,
     InviteCode,
     PlatformCostDaily,
     PlaySession,
     User,
     UserDailyTurnUsage,
+    UserMonthlyAvatarQuota,
+    UserMonthlyCoverQuota,
     World,
+    WorldMonthlyAvatarQuota,
+    WorldMonthlyCoverQuota,
     WorldUserLike,
 )
 from backend.src.utils.config import get_settings  # noqa: E402

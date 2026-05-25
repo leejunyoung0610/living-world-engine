@@ -33,6 +33,7 @@ export type ExploreWorldSummary = {
   play_start_count: number;
   like_count: number;
   liked_by_me: boolean;
+  cover_image_url?: string;
   created_at: string;
   updated_at: string;
 };
@@ -120,6 +121,7 @@ export type PublicNpcBrief = {
   role: string;
   location: string;
   summary: string;
+  portrait_url: string;
 };
 
 export type PublicWorldDetail = {
@@ -147,6 +149,12 @@ export type WorldLikeState = {
   like_count: number;
 };
 
+export type GenerateCoverResponse = {
+  cover_image_url: string;
+  remaining_user_monthly: number | null;
+  remaining_world_monthly: number | null;
+};
+
 export async function fetchPublicWorld(token: string, id: string): Promise<PublicWorldDetail> {
   const res = await apiFetch(`/api/worlds/public/${id}`, { headers: authHeaders(token) });
   return readJson<PublicWorldDetail>(res);
@@ -158,6 +166,34 @@ export async function toggleWorldLike(token: string, id: string): Promise<WorldL
     headers: authHeaders(token),
   });
   return readJson<WorldLikeState>(res);
+}
+
+export async function generateWorldCover(token: string, id: string): Promise<GenerateCoverResponse> {
+  const res = await apiFetch(`/api/worlds/${id}/generate-cover`, {
+    method: "POST",
+    headers: authHeaders(token),
+  });
+  return readJson<GenerateCoverResponse>(res);
+}
+
+export type GenerateNpcPortraitResponse = {
+  npc_id: string;
+  portrait_image_url: string;
+  remaining_avatar_user_monthly: number | null;
+  remaining_avatar_world_monthly: number | null;
+};
+
+export async function generateNpcPortrait(
+  token: string,
+  worldId: string,
+  npcId: string,
+): Promise<GenerateNpcPortraitResponse> {
+  const enc = encodeURIComponent(npcId);
+  const res = await apiFetch(`/api/worlds/${worldId}/npcs/${enc}/generate-portrait`, {
+    method: "POST",
+    headers: authHeaders(token),
+  });
+  return readJson<GenerateNpcPortraitResponse>(res);
 }
 
 export async function getWorld(token: string, id: string): Promise<WorldDetail> {

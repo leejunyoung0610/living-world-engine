@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type JSX } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { fetchMe, SESSION_EXPIRED, type MeResponse } from "../api/auth";
 import { TOKEN_KEY } from "../api/client";
@@ -32,6 +32,12 @@ function persistSort(next: ExploreSort) {
   } catch {
     /* ignore */
   }
+}
+
+/** 탐색·공개 API와 동일: HTTPS 커버만 표시(XSS 완화). */
+function exploreCoverUrl(raw?: string): string | null {
+  const u = (raw ?? "").trim();
+  return u.startsWith("https://") ? u : null;
 }
 
 function SearchIcon({ className }: { className?: string }) {
@@ -182,55 +188,85 @@ export function HomePage() {
     }
   }
 
-  function Card({ w }: { w: ExploreWorldSummary }) {
-    return (
-      <li className="card">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <h3 className="font-medium text-white">
-              <Link to={`/world/${w.id}`} className="hover:text-indigo-300">
-                {w.name}
-              </Link>
-            </h3>
-            <p className="mt-1 text-xs text-slate-500">
-              by <span className="text-slate-400">{w.owner_username}</span>
-              {w.is_mine && (
-                <span className="ml-2 rounded bg-emerald-950/80 px-1.5 py-0.5 text-emerald-200">내 월드</span>
-              )}
-            </p>
-            <div className="mt-2 flex flex-wrap gap-1">
-              {(w.genres ?? []).map((g) => (
-                <span
-                  key={g}
-                  className="rounded-md border border-slate-700 bg-slate-950/80 px-1.5 py-0.5 text-[10px] text-slate-400"
-                >
-                  {genreLabel(g)}
-                </span>
-              ))}
-            </div>
-            <p className="mt-1 font-mono text-xs text-slate-600">slug: {w.world_id}</p>
+  function Card({ w }: { w: ExploreWorldSummary }): JSX.Element {
+    const [coverBroken, setCoverBroken] = useState(false);
+    const coverSrc = coverBroken ? null : exploreCoverUrl(w.cover_image_url);
+
+    let coverBlock: JSX.Element | null = null;
+    if (coverSrc) {
+      coverBlock = (
+        <div className="-mx-4 -mt-4 shrink-0 border-b border-slate-800 sm:-mx-5 sm:-mt-5">
+          <div className="aspect-[2/1] max-h-44 w-full overflow-hidden bg-slate-950 sm:aspect-[21/9]">
+            <img
+              src={coverSrc}
+              alt=""
+              className="h-full w-full object-cover object-center"
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              onError={() => setCoverBroken(true)}
+            />
           </div>
         </div>
-        <p className="mt-2 text-xs text-slate-600">
-          👍 {w.like_count ?? 0} · 플레이 시작 {w.play_start_count ?? 0}회 ·{" "}
-          {new Date(w.updated_at).toLocaleString()}
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => onPlay(w.id)}
-            className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500"
+      );
+    }
+
+    return (
+      <li className="card overflow-hidden p-0">
+        <div className="p-4 sm:p-5">
+          {coverBlock}
+          <div
+            className={
+              coverBlock
+                ? "mt-4 flex flex-wrap items-start justify-between gap-2 sm:mt-5"
+                : "flex flex-wrap items-start justify-between gap-2"
+            }
           >
-            플레이 / 이어하기
-          </button>
-          {w.is_mine && (
-            <Link
-              to={`/worlds/${w.id}`}
-              className="rounded-md border border-slate-600 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
+            <div className="min-w-0 flex-1">
+              <h3 className="font-medium text-white">
+                <Link to={`/world/${w.id}`} className="hover:text-indigo-300">
+                  {w.name}
+                </Link>
+              </h3>
+              <p className="mt-1 text-xs text-slate-500">
+                by <span className="text-slate-400">{w.owner_username}</span>
+                {w.is_mine && (
+                  <span className="ml-2 rounded bg-emerald-950/80 px-1.5 py-0.5 text-emerald-200">내 월드</span>
+                )}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {(w.genres ?? []).map((g) => (
+                  <span
+                    key={g}
+                    className="rounded-md border border-slate-700 bg-slate-950/80 px-1.5 py-0.5 text-[10px] text-slate-400"
+                  >
+                    {genreLabel(g)}
+                  </span>
+                ))}
+              </div>
+              <p className="mt-1 font-mono text-xs text-slate-600">slug: {w.world_id}</p>
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-slate-600">
+            👍 {w.like_count ?? 0} · 플레이 시작 {w.play_start_count ?? 0}회 ·{" "}
+            {new Date(w.updated_at).toLocaleString()}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => onPlay(w.id)}
+              className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500"
             >
-              편집
-            </Link>
-          )}
+              플레이 / 이어하기
+            </button>
+            {w.is_mine && (
+              <Link
+                to={`/worlds/${w.id}`}
+                className="rounded-md border border-slate-600 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
+              >
+                편집
+              </Link>
+            )}
+          </div>
         </div>
       </li>
     );

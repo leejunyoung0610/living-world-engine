@@ -6,7 +6,7 @@ from collections import Counter
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Dict, List
 import logging
 
 from ..utils.config import MEMORIES_JSON_PATH, get_settings

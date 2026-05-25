@@ -5,8 +5,9 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Literal
+from urllib.parse import unquote
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -15,7 +16,34 @@ from ...db.models import PlaySession, User, World, WorldUserLike
 from ...db.session import get_db
 from ...utils.config import get_settings
 from ...worlds.genre_catalog import GENRE_DEFINITIONS, normalize_genres
+from ...services.image_cover_quota import (
+    assert_cover_quota_allows,
+    persist_cover_generation,
+    remaining_cover_quota,
+)
+from ...services.image_avatar_quota import (
+    assert_npc_avatar_quota_allows,
+    persist_npc_avatar_generation,
+    remaining_npc_avatar_quota,
+)
+from ...services.image_gen_daily_budget import (
+    assert_image_gen_daily_budget_allows,
+    assert_npc_avatar_daily_budget_allows,
+    record_cover_generation_usage,
+    record_npc_avatar_generation_usage,
+)
+from ...services.image_generator import (
+    build_npc_avatar_prompt,
+    build_world_cover_prompt,
+    generate_npc_avatar_image_url,
+    generate_world_cover_image_url,
+)
+from ...services.r2_storage import (
+    mirror_generated_cover_to_permanent_url,
+    mirror_npc_avatar_to_permanent_url,
+)
 from ..deps import get_current_user
+from ..limiter import limiter
 
 router = APIRouter()
 
@@ -172,6 +200,8 @@ class ExploreWorldSummary(BaseModel):
     play_start_count: int = 0
     like_count: int = 0
     liked_by_me: bool = False
+    #: 홈 카드 히어로 — HTTPS 만 (_cover_image_url)
+    cover_image_url: str = ""
     created_at: datetime
     updated_at: datetime
 
@@ -183,6 +213,7 @@ class PublicNpcBrief(BaseModel):
     role: str = ""
     location: str = ""
     summary: str = ""
+    portrait_url: str = ""
 
 
 class PublicWorldDetail(BaseModel):
@@ -210,6 +241,19 @@ class PublicWorldDetail(BaseModel):
 class WorldLikeState(BaseModel):
     liked: bool
     like_count: int
+
+
+class GenerateCoverResponse(BaseModel):
+    cover_image_url: str
+    remaining_user_monthly: int | None = None
+    remaining_world_monthly: int | None = None
+
+
+class GenerateNpcPortraitResponse(BaseModel):
+    npc_id: str
+    portrait_image_url: str
+    remaining_avatar_user_monthly: int | None = None
+    remaining_avatar_world_monthly: int | None = None
 
 
 class ExploreWorldsPage(BaseModel):
@@ -267,6 +311,44 @@ def _cover_image_url(wd: dict[str, Any]) -> str:
     return ""
 
 
+def _npc_https_portrait_url(raw: dict[str, Any]) -> str:
+    for key in ("portrait_image_url", "portrait_url", "avatar_url"):
+        v = raw.get(key)
+        if not isinstance(v, str):
+            continue
+        u = v.strip()
+        if not u.startswith("https://") or len(u) > _MAX_COVER_URL_LEN:
+            continue
+        if "\n" in u or "\r" in u or " " in u:
+            continue
+        return u
+    return ""
+
+
+def _find_npc_row(chars: dict[str, Any], npc_id: str) -> dict[str, Any] | None:
+    npcs_raw = chars.get("npcs")
+    if not isinstance(npcs_raw, list):
+        return None
+    for raw in npcs_raw:
+        if not isinstance(raw, dict):
+            continue
+        nid = raw.get("id")
+        if isinstance(nid, str) and nid == npc_id:
+            return raw
+    return None
+
+
+def _safe_npc_key_segment(npc_id: str) -> str:
+    out = []
+    for c in npc_id.strip():
+        if c.isalnum() or c in "-_":
+            out.append(c)
+        else:
+            out.append("_")
+    s = "".join(out).strip("_")[:96]
+    return s or "npc"
+
+
 def _npc_count(chars: dict[str, Any]) -> int:
     npcs = chars.get("npcs")
     return len(npcs) if isinstance(npcs, list) else 0
@@ -312,6 +394,7 @@ def _public_npc_briefs(
                 role=role_s,
                 location=loc_s,
                 summary=summary,
+                portrait_url=_npc_https_portrait_url(raw),
             )
         )
     return out
@@ -418,7 +501,8 @@ def explore_worlds(
 
     out: list[ExploreWorldSummary] = []
     for w, owner_username in page:
-        slug = w.world_data.get("id", "")
+        wd = w.world_data if isinstance(w.world_data, dict) else {}
+        slug = wd.get("id", "")
         if not isinstance(slug, str):
             slug = str(slug)
         out.append(
@@ -432,6 +516,7 @@ def explore_worlds(
                 play_start_count=int(getattr(w, "play_start_count", 0) or 0),
                 like_count=int(getattr(w, "like_count", 0) or 0),
                 liked_by_me=w.id in liked_ids,
+                cover_image_url=_cover_image_url(wd),
                 created_at=w.created_at,
                 updated_at=w.updated_at,
             )
@@ -515,6 +600,139 @@ def toggle_world_like(
     db.commit()
     db.refresh(w)
     return WorldLikeState(liked=liked, like_count=int(w.like_count or 0))
+
+
+@limiter.limit("10/minute")
+@router.post("/{world_id}/generate-cover", response_model=GenerateCoverResponse)
+def generate_world_cover_ai(
+    request: Request,
+    world_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> GenerateCoverResponse:
+    """월드 소유자만 — Replicate 로 커버 생성 후 HTTPS URL 저장 (월별 쿼터)."""
+    settings = get_settings()
+    w = _get_owned_world(db, world_id, user.id)
+    if w is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="World not found")
+    if not (settings.replicate_api_token or "").strip():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="이미지 생성(Replicate)이 서버에서 설정되어 있지 않습니다.",
+        )
+    assert_cover_quota_allows(
+        db, user_id=user.id, world_id=world_id, settings=settings
+    )
+    assert_image_gen_daily_budget_allows(db, settings)
+    prompt = build_world_cover_prompt(w)
+    try:
+        replicate_url = generate_world_cover_image_url(prompt=prompt, settings=settings)
+        url = mirror_generated_cover_to_permanent_url(
+            replicate_url,
+            world_id=world_id,
+            settings=settings,
+        )
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e),
+        ) from e
+    persist_cover_generation(
+        db,
+        user_id=user.id,
+        world_id=world_id,
+        image_url=url,
+        world_row=w,
+        settings=settings,
+    )
+    record_cover_generation_usage(db, settings)
+    db.commit()
+    db.refresh(w)
+    u_rem, w_rem = remaining_cover_quota(
+        db, user_id=user.id, world_id=world_id, settings=settings
+    )
+    return GenerateCoverResponse(
+        cover_image_url=url,
+        remaining_user_monthly=u_rem,
+        remaining_world_monthly=w_rem,
+    )
+
+
+@limiter.limit("30/minute")
+@router.post(
+    "/{world_id}/npcs/{npc_id}/generate-portrait",
+    response_model=GenerateNpcPortraitResponse,
+)
+def generate_npc_portrait_ai(
+    request: Request,
+    world_id: uuid.UUID,
+    npc_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> GenerateNpcPortraitResponse:
+    """소유자 전용 — 특정 NPC ``id`` 문자열과 동일한 ``characters.npcs[].id`` 행에 초상 URL 저장."""
+    settings = get_settings()
+    w = _get_owned_world(db, world_id, user.id)
+    if w is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="World not found")
+    if not (settings.replicate_api_token or "").strip():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="이미지 생성(Replicate)이 서버에서 설정되어 있지 않습니다.",
+        )
+
+    nid = unquote(npc_id).strip()
+    if not nid:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="npc_id is empty",
+        )
+    chars = w.characters_data if isinstance(w.characters_data, dict) else {}
+    npc_row = _find_npc_row(chars, nid)
+    if npc_row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="NPC not found")
+
+    assert_npc_avatar_quota_allows(db, user_id=user.id, world_id=world_id, settings=settings)
+    assert_npc_avatar_daily_budget_allows(db, settings)
+
+    prompt = build_npc_avatar_prompt(w, npc_row)
+    try:
+        rep_url = generate_npc_avatar_image_url(prompt=prompt, settings=settings)
+        slug = _safe_npc_key_segment(nid)
+        url = mirror_npc_avatar_to_permanent_url(
+            rep_url,
+            world_id=world_id,
+            npc_key_slug=slug,
+            settings=settings,
+        )
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e),
+        ) from e
+
+    persist_npc_avatar_generation(
+        db,
+        user_id=user.id,
+        world_id=world_id,
+        image_url=url,
+        world_row=w,
+        npc_id=nid,
+        settings=settings,
+    )
+    record_npc_avatar_generation_usage(db, settings)
+    db.commit()
+    db.refresh(w)
+
+    u_rem, w_rem = remaining_npc_avatar_quota(
+        db, user_id=user.id, world_id=world_id, settings=settings
+    )
+    return GenerateNpcPortraitResponse(
+        npc_id=nid,
+        portrait_image_url=url,
+        remaining_avatar_user_monthly=u_rem,
+        remaining_avatar_world_monthly=w_rem,
+    )
 
 
 @router.post("/", response_model=WorldDetail, status_code=status.HTTP_201_CREATED)

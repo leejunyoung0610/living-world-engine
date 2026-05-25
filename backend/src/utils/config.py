@@ -87,6 +87,36 @@ class Settings(BaseSettings):
     sentry_traces_sample_rate: float = 0.0
     structured_logging: bool = False
 
+    # 월드 커버 이미지 (Replicate). 토큰 비우면 생성 API 가 503.
+    replicate_api_token: str = ""
+    image_model_cover: str = "black-forest-labs/flux-1.1-pro"
+    image_cover_aspect_ratio: str = "16:9"
+    image_cover_output_quality: int = 90
+    #: 0 이면 해당 축 쿼터 미적용(무제한)
+    image_gen_per_user_monthly: int = 20
+    image_gen_per_world_monthly: int = 4
+    #: UTC 하루 예상 비용 한도 — None 또는 0 이하면 일 예산 차단 없음·알림 임계 미사용
+    image_gen_daily_budget_usd: float | None = None
+    #: 커버 1건당 일 집계에 가산하는 추정 USD (Replicate 등 대략 단가)
+    image_gen_cover_cost_estimate_usd: float = 0.04
+    #: Phase 2 — NPC 초상 (별도 월별 쿼터·별도 단가 추정치)
+    image_model_npc_avatar: str = "black-forest-labs/flux-schnell"
+    image_npc_avatar_pixels: int = 1024  # SDXL 호환 폭·높이
+    #: Flux류에서 지원 시만 전달됨 (스키마에 따라 Replicate 라이브러리가 무시할 수 있음)
+    image_npc_avatar_output_quality: int = 85
+    #: 0 이면 무제한
+    image_gen_npc_per_user_monthly: int = 60
+    image_gen_npc_per_world_monthly: int = 30
+    image_npc_avatar_cost_estimate_usd: float = 0.008
+
+    # Cloudflare R2 — 다섯 값이 모두 있을 때만 커버 미러 활성화 (비우면 Replicate CDN URL 유지).
+    r2_account_id: str = ""
+    r2_access_key: str = ""
+    r2_secret_key: str = ""
+    r2_bucket: str = ""
+    #: 커스텀 도메인 또는 R2 공개 버킷 URL, 슬래시 없이 예: ``https://img.example.com``
+    r2_public_url: str = ""
+
     # 비용 알림·긴급 셧다운 (Epic E) — 플랫폼 턴 비용은 `UsageTracker` 단가로 일별 누적.
     emergency_shutdown: bool = False
     platform_daily_cost_alert_threshold_usd: float | None = None  # 예: 50.0 — None 이면 알림 없음

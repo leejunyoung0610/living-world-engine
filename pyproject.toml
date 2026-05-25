@@ -22,6 +22,8 @@ alembic = "^1.18.4"
 psycopg2-binary = "^2.9.11"
 slowapi = "^0.1.9"
 sentry-sdk = {extras = ["fastapi"], version = "^2.58.0"}
+replicate = "^1.0.4"
+boto3 = "^1.43.14"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"

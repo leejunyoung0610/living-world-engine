@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,7 +13,16 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.src.db.base import Base
-from backend.src.db.models import User, World, WorldUserLike  # noqa: F401
+from backend.src.db.models import (  # noqa: F401
+    ImageGenCostDaily,
+    User,
+    UserMonthlyAvatarQuota,
+    UserMonthlyCoverQuota,
+    World,
+    WorldMonthlyAvatarQuota,
+    WorldMonthlyCoverQuota,
+    WorldUserLike,
+)
 from backend.src.db.session import get_db
 from backend.src.main import create_app
 
@@ -218,7 +228,11 @@ def test_worlds_explore_public_only(client: TestClient) -> None:
         headers=h_a,
         json={
             "name": "공개",
-            "world": {**MIN_WORLD, "id": "pub_w"},
+            "world": {
+                **MIN_WORLD,
+                "id": "pub_w",
+                "cover_image_url": "https://cdn.example.com/covers/pub.jpg",
+            },
             "characters": MIN_CHARS,
             "visibility": "public",
             "genres": MIN_GENRES,
@@ -236,6 +250,9 @@ def test_worlds_explore_public_only(client: TestClient) -> None:
     assert data["items"][0]["is_mine"] is False
     assert data["items"][0]["like_count"] == 0
     assert data["items"][0]["liked_by_me"] is False
+    assert (
+        data["items"][0].get("cover_image_url") == "https://cdn.example.com/covers/pub.jpg"
+    )
 
     r = client.get("/api/worlds/explore", headers=h_a)
     assert r.json()["items"][0]["is_mine"] is True
@@ -470,3 +487,319 @@ def test_public_world_cover_image_https_only(client: TestClient) -> None:
     r2 = client.get(f"/api/worlds/public/{wid}", headers=h)
     assert r2.status_code == 200
     assert r2.json()["cover_image_url"] == ""
+
+
+def test_public_world_npc_portrait_https_only(client: TestClient) -> None:
+    t = _signup_login(client, "npchttps@example.com")
+    h = {"Authorization": f"Bearer {t}"}
+    r = client.post(
+        "/api/worlds/",
+        headers=h,
+        json={
+            "name": "NPCport",
+            "world": {**MIN_WORLD, "id": "npc_port_pub"},
+            "characters": {
+                "npcs": [
+                    {
+                        "id": "a1",
+                        "name": "A",
+                        "role": "r",
+                        "portrait_image_url": "http://bad.example/p.png",
+                    },
+                    {
+                        "id": "a2",
+                        "name": "B",
+                        "role": "r",
+                        "portrait_image_url": "https://ok.example/k.webp",
+                    },
+                ]
+            },
+            "visibility": "public",
+            "genres": MIN_GENRES,
+        },
+    )
+    assert r.status_code == 201, r.text
+    wid = r.json()["id"]
+    d = client.get(f"/api/worlds/public/{wid}", headers=h).json()
+    urls = {(n["name"], n.get("portrait_url", "")) for n in d["npcs"]}
+    assert ("A", "") in urls
+    assert ("B", "https://ok.example/k.webp") in urls
+
+
+def test_generate_cover_without_replicate_returns_503(
+    monkeypatch: pytest.MonkeyPatch, client: TestClient
+) -> None:
+    # .env 에 토큰이 있어도 OS 빈 값이 우선(503 경로 검증 가능).
+    monkeypatch.setenv("REPLICATE_API_TOKEN", "")
+    token = _signup_login(client, "nogpi@example.com")
+    h = {"Authorization": f"Bearer {token}"}
+    r = client.post(
+        "/api/worlds/",
+        headers=h,
+        json={
+            "name": "G",
+            "world": {**MIN_WORLD, "id": "nogpi_w"},
+            "characters": MIN_CHARS,
+            "genres": MIN_GENRES,
+        },
+    )
+    assert r.status_code == 201, r.text
+    wid = r.json()["id"]
+    r2 = client.post(f"/api/worlds/{wid}/generate-cover", headers=h)
+    assert r2.status_code == 503
+
+
+def test_generate_cover_persists_url_and_quotas(client_db, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("REPLICATE_API_TOKEN", "test-token")
+    client, _SessionLocal = client_db
+    token = _signup_login(client, "gpi_ok@example.com")
+    h = {"Authorization": f"Bearer {token}"}
+    r = client.post(
+        "/api/worlds/",
+        headers=h,
+        json={
+            "name": "GPI",
+            "world": {
+                **MIN_WORLD,
+                "id": "gpi_slug",
+                "description": "A misty harbor.",
+                "world_setting": "Low fantasy docks.",
+            },
+            "characters": MIN_CHARS,
+            "genres": MIN_GENRES,
+        },
+    )
+    assert r.status_code == 201, r.text
+    wid = r.json()["id"]
+
+    fake_url = "https://replicate.cdn.example/out/generated.webp"
+    with patch(
+        "backend.src.api.routes.worlds.generate_world_cover_image_url",
+        return_value=fake_url,
+    ):
+        r2 = client.post(f"/api/worlds/{wid}/generate-cover", headers=h)
+
+    assert r2.status_code == 200, r2.text
+    body = r2.json()
+    assert body["cover_image_url"] == fake_url
+    assert body.get("remaining_user_monthly") is not None
+
+    r3 = client.get(f"/api/worlds/{wid}", headers=h)
+    assert r3.status_code == 200
+    assert r3.json()["world"].get("cover_image_url") == fake_url
+
+
+def test_generate_cover_world_quota_429(client_db, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("REPLICATE_API_TOKEN", "test-token")
+    monkeypatch.setenv("IMAGE_GEN_PER_WORLD_MONTHLY", "1")
+    client, _SessionLocal = client_db
+    token = _signup_login(client, "gq@example.com")
+    h = {"Authorization": f"Bearer {token}"}
+    r = client.post(
+        "/api/worlds/",
+        headers=h,
+        json={
+            "name": "Q",
+            "world": {**MIN_WORLD, "id": "q_slug"},
+            "characters": MIN_CHARS,
+            "genres": MIN_GENRES,
+        },
+    )
+    assert r.status_code == 201, r.text
+    wid = r.json()["id"]
+    fake_url = "https://replicate.cdn.example/a.webp"
+    with patch(
+        "backend.src.api.routes.worlds.generate_world_cover_image_url",
+        return_value=fake_url,
+    ):
+        assert client.post(f"/api/worlds/{wid}/generate-cover", headers=h).status_code == 200
+        r429 = client.post(f"/api/worlds/{wid}/generate-cover", headers=h)
+    assert r429.status_code == 429
+
+
+def test_generate_cover_requires_owner(client_db, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("REPLICATE_API_TOKEN", "test-token")
+    client, _ = client_db
+    t_owner = _signup_login(client, "own_cov@example.com")
+    t_other = _signup_login(client, "oth_cov@example.com")
+    h_o = {"Authorization": f"Bearer {t_owner}"}
+    r = client.post(
+        "/api/worlds/",
+        headers=h_o,
+        json={
+            "name": "O",
+            "world": {**MIN_WORLD, "id": "own_cov"},
+            "characters": MIN_CHARS,
+            "genres": MIN_GENRES,
+        },
+    )
+    assert r.status_code == 201, r.text
+    wid = r.json()["id"]
+    fake_url = "https://replicate.cdn.example/b.webp"
+    with patch(
+        "backend.src.api.routes.worlds.generate_world_cover_image_url",
+        return_value=fake_url,
+    ):
+        r404 = client.post(
+            f"/api/worlds/{wid}/generate-cover",
+            headers={"Authorization": f"Bearer {t_other}"},
+        )
+    assert r404.status_code == 404
+
+
+def test_generate_cover_uses_r2_permanent_url_when_mirror_patched(
+    client_db,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """R2 가 켜진 환경에서 미러 함수가 CDN URL 로 치환하는 경로."""
+    monkeypatch.setenv("REPLICATE_API_TOKEN", "test-token")
+    monkeypatch.setenv("R2_ACCOUNT_ID", "acc")
+    monkeypatch.setenv("R2_ACCESS_KEY", "ak")
+    monkeypatch.setenv("R2_SECRET_KEY", "sk")
+    monkeypatch.setenv("R2_BUCKET", "b")
+    monkeypatch.setenv("R2_PUBLIC_URL", "https://img.example.test")
+    client, _ = client_db
+    token = _signup_login(client, "r2mir@example.com")
+    h = {"Authorization": f"Bearer {token}"}
+    r = client.post(
+        "/api/worlds/",
+        headers=h,
+        json={
+            "name": "R2W",
+            "world": {**MIN_WORLD, "id": "r2_mirror_slug"},
+            "characters": MIN_CHARS,
+            "genres": MIN_GENRES,
+        },
+    )
+    assert r.status_code == 201, r.text
+    wid = r.json()["id"]
+    rep_url = "https://replicate.delivery/tmp.webp"
+    permanent = "https://img.example.test/covers/abc.webp"
+
+    def fake_mirror(u: str, **kwargs: object) -> str:
+        assert u == rep_url
+        return permanent
+
+    with (
+        patch(
+            "backend.src.api.routes.worlds.generate_world_cover_image_url",
+            return_value=rep_url,
+        ),
+        patch(
+            "backend.src.api.routes.worlds.mirror_generated_cover_to_permanent_url",
+            side_effect=fake_mirror,
+        ),
+    ):
+        r2 = client.post(f"/api/worlds/{wid}/generate-cover", headers=h)
+
+    assert r2.status_code == 200
+    assert r2.json()["cover_image_url"] == permanent
+    r3 = client.get(f"/api/worlds/{wid}", headers=h)
+    assert r3.json()["world"].get("cover_image_url") == permanent
+
+
+def test_generate_cover_daily_budget_blocks_second_generation(
+    client_db,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("REPLICATE_API_TOKEN", "test-token")
+    monkeypatch.setenv("IMAGE_GEN_DAILY_BUDGET_USD", "0.04")
+    monkeypatch.setenv("IMAGE_GEN_COVER_COST_ESTIMATE_USD", "0.04")
+    client, _ = client_db
+    token = _signup_login(client, "daybud@example.com")
+    h = {"Authorization": f"Bearer {token}"}
+    r = client.post(
+        "/api/worlds/",
+        headers=h,
+        json={
+            "name": "Bud",
+            "world": {**MIN_WORLD, "id": "daybud_slug"},
+            "characters": MIN_CHARS,
+            "genres": MIN_GENRES,
+        },
+    )
+    assert r.status_code == 201, r.text
+    wid = r.json()["id"]
+    fake_url = "https://replicate.cdn.example/one.webp"
+    with patch(
+        "backend.src.api.routes.worlds.generate_world_cover_image_url",
+        return_value=fake_url,
+    ):
+        assert client.post(f"/api/worlds/{wid}/generate-cover", headers=h).status_code == 200
+        r429 = client.post(f"/api/worlds/{wid}/generate-cover", headers=h)
+    assert r429.status_code == 429
+
+
+def test_generate_npc_portrait_persists_url(client_db, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("REPLICATE_API_TOKEN", "x")
+    client, _ = client_db
+    token = _signup_login(client, "npcport@example.com")
+    h = {"Authorization": f"Bearer {token}"}
+    r = client.post(
+        "/api/worlds/",
+        headers=h,
+        json={
+            "name": "NP",
+            "world": {
+                **MIN_WORLD,
+                "id": "npc_slug",
+                "description": "Campus life.",
+            },
+            "characters": {
+                "npcs": [
+                    {"id": "kim", "name": "김씨", "role": "조교", "location": "LAB"},
+                ]
+            },
+            "genres": MIN_GENRES,
+        },
+    )
+    assert r.status_code == 201, r.text
+    wid = r.json()["id"]
+    fake = "https://replicate.cdn.example/portrait.webp"
+
+    def fake_npc_prompt(w: object, npc: dict[str, object]) -> str:
+        assert npc["id"] == "kim"
+        return "p"
+
+    with (
+        patch(
+            "backend.src.api.routes.worlds.generate_npc_avatar_image_url",
+            return_value=fake,
+        ),
+        patch(
+            "backend.src.api.routes.worlds.build_npc_avatar_prompt",
+            side_effect=fake_npc_prompt,
+        ),
+    ):
+        res = client.post(f"/api/worlds/{wid}/npcs/kim/generate-portrait", headers=h)
+
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["portrait_image_url"] == fake
+    assert body["npc_id"] == "kim"
+
+    r2 = client.get(f"/api/worlds/{wid}", headers=h)
+    chars = r2.json()["characters"]
+    npc0 = chars["npcs"][0]
+    assert npc0.get("portrait_image_url") == fake
+
+
+def test_generate_npc_portrait_404_unknown_id(client_db, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("REPLICATE_API_TOKEN", "x")
+    client, _ = client_db
+    token = _signup_login(client, "np404@example.com")
+    h = {"Authorization": f"Bearer {token}"}
+    r = client.post(
+        "/api/worlds/",
+        headers=h,
+        json={
+            "name": "X",
+            "world": {**MIN_WORLD, "id": "np404_slug"},
+            "characters": MIN_CHARS,
+            "genres": MIN_GENRES,
+        },
+    )
+    assert r.status_code == 201, r.text
+    wid = r.json()["id"]
+    r2 = client.post(f"/api/worlds/{wid}/npcs/ghost/generate-portrait", headers=h)
+    assert r2.status_code == 404

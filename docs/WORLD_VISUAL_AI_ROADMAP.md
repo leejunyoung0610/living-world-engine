@@ -1,16 +1,35 @@
 # 월드·NPC 비주얼 AI 로드맵
 
-> 상태 스냅샷: `cover_image_url`, URL 직접 입력, 공개 상세 히어로 표시까지 **반영 완료** (`world_data.cover_image_url`, HTTPS만).
+> 상태 스냅샷: 커버·NPC 초상까지 **자동 생성 루트 반영**. `characters.npcs[].portrait_image_url` 저장 · 공개 API `portrait_url` · 일 예산 공유 풀(`IMAGE_NPC_AVATAR_COST_ESTIMATE_USD`) · R2 미러 프리픽스 `avatars/…`.
+
+---
+
+## 이번 주 계획 (요약)
+
+| 구간 | 내용 |
+|------|------|
+| Day 1–2 | R2 통합 ✅ |
+| Day 3 | UTC 일 예산 ✅ |
+| Day 4–6 | NPC 초상 생성 API·프론트·쿼터·테스트 **반영** |
+| Day 7 | 통합 테스트·베타 안내 |
+
+커버 일 예산 코드: `backend/src/services/image_gen_daily_budget.py`.
+
+### R2 환경 변수
+
+`R2_ACCOUNT_ID`, `R2_ACCESS_KEY`, `R2_SECRET_KEY`, `R2_BUCKET`, `R2_PUBLIC_URL` 이 **모두** 채워져야 미러가 동작합니다. 하나라도 비면 Replicate 가 준 URL만 DB에 저장됩니다. 구현: `backend/src/services/r2_storage.py`.
 
 ---
 
 ## ✅ 이미 있음
 
 - `cover_image_url` 필드 (`world_setting` 등과 함께 `world` JSON)
+- 공개 상세 히어로 이미지 (`/world/browse` 상세 페이지)
 - 에디터에서 URL 직접 입력 (간편 모드 「커버 이미지 URL」)
-- 공개 상세 페이지 히어로 이미지 표시 (`/world/:id`)
+- 공개 목록 세부의 NPC 카드 초상 미리보기 (`portrait_url`)
+- 간편 월드 편집기 NPC 행별 「AI 초상」
+- **홈 탐색 카드 커버** — `GET /api/worlds/explore` 의 `cover_image_url` → `HomePage` 썸네일 (HTTPS)
 
----
 
 ## ⏳ 다음 단계 (권장 순서)
 
@@ -34,21 +53,15 @@
 
 ---
 
-### Phase 2: NPC 아바타 자동 생성 (중요)
+### Phase 2: NPC 아바타 자동 생성 — **본 저장소 현재 상태**
 
-| 항목 | 방향 |
-|------|------|
-| 목표 | NPC마다 초상 이미지 — **비주얼 노벨 / 캐릭터 카드** 느낌 |
-| 데이터 | `characters.npcs[].portrait_image_url`(HTTPS) 같은 필드를 단계적으로 도입하거나, `npc id → url` 매핑 JSON |
-| 노출 | 공개 상세 `npcs`에 `avatar_url`(또는 동일 패턴) 추가, 카드 레이아웃 |
-| 쿼터 | Phase 1 쿼터와 **공유 풀** 또는 **별도 상한** — 정책 결정 |
-| 예상 공수 | 2–3일 |
-
-**구현 훅:**
-
-- `_public_npc_briefs` / `PublicNpcBrief` — 선택 필드 `portrait_url` 추가
-- `WorldBrowsePage` — NPC 카드 좌측 또는 상단에 썸네일
-- 일괄 생성 vs NPC별 버튼 — UX 결정 후 API 설계
+| API | ``POST /api/worlds/{world_id}/npcs/{npc_id}/generate-portrait`` (JWT 소유자) |
+| 저장 | ``characters_data.npcs[].portrait_image_url`` (HTTPS) |
+| 초상 프롬프트 텍스트 | ``npcs[].appearance_for_ai`` 우선(간편 폼「캐릭터 특징」), 없으면 ``personality`` → ``background`` → ``appearance`` → ``description`` 중 첫 문자열. 초상 생성에는 ``location`` 미사용(LLM용 장소 필터는 별도로 JSON에 둘 수 있음). |
+| 노출 | ``PublicNpcBrief.portrait_url`` — `/api/worlds/public/{id}` |
+| 모델 | ``IMAGE_MODEL_NPC_AVATAR`` (기본 `flux-schnell`, 이름에 ``sdxl`` 포함 시 폭·높이 모드) |
+| 쿼터 | 테이블 ``user_monthly_avatar_quotas`` / ``world_monthly_avatar_quotas`` |
+| 일 비용 | ``IMAGE_NPC_AVATAR_COST_ESTIMATE_USD`` — ``image_gen_daily_budget_usd`` 과 **합산** 차단 |
 
 ---
 
@@ -61,4 +74,4 @@
 
 ---
 
-문서 업데이트 시기: 기능 착수·완료에 맞춰 본 파일과 `DEVELOPMENT.md` 교차 반영을 권장합니다.
+문서 업데이트 시기: 기능 착수·완료에 맞춰 본 파일과 `docs/2026-05-25_visual_ai_explore_frontend.md`(날짜별 요약) 교차 반영을 권장합니다.

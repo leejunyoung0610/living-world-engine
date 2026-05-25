@@ -206,16 +206,29 @@ export function WorldBrowsePage() {
                       key={`${n.name}-${i}`}
                       className="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-3"
                     >
-                      <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <span className="font-medium text-slate-100">{n.name}</span>
-                        {n.location ? (
-                          <span className="text-xs text-slate-500">{n.location}</span>
+                      <div className="flex gap-3">
+                        {n.portrait_url ? (
+                          <img
+                            src={n.portrait_url}
+                            alt=""
+                            className="mt-1 h-16 w-16 shrink-0 rounded-md border border-slate-700 object-cover"
+                          />
                         ) : null}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-baseline justify-between gap-2">
+                            <span className="font-medium text-slate-100">{n.name}</span>
+                            {n.location ? (
+                              <span className="text-xs text-slate-500">{n.location}</span>
+                            ) : null}
+                          </div>
+                          {n.role ? <p className="mt-1 text-xs text-slate-400">{n.role}</p> : null}
+                          {n.summary ? (
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-500">
+                              {n.summary}
+                            </p>
+                          ) : null}
+                        </div>
                       </div>
-                      {n.role ? <p className="mt-1 text-xs text-slate-400">{n.role}</p> : null}
-                      {n.summary ? (
-                        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-500">{n.summary}</p>
-                      ) : null}
                     </li>
                   ))}
                 </ul>

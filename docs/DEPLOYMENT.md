@@ -77,6 +77,7 @@ Docker로 띄울 때는 `docker-compose.yml`의 로컬 DB URL을 **배포 환경
   - `KAKAO_CLIENT_SECRET` — 「보안」에서 발급. 「사용 안 함」 상태면 비워둔다(콘솔과 일치 필수).
   - `KAKAO_REDIRECT_URI` — **비워두면** 요청 호스트(예: `localhost:8080`, `172.30.x.y:8080`, `https://your-app.example`) 기준으로 **자동 도출**된다. 카카오 콘솔에 사용할 모든 호스트의 Redirect URI 를 등록해 두면 한 빌드로 모두 사용 가능. 특정 값으로 고정하려면 콘솔 등록값과 **글자 단위로 동일**하게 적는다.
   - `KAKAO_POST_LOGIN_REDIRECT` — 콜백 후 토큰을 들고 돌아올 프론트 URL. 비우면 호스트 기준 `/oauth/callback` 사용.
+- **로컬 Vite (`npm run dev`, 포트 `:5173`):** `frontend/vite.config.ts` 의 `/api` 프록시는 **`changeOrigin: false`** 를 쓴다. `true` 이면 `Host`가 `127.0.0.1:8000`으로 바뀌어 카카오 콜백 후 폴백 URL이 **`http://127.0.0.1:8000/oauth/callback`** 이 되고, 그 경로는 FastAPI가 아니라 SPA(Vite)에만 있어 **404로 ‘로그인 실패’**처럼 보인다. 콘솔에는 `http://localhost:5173/api/auth/kakao/callback` 과 실제 접속 호스트와 **글자 단위로 같은** 값을 등록한다(`localhost` vs `127.0.0.1`은 서로 다른 URI).
 - **리버스 프록시(Nginx 등) 사용 시 주의:** 백엔드가 외부에서 본 호스트(포트 포함)를 알 수 있도록 `proxy_set_header Host $http_host;`, `X-Forwarded-Host`, `X-Forwarded-Port`, `X-Forwarded-Proto` 를 함께 넘겨야 한다. uvicorn 은 `--proxy-headers --forwarded-allow-ips=*` 로 신뢰. 본 저장소의 `frontend/nginx.conf`·`docker/Dockerfile.api` 가 기본 적용되어 있다.
 - **카카오 콘솔 체크리스트:**
   - 「제품 설정 → 카카오 로그인」 활성, 「Redirect URI」 등록.

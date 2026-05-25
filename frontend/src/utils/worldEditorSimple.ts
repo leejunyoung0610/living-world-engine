@@ -4,7 +4,12 @@ export type SimpleNpcRow = {
   id: string;
   name: string;
   role: string;
-  location: string;
+  /** 플레이·프롬프트용 장소(LLM이 NPC 필터링에 사용). JSON에만 두거나 과거 데이터 유지 시 자동 로드됨. */
+  location?: string;
+  /** 초상 AI(Replicate) 프롬프트용 외모·무드·복장 등 — 저장 시 appearance_for_ai */
+  appearanceForAi: string;
+  /** 초상 미리보기용 — 저장 시 npc.portrait_image_url 로 직렬화 */
+  portraitImageUrl?: string;
 };
 
 export type SimpleWorldFormState = {
@@ -50,12 +55,24 @@ export function formToWorldPayload(s: SimpleWorldFormState): {
       row.id.trim() ||
       slugifyWorldId(row.name.replace(/\s+/g, "_")) ||
       `npc_${i + 1}`;
-    return {
+    const npc: Record<string, unknown> = {
       id,
       name: row.name.trim() || `이웃 ${i + 1}`,
       role: row.role.trim() || "등장인물",
-      location: row.location.trim() || "Unknown",
     };
+    const a = typeof row.appearanceForAi === "string" ? row.appearanceForAi.trim() : "";
+    if (a) {
+      npc.appearance_for_ai = a;
+    }
+    const loc = typeof row.location === "string" ? row.location.trim() : "";
+    if (loc) {
+      npc.location = loc;
+    }
+    const p = typeof row.portraitImageUrl === "string" ? row.portraitImageUrl.trim() : "";
+    if (p) {
+      npc.portrait_image_url = p;
+    }
+    return npc;
   });
 
   const wid = s.worldSlug.trim() || slugifyWorldId(s.worldStoryName);
@@ -94,14 +111,25 @@ export function tryImportSimpleFromJson(
 
   const npcs: SimpleNpcRow[] = rawNpcs.map((n, i) => {
     if (!n || typeof n !== "object" || Array.isArray(n)) {
-      return { id: `npc_${i + 1}`, name: "", role: "", location: "" };
+      return { id: `npc_${i + 1}`, name: "", role: "", appearanceForAi: "" };
     }
     const o = n as Record<string, unknown>;
+    const fromKey =
+      typeof o.appearance_for_ai === "string"
+        ? o.appearance_for_ai
+        : typeof o.personality === "string"
+          ? o.personality
+          : "";
     return {
       id: typeof o.id === "string" ? o.id : `npc_${i + 1}`,
       name: typeof o.name === "string" ? o.name : "",
       role: typeof o.role === "string" ? o.role : "",
-      location: typeof o.location === "string" ? o.location : "",
+      ...(typeof o.location === "string" && o.location.trim()
+        ? { location: o.location.trim() }
+        : {}),
+      appearanceForAi: fromKey.trim(),
+      portraitImageUrl:
+        typeof o.portrait_image_url === "string" ? o.portrait_image_url : undefined,
     };
   });
 
@@ -143,13 +171,13 @@ export function campusSampleForm(): SimpleWorldFormState {
         id: "kim_sunbae",
         name: "김선배",
         role: "동아리 선배",
-        location: "학생회관",
+        appearanceForAi: "마른 편 체격, 검은 미디엄 헤어, 후드티, 펜슬 허깅 카고. 친근한 웃음·말 많은 타입.",
       },
       {
         id: "lee_peer",
         name: "이동기",
         role: "같은 과 동기",
-        location: "중앙도서관",
+        appearanceForAi: "안경 착용 반삭, 카키 자켓, 노트와 태블릿을 자주 들고 다님. 진지하지만 속은 여림.",
       },
     ],
   };

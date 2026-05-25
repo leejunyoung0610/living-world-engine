@@ -91,7 +91,12 @@ def pytest_configure(config):
 
 @pytest.fixture(autouse=True)
 def _disable_rate_limits_for_unit_tests(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch):
-    """Epic F slowapi — 기본적으로 환경으로 끔 (`create_app` 이 설정을 반영). `@pytest.mark.rate_limit` 이면 유지."""
+    """Epic F slowapi — 기본적으로 환경으로 끔 (`create_app` 이 설정을 반영). `@pytest.mark.rate_limit` 이면 유지.
+
+    로컬 `.env`에 ``REQUIRE_INVITE_CODE_FOR_SIGNUP=true``가 있어도 유닛에서 빈 초대로 가입 가능하도록 끔
+    (초대 필수 자체를 검증하는 테스트는 같은 monkeypatch로 다시 켠다).
+    """
+    monkeypatch.setenv("REQUIRE_INVITE_CODE_FOR_SIGNUP", "false")
     if request.node.get_closest_marker("rate_limit"):
         yield
     else:

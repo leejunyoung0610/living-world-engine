@@ -54,13 +54,15 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      // changeOrigin: true면 Host가 127.0.0.1:8000으로 바뀌어, Kakao 콜백 후
+      // KAKAO_POST_LOGIN_REDIRECT 폴백이 백엔드 URL이 되어 /oauth/callback(SPA 전용)이 404가 된다.
       "/api": {
         target: "http://127.0.0.1:8000",
-        changeOrigin: true,
+        changeOrigin: false,
       },
       "/health": {
         target: "http://127.0.0.1:8000",
-        changeOrigin: true,
+        changeOrigin: false,
       },
     },
   },
