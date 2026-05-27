@@ -30,7 +30,7 @@
 | **브리프 API** | `GET /api/play/world/{id}/brief` — 입장 화면용 (목록명·스토리 제목·`description`·`world_setting`·NPC 목록·옛 `suggested_player` 보조). |
 | **엔진 (`engine/state.py`)** | `load_from_dicts`는 `npcs`만 필수. `player` 없으면 임시 플레이어로 채움(템플릿 로딩 호환). |
 | **프론트** | `/play/setup/:worldId` 신설 — 브리프 조회 → 이어하기 자동 시도 → 캐릭터 폼(`name·class·stats`) → 입장. `?forceNew=1`이면 새 캐릭터로 시작. 탐색·마이페이지의 "플레이"는 모두 이 페이지로 라우팅. |
-| **월드 에디터** | 플레이어/스텟 입력 제거, NPC 중심. JSON 모드 도움말도 `npcs` 필수로 정리. |
+| **월드 에디터** | 플레이어/스텟 입력 제거, NPC 중심. JSON 모드 도움말도 `npcs` 필수로 정리. **저작 전략 정본:** [`NPC_CHARACTER_AUTHORING_STRATEGY.md`](NPC_CHARACTER_AUTHORING_STRATEGY.md) (폼 강화·AI 정리·Canonical NPC). |
 
 ### 세계관 설정 (`world_setting`)
 

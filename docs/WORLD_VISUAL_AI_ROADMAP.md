@@ -19,6 +19,10 @@
 
 `R2_ACCOUNT_ID`, `R2_ACCESS_KEY`, `R2_SECRET_KEY`, `R2_BUCKET`, `R2_PUBLIC_URL` 이 **모두** 채워져야 미러가 동작합니다. 하나라도 비면 Replicate 가 준 URL만 DB에 저장됩니다. 구현: `backend/src/services/r2_storage.py`.
 
+**중요:** Replicate 가 주는 URL은 **임시(만료)** 일 수 있습니다. 오래 쓰려면 R2(또는 자체 스토리지)를 켜서 **영구 공개 URL**로 미러하는 것이 안전합니다.
+
+**PUT `/api/worlds/{id}`** 는 클라이언트가 `world`/`characters` JSON 전체를 보내므로, 과거에는 `cover_image_url` 키가 빠지면 DB에서도 사라지는 경우가 있었습니다. 이제 **키가 빠진 경우**에는 기존 커버·히어로·썸네일 URL과 NPC `portrait_image_url`을 유지하고, **`cover_image_url`: `""`처럼 명시한 경우에만** 삭제합니다.
+
 ---
 
 ## ✅ 이미 있음
@@ -75,3 +79,5 @@
 ---
 
 문서 업데이트 시기: 기능 착수·완료에 맞춰 본 파일과 `docs/2026-05-25_visual_ai_explore_frontend.md`(날짜별 요약) 교차 반영을 권장합니다.
+
+**NPC 저작 (폼·스키마·LLM 필드):** [`docs/NPC_CHARACTER_AUTHORING_STRATEGY.md`](NPC_CHARACTER_AUTHORING_STRATEGY.md) — `appearance_for_ai`는 비주얼 계층, `major`·`personality`·`background`는 대화 계층(Phase A~B).

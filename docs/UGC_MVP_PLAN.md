@@ -46,7 +46,7 @@
 | 회원가입/로그인 | JWT | OAuth 등 |
 | 초대 | 필수 코드 | 자동화·초대 링크 |
 | BYOK | 필수 | 유지 |
-| 월드/캐릭터 | **JSON 폼** + 템플릿 | 비주얼 빌더 |
+| 월드/캐릭터 | **JSON 폼** + 템플릿 · **3-Way 저작 전략** [`NPC_CHARACTER_AUTHORING_STRATEGY.md`](NPC_CHARACTER_AUTHORING_STRATEGY.md) | 비주얼 빌더 |
 | 프롬프트 | 템플릿 자동 생성 | AI 보조 등 |
 | 공유 | **링크** (`/play/{world_id}`) | SNS 등 |
 | 플레이 | HTTP POST + 로딩 (선택: 폴링) | WebSocket·SSE 등 (Phase 2) |

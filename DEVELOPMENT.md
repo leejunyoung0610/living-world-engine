@@ -65,8 +65,9 @@
 
 - 시스템 프롬프트를 **static / dynamic** 튜플로 분리 (`backend/src/engine/prompt_optimizer.py`, `game_loop._build_system_blocks`).
 - `ClaudeClient`에서 static 블록에 `cache_control: ephemeral` 적용 가능한 구조.
-- **Dynamic**: 턴, 장소, NPC(컴팩트 프로필), `## 중요 기억`.
-- **장소 필터**: `_active_npcs_for_location()` — `active_location`과 `npc["location"]`이 같을 때만 프로필 주입. 매칭 NPC가 없으면 **전체 NPC**로 폴백. `active_location == "Unknown"`이면 전체.
+- **Dynamic**: 턴·이번 턴 중심 NPC 요약·NPC(컴팩트 프로필, 상한)·`## 중요 기억`.
+- **대화 참가 NPC 선택** (`prompt_optimizer`): `world_variables.dialogue_npc_cap`(기본 4, 2–12) 이내만 프로필에 넣음. 우선 사용자 메시지에 이름 문자열 포함, 다음 직전 assistant 블록의 화자, 나머지는 세계 내 NPC 목록 순.
+- **NPC 저작·스키마 (UGC):** 폼/AI 정리/JSON 3-Way — [`docs/NPC_CHARACTER_AUTHORING_STRATEGY.md`](docs/NPC_CHARACTER_AUTHORING_STRATEGY.md).
 
 ### Phase 1.5 — Single-Pass Tool Use (`backend/src/engine/llm.py`)
 

@@ -1,6 +1,7 @@
 # 프로덕션 배포 가이드 (Epic B)
 
-베타 실행 계획은 [`BETA_DEV_EXECUTION.md`](BETA_DEV_EXECUTION.md) Epic B와 [`UGC_MVP_PLAN.md`](UGC_MVP_PLAN.md) §6·§7(비밀·Docker·배포 원칙)과 맞춘다.
+베타 실행 계획은 [`BETA_DEV_EXECUTION.md`](BETA_DEV_EXECUTION.md) Epic B와 [`UGC_MVP_PLAN.md`](UGC_MVP_PLAN.md) §6·§7(비밀·Docker·배포 원칙)과 맞춘다.  
+**배포 당일 체크리스트:** [`BETA_DEPLOYMENT_CHECKLIST.md`](BETA_DEPLOYMENT_CHECKLIST.md)
 
 ## 1. 호스팅 선택 (요약)
 

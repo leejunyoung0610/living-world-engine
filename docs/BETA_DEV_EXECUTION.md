@@ -1,7 +1,8 @@
 # 베타 출시 — 실행 개발 문서 (개발자·에이전트용)
 
 이 문서는 **`docs/UGC_MVP_PLAN.md`의 Ready but Gated**를 코드로 옮기기 위한 **구현 단위(Epic) · 완료 조건(DoD) · 코드 위치**를 정의한다.  
-기획·정책 숫자의 **정본**은 `UGC_MVP_PLAN.md`를 따르고, 구현 후 **이 문서의 체크박스와 아래 「기준선」을 갱신**한다.
+기획·정책 숫자의 **정본**은 `UGC_MVP_PLAN.md`를 따르고, 구현 후 **이 문서의 체크박스와 아래 「기준선」을 갱신**한다.  
+**배포 당일·운영 점검:** [`BETA_DEPLOYMENT_CHECKLIST.md`](BETA_DEPLOYMENT_CHECKLIST.md)
 
 ---
 
