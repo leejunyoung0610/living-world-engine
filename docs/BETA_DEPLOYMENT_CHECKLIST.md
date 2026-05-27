@@ -19,8 +19,10 @@
 | 단위 테스트 | `poetry run pytest backend/tests/unit` → **259 passed** (「200+」보다 구체적) |
 | 프론트 빌드 | `cd frontend && npm run build` → **성공** (`tsc -b && vite build`) |
 | 프론트 lint | `package.json`에 **`npm run lint` 없음** — 빌드(`tsc`)로 타입 검증 |
-| Ruff | `poetry run ruff check backend/` — **배포 전 통과 필요** (스냅샷 시 18건, `--fix` 가능 다수) |
-| Git | `main` 대비 **미커밋 변경 다수** — 배포 전 커밋·푸시 정리 |
+| Git | `main` **push 완료** (2026-05-27, 5 commits) |
+| Ruff | **`poetry run ruff check backend/` 통과** |
+| Docker (로컬) | `docker compose build` + `/health` + alembic **0015 (head)** |
+| Env 점검 | `poetry run python backend/scripts/check_beta_env.py [--strict]` |
 | LLM 모델 env | **`LLM_MODEL`** (별칭 `sonnet` / `sonnet45` 가능). `ANTHROPIC_MODEL` 아님 |
 | BYOK | **제거됨** (마이그레이션 `0009`). **`BYOK_MASTER_KEY` 불필요** |
 | 비용 알림 env | **`PLATFORM_DAILY_COST_ALERT_THRESHOLD_USD`** (예: `2.0`). `PLATFORM_DAILY_COST_THRESHOLD` 아님 |
@@ -48,30 +50,42 @@
 
 ### 1. 코드 베이스 정리
 
-- [ ] `main` 브랜치 최신 상태 확인
-  ```bash
-  git pull origin main
-  git status   # clean 또는 배포할 커밋만
-  ```
-- [ ] 미커밋 변경사항 정리/커밋
-- [ ] 단위 테스트 통과
-  ```bash
-  poetry run pytest backend/tests/unit
-  # 기대: 259 passed (숫자는 pytest --collect-only 로 재확인)
-  ```
-- [ ] 프론트엔드 빌드
-  ```bash
-  cd frontend && npm run build
-  ```
-- [ ] 백엔드 lint
-  ```bash
-  poetry run ruff check backend/
-  poetry run ruff check backend/ --fix   # 필요 시
-  ```
+- [x] `main` 브랜치 최신 상태 확인 (2026-05-27)
+- [x] 미커밋 변경사항 정리/커밋 (5 commits pushed)
+- [x] 단위 테스트 통과 (**259 passed**)
+- [x] 프론트엔드 빌드 (`npm run build`)
+- [x] 백엔드 lint (`ruff check backend/`)
+
+**로컬 점검 명령**
+
+```bash
+git pull origin main && git status
+poetry run pytest backend/tests/unit -q
+cd frontend && npm run build
+poetry run ruff check backend/
+```
 
 ### 2. 환경 변수 점검
 
-> **정본 이름:** [`.env.example`](../.env.example) · [`backend/src/utils/config.py`](../backend/src/utils/config.py)
+> **정본 이름:** [`.env.example`](../.env.example) · [`.env.production.example`](../.env.production.example) · [`backend/src/utils/config.py`](../backend/src/utils/config.py)
+
+**자동 점검 (값 미출력)**
+
+```bash
+poetry run python backend/scripts/check_beta_env.py          # 로컬·스테이징
+poetry run python backend/scripts/check_beta_env.py --strict # 베타 프로덕션 권장
+```
+
+**로컬 `.env` 스냅샷 (2026-05-27)** — `--strict` 기준 **미충족 항목** (프로덕션 배포 전 호스팅에 설정):
+
+| 항목 | 로컬 | 프로덕션 필요 |
+|------|------|----------------|
+| `JWT_SECRET` | dev 기본값 | `openssl rand -hex 32` 로 교체 |
+| `DEBUG` | `true` | `false` |
+| `CORS_ORIGINS` | localhost/LAN | `https://실제도메인` only |
+| R2 다섯 값 | 미설정 | 전부 또는 Replicate 임시 URL 감수 |
+| Sentry·비용·쿼터·`MAX_TOTAL_USERS` | 미설정 | `.env.production.example` 참고 |
+| `ANTHROPIC`·`REPLICATE`·`DATABASE_URL` | ✅ 로컬용 설정됨 | 호스팅 DB URL로 교체 |
 
 #### 필수
 
@@ -140,16 +154,9 @@
 
 ### 3. 데이터베이스 마이그레이션
 
-- [ ] 현재 리비전 확인
-  ```bash
-  poetry run alembic current
-  # head: 0015_npc_avatar_quotas
-  ```
+- [x] 로컬 Docker: `alembic current` → **0015 (head)** (2026-05-27)
 - [ ] 프로덕션 DB 백업 (기존 데이터 있을 때)
-- [ ] 적용
-  ```bash
-  poetry run alembic upgrade head
-  ```
+- [ ] 프로덕션 `alembic upgrade head`
 - [ ] 테이블 존재 확인
   ```bash
   psql "$DATABASE_URL" -c "\dt"
@@ -193,15 +200,9 @@
 
 ### 6. Docker 이미지 검증
 
-- [ ] 로컬 빌드
-  ```bash
-  docker compose build
-  ```
-- [ ] 헬스체크
-  ```bash
-  curl http://localhost:8000/health
-  # {"status":"ok","database":"ok"} 형태
-  ```
+- [x] 로컬 `docker compose build` (2026-05-27)
+- [x] 헬스체크 `curl http://localhost:8000/health` → `{"status":"ok","database":"ok"}`
+- [ ] 프로덕션 호스팅에 동일 이미지 배포
 
 ---
 

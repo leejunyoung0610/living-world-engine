@@ -30,6 +30,9 @@
 | `ANTHROPIC_API_KEY` | Claude 호출 |
 | `CORS_ORIGINS` | 허용 브라우저 오리진(콤마 구분) |
 
+베타 프로덕션 템플릿: [`.env.production.example`](../.env.production.example)  
+점검 스크립트: `poetry run python backend/scripts/check_beta_env.py --strict` ([`BETA_DEPLOYMENT_CHECKLIST.md`](BETA_DEPLOYMENT_CHECKLIST.md) §2)
+
 Docker로 띄울 때는 `docker-compose.yml`의 로컬 DB URL을 **배포 환경 변수로 덮어쓴다.**
 
 ## 4. 이미지·마이그레이션
