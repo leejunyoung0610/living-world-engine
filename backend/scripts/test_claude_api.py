@@ -43,7 +43,7 @@ def test_basic_call() -> bool:
         )
 
         response_text = message.content[0].text
-        print(f"✅ API 호출 성공!")
+        print("✅ API 호출 성공!")
         print(f"📝 응답: {response_text}")
         print()
         return True
@@ -170,7 +170,7 @@ def test_tool_use() -> bool:
                         final_text = block.text
                         break
 
-                print(f"✅ 최종 응답 받음!")
+                print("✅ 최종 응답 받음!")
                 print(f"📝 응답: {final_text}")
                 print()
                 return True
@@ -181,7 +181,7 @@ def test_tool_use() -> bool:
                 if block.type == "text":
                     text = block.text
                     break
-            print(f"⚠️  Tool Use가 발생하지 않았습니다.")
+            print("⚠️  Tool Use가 발생하지 않았습니다.")
             print(f"📝 텍스트 응답: {text}")
             print()
             return True

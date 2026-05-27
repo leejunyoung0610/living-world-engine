@@ -2,7 +2,6 @@
 StateChangeValidator 유닛 테스트
 """
 
-import pytest
 
 from backend.src.engine.validator import StateChangeValidator
 

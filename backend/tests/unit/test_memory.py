@@ -2,7 +2,6 @@
 KeywordMemorySearch 유닛 테스트
 """
 
-import pytest
 
 from backend.src.engine.memory import KeywordMemorySearch
 

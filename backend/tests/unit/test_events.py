@@ -2,7 +2,6 @@
 EventManager 유닛 테스트
 """
 
-import json
 from pathlib import Path
 
 import pytest

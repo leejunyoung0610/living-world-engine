@@ -1,6 +1,5 @@
 # backend/tests/unit/test_performance.py
 
-import pytest
 import time
 from backend.src.utils.performance import PerformanceMonitor
 

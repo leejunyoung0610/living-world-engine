@@ -2,7 +2,6 @@
 pytest 설정 및 공통 픽스쳐
 """
 
-import json
 from pathlib import Path
 
 import pytest

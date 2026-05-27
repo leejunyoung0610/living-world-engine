@@ -12,7 +12,7 @@ from backend.src.engine.game_loop import GameEngine
 @pytest.fixture
 def mock_engine():
     """LLM을 Mock한 GameEngine — API 호출 없이 이벤트 연동 테스트"""
-    with patch("backend.src.engine.game_loop.ClaudeClient") as mock_llm_cls:
+    with patch("backend.src.engine.game_loop.ClaudeClient"):
         engine = GameEngine()
         # LLM Mock: 항상 텍스트 응답 반환
         engine.llm.process_turn = MagicMock(return_value={

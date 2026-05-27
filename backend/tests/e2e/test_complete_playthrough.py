@@ -45,8 +45,8 @@ class TestCompletePlaythrough:
             result = engine.process_turn(user_input)
             
             # 검증
-            assert result["response"], f"응답 없음"
-            assert "error" not in result, f"에러 발생"
+            assert result["response"], "응답 없음"
+            assert "error" not in result, "에러 발생"
             
             print(f"  User: {user_input}")
             print(f"  NPC: {result['response'][:100]}...")

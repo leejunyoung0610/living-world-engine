@@ -39,7 +39,7 @@ def main():
 
         # 플레이어 정보
         player = world.player
-        print(f"👤 플레이어:")
+        print("👤 플레이어:")
         print(f"   이름: {player['name']}")
         print(f"   클래스: {player['class']}")
         stats = player.get("stats", {})
