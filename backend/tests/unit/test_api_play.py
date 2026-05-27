@@ -275,6 +275,43 @@ def test_play_world_brief(client: TestClient) -> None:
     assert data.get("story_title") == "P"
     assert data.get("npcs") == []
     assert data.get("world_setting") == ""
+    assert data.get("cover_image_url") == ""
+
+
+def test_play_world_brief_includes_cover_and_npc_portraits(client: TestClient) -> None:
+    token = _signup_token(client)
+    h = {"Authorization": f"Bearer {token}"}
+    cover = "https://cdn.example.test/play-cover.webp"
+    portrait = "https://cdn.example.test/npc.webp"
+    r = client.post(
+        "/api/worlds/",
+        headers=h,
+        json={
+            "name": "Vis",
+            "world": {
+                **MIN_WORLD,
+                "id": "vis_slug",
+                "description": "짧은 소개",
+                "cover_image_url": cover,
+            },
+            "characters": {
+                "npcs": [
+                    {"id": "nid1", "name": "둘리", "role": "등장인물", "portrait_image_url": portrait},
+                ],
+            },
+            "genres": MIN_GENRES,
+        },
+    )
+    assert r.status_code == 201, r.text
+    wid = r.json()["id"]
+    b = client.get(f"/api/play/world/{wid}/brief", headers=h)
+    assert b.status_code == 200, b.text
+    bd = b.json()
+    assert bd.get("cover_image_url") == cover
+    npcs = bd.get("npcs") or []
+    assert len(npcs) == 1
+    assert npcs[0].get("name") == "둘리"
+    assert npcs[0].get("portrait_url") == portrait
 
 
 def test_play_world_brief_returns_world_setting(client: TestClient) -> None:

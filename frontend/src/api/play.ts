@@ -8,6 +8,8 @@ export type PlayWorldBrief = {
   story_title: string;
   description: string;
   world_setting: string;
+  /** 입장 설정 히어로 — HTTPS 만 */
+  cover_image_url?: string;
   npcs: Record<string, unknown>[];
   suggested_player: Record<string, unknown> | null;
 };

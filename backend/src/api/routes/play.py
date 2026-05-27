@@ -34,6 +34,7 @@ from ...utils.config import PROJECT_ROOT, get_settings
 from ...utils.logger import get_logger
 from ..deps import get_current_user
 from ..limiter import limiter
+from .worlds import _cover_image_url, _npc_https_portrait_url
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -63,6 +64,8 @@ class PlayWorldBriefResponse(BaseModel):
     description: str = ""
     #: 스토리용 상세 세계관 (`world_setting`; 없으면 레거시 `setting` 등).
     world_setting: str = ""
+    #: 입장 설정 화면 히어로 — HTTPS 만 (`worlds._cover_image_url` 과 동일 정책).
+    cover_image_url: str = ""
     npcs: list[dict[str, Any]] = Field(default_factory=list)
     suggested_player: dict[str, Any] | None = None  # 구버전 월드에만 있을 수 있음
 
@@ -302,6 +305,20 @@ def _brief_world_setting(wd: dict[str, Any]) -> str:
     return ""
 
 
+def _npc_rows_for_play_brief(npcs_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """NPC 원본 행에 ``portrait_url``(HTTPS 초상만) 추가 — 클라 입장 설정 UI."""
+    out: list[dict[str, Any]] = []
+    for raw in npcs_list:
+        row = dict(raw)
+        pu = _npc_https_portrait_url(raw)
+        if pu:
+            row["portrait_url"] = pu
+        elif "portrait_url" in row:
+            del row["portrait_url"]
+        out.append(row)
+    return out
+
+
 @router.get("/world/{world_id}/brief", response_model=PlayWorldBriefResponse)
 def play_world_brief(
     world_id: uuid.UUID,
@@ -319,13 +336,15 @@ def play_world_brief(
         [x for x in npcs_raw if isinstance(x, dict)] if isinstance(npcs_raw, list) else []
     )
     sug = chars.get("player") if isinstance(chars.get("player"), dict) else None
+    npcs_brief = _npc_rows_for_play_brief(npcs_list)
     return PlayWorldBriefResponse(
         world_uuid=w.id,
         list_name=w.name,
         story_title=str(wd.get("name", "") or ""),
         description=str(wd.get("description", "") or ""),
         world_setting=_brief_world_setting(wd),
-        npcs=npcs_list,
+        cover_image_url=_cover_image_url(wd),
+        npcs=npcs_brief,
         suggested_player=sug,
     )
 

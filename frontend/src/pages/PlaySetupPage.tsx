@@ -24,6 +24,12 @@ function parseStatRows(rows: StatRow[]): Record<string, number> {
   return out;
 }
 
+/** 브라우저 표시용 — HTTPS URL 만 (공개 상세·brief API 동일 철학). */
+function httpsImageUrl(raw?: string): string | null {
+  const u = (raw ?? "").trim();
+  return u.startsWith("https://") ? u : null;
+}
+
 export function PlaySetupPage() {
   const { worldId } = useParams<{ worldId: string }>();
   const [searchParams] = useSearchParams();
@@ -145,6 +151,8 @@ export function PlaySetupPage() {
     }
   }
 
+  const playBriefHeroUrl = brief != null ? httpsImageUrl(brief.cover_image_url) : null;
+
   if (!token || !worldId) {
     return <p className="px-4 py-8 text-slate-400">이동 중…</p>;
   }
@@ -177,33 +185,84 @@ export function PlaySetupPage() {
         </p>
 
         {brief && (
-          <div className="mt-6 rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-            <h2 className="text-sm font-medium text-slate-200">{brief.story_title || brief.list_name}</h2>
-            <p className="mt-1 text-xs text-slate-500">목록 이름: {brief.list_name}</p>
-            {brief.description ? (
-              <p className="mt-3 text-sm text-slate-400">{brief.description}</p>
-            ) : null}
-            {brief.world_setting ? (
-              <div className="mt-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">세계관 설정</p>
-                <pre className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-slate-800 bg-slate-950/80 p-3 text-sm text-slate-300">
-                  {brief.world_setting}
-                </pre>
+          <div className="mt-6 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50">
+            {!playBriefHeroUrl ? (
+              <div className="p-4">
+                <h2 className="text-sm font-medium text-slate-200">{brief.story_title || brief.list_name}</h2>
+                <p className="mt-1 text-xs text-slate-500">목록 이름: {brief.list_name}</p>
               </div>
-            ) : null}
-            {brief.npcs.length > 0 && (
-              <div className="mt-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">이 월드의 NPC</p>
-                <ul className="mt-2 space-y-1 text-sm text-slate-300">
-                  {brief.npcs.map((n, i) => (
-                    <li key={i}>
-                      {typeof n.name === "string" ? n.name : `NPC ${i + 1}`}
-                      {typeof n.role === "string" ? ` — ${n.role}` : ""}
-                    </li>
-                  ))}
-                </ul>
+            ) : (
+              <div className="relative border-b border-slate-800">
+                <div className="aspect-[21/9] max-h-48 w-full overflow-hidden bg-slate-950 sm:max-h-56">
+                  <img
+                    src={playBriefHeroUrl}
+                    alt=""
+                    className="h-full w-full object-cover object-center"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent px-4 pb-4 pt-12">
+                  <h2 className="text-base font-semibold text-white drop-shadow">{brief.story_title || brief.list_name}</h2>
+                  <p className="mt-0.5 text-xs text-slate-300">목록 이름: {brief.list_name}</p>
+                </div>
               </div>
             )}
+            <div className="p-4">
+              {brief.description ? (
+                <p className="mt-1 text-sm text-slate-400">{brief.description}</p>
+              ) : null}
+              {brief.world_setting ? (
+                <div className="mt-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">세계관 설정</p>
+                  <pre className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-slate-800 bg-slate-950/80 p-3 text-sm text-slate-300">
+                    {brief.world_setting}
+                  </pre>
+                </div>
+              ) : null}
+              {brief.npcs.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">이 월드의 NPC</p>
+                  <ul className="mt-3 space-y-2">
+                    {brief.npcs.map((n, i) => {
+                      const row = n as Record<string, unknown>;
+                      const port =
+                        httpsImageUrl(
+                          typeof row.portrait_url === "string"
+                            ? row.portrait_url
+                            : typeof row.portrait_image_url === "string"
+                              ? row.portrait_image_url
+                              : undefined,
+                        );
+                      const nm =
+                        typeof row.name === "string" ? row.name : `NPC ${i + 1}`;
+                      const rl = typeof row.role === "string" ? row.role : "";
+                      return (
+                        <li key={i} className="flex gap-3 rounded-lg border border-slate-800/80 bg-slate-950/40 px-3 py-2">
+                          {port ? (
+                            <img
+                              src={port}
+                              alt=""
+                              className="mt-0.5 h-14 w-14 shrink-0 rounded-md border border-slate-700 object-cover"
+                              loading="lazy"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="mt-0.5 flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-dashed border-slate-700 bg-slate-900 text-xs text-slate-600">
+                              NPC
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-200">{nm}</p>
+                            {rl ? <p className="mt-0.5 text-xs text-slate-500">{rl}</p> : null}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
