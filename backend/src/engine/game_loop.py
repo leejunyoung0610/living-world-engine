@@ -157,7 +157,9 @@ class GameEngine:
                         )
 
             with self.performance.measure("prompt_building"):
-                system_blocks = self._build_system_blocks(relevant_memories)
+                system_blocks = self._build_system_blocks(
+                    relevant_memories, user_input
+                )
 
             with self.performance.measure("llm_call"):
                 full_history = self.conversation_history.copy()
@@ -320,18 +322,21 @@ class GameEngine:
         yield from self._stream_turn_impl(user_input)
 
     def _build_system_blocks(
-        self, relevant_memories: list[dict[str, Any]]
+        self,
+        relevant_memories: list[dict[str, Any]],
+        user_input: str,
     ) -> tuple[str, str]:
         """(static, dynamic) 시스템 블록 — static만 Anthropic 프롬프트 캐시 대상."""
         static, dynamic = self.prompt_optimizer.build_system_blocks(
             world=self.state.world,
             player=self.state.player,
-            active_location=self.state.player.get("location", "Unknown"),
             npcs=self.state.npcs,
             memories=relevant_memories,
             cache_reset_flag=self.cache_reset_flag,
             turn=self.state.turn,
             day=self.state.day,
+            user_message=user_input,
+            recent_conversation=self.conversation_history,
         )
         total = len(static) + len(dynamic)
         logger.debug(
@@ -456,7 +461,7 @@ class GameEngine:
         )
         logger.info("Layer 3 (LongTermMemory): %s개 검색", len(relevant_memories))
 
-        system_blocks = self._build_system_blocks(relevant_memories)
+        system_blocks = self._build_system_blocks(relevant_memories, user_input)
 
         full_history = self.conversation_history.copy()
         full_history.append({"role": "user", "content": user_input})

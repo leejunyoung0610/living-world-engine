@@ -1,4 +1,3 @@
-import pytest
 
 from backend.src.engine.prompt_optimizer import SystemPromptOptimizer
 
@@ -23,7 +22,6 @@ def test_prompt_length():
     prompt = optimizer.build_optimized_prompt(
         world=world,
         player=player,
-        active_location="test_area",
         npcs=npcs,
         memories=memories,
     )
@@ -39,7 +37,6 @@ def test_no_haiku_supplement_in_prompt():
     prompt = optimizer.build_optimized_prompt(
         world={"name": "Test World"},
         player={"turn": 1, "name": "P", "location": "x"},
-        active_location="x",
         npcs=[],
         memories=[],
     )
@@ -48,25 +45,79 @@ def test_no_haiku_supplement_in_prompt():
     assert len(prompt) < 4500
 
 
-def test_only_active_location_npcs():
-    """현재 위치 NPC만 포함되는지"""
+def test_dialogue_npc_cap_truncates_npc_list_without_mention_or_history():
+    """지목·히스토리 없을 때 프로필에 대화 상한만큼만 넣음 (전원 주입 방지)."""
     optimizer = SystemPromptOptimizer()
 
     npcs = [
-        {"id": "npc1", "name": "Here", "location": "area1", "role": "Test", "persona": {"traits": []}},
-        {"id": "npc2", "name": "There", "location": "area2", "role": "Test", "persona": {"traits": []}},
+        {"id": "npc1", "name": "Alpha", "location": "area1", "role": "R", "persona": {"traits": []}},
+        {"id": "npc2", "name": "Beta", "location": "area2", "role": "R", "persona": {"traits": []}},
+        {"id": "npc3", "name": "Gamma", "location": "area2", "role": "R", "persona": {"traits": []}},
     ]
 
     prompt = optimizer.build_optimized_prompt(
-        world={"name": "Test"},
+        world={
+            "name": "Test",
+            "world_variables": {"dialogue_npc_cap": 2},
+        },
         player={"turn": 1, "location": "area1"},
-        active_location="area1",
         npcs=npcs,
         memories=[],
+        user_message="",
+        recent_conversation=[],
+    )
+
+    assert "Alpha" in prompt
+    assert "Beta" in prompt
+    assert "Gamma" not in prompt
+
+
+def test_dialogue_user_message_mentions_select_npc_even_if_late():
+    """플레이어 메시지에 이름 문자열 포함 시 해당 NPC가 우선 선택됨."""
+    optimizer = SystemPromptOptimizer()
+
+    npcs = [
+        {"id": "npc1", "name": "Here", "location": "area1", "role": "R", "persona": {"traits": []}},
+        {"id": "npc2", "name": "There", "location": "area2", "role": "R", "persona": {"traits": []}},
+    ]
+
+    prompt = optimizer.build_optimized_prompt(
+        world={"name": "Test", "world_variables": {"dialogue_npc_cap": 2}},
+        player={"turn": 1},
+        npcs=npcs,
+        memories=[],
+        user_message="There에게 물어보자",
+        recent_conversation=[],
     )
 
     assert "Here" in prompt
-    assert "There" not in prompt
+    assert "There" in prompt
+
+
+def test_dialogue_recent_assistant_speakers_prioritized():
+    """직전 assistant 발화에 등장한 화자 이름이 선택에 반영됨."""
+    optimizer = SystemPromptOptimizer()
+    npcs = [
+        {"id": "n0", "name": "NPC0", "role": "R", "persona": {"traits": []}},
+        {"id": "n1", "name": "NPC1", "role": "R", "persona": {"traits": []}},
+        {"id": "n2", "name": "NPC2", "role": "R", "persona": {"traits": []}},
+    ]
+    prompt = optimizer.build_optimized_prompt(
+        world={"name": "W", "world_variables": {"dialogue_npc_cap": 2}},
+        player={"name": "P"},
+        npcs=npcs,
+        memories=[],
+        user_message="",
+        recent_conversation=[
+            {
+                "role": "assistant",
+                "content": "NPC2 (고개를 끄덕이며) 응.",
+            }
+        ],
+    )
+    assert "NPC2" in prompt
+    assert "NPC0" in prompt
+    assert "NPC1" not in prompt
 
 
 def test_build_system_blocks_split_for_cache():
@@ -85,7 +136,6 @@ def test_build_system_blocks_split_for_cache():
     static, dynamic = optimizer.build_system_blocks(
         world={"name": "W"},
         player={"turn": 2, "name": "P", "location": "A"},
-        active_location="A",
         npcs=npcs,
         memories=memories,
     )
@@ -104,7 +154,6 @@ def test_dynamic_includes_player_stats_not_static():
     static, dynamic = optimizer.build_system_blocks(
         world={"name": "W"},
         player={"name": "P", "location": "A", "stats": {"fatigue": 3}},
-        active_location="A",
         npcs=[],
         memories=[],
         turn=2,
@@ -124,7 +173,6 @@ def test_static_includes_world_setting_and_one_line_summary():
             "world_setting": "긴\n설명",
         },
         player={"name": "P", "location": "A"},
-        active_location="A",
         npcs=[],
         memories=[],
     )
@@ -147,10 +195,33 @@ def test_only_important_memories():
     prompt = optimizer.build_optimized_prompt(
         world={"name": "Test"},
         player={"turn": 1, "location": "area1"},
-        active_location="area1",
         npcs=[],
         memories=memories,
     )
 
     assert "High importance" in prompt
     assert "Low importance" not in prompt
+
+
+def test_compact_npc_includes_major_background_and_speech_style_alias():
+    optimizer = SystemPromptOptimizer()
+    npcs = [
+        {
+            "id": "d1",
+            "name": "Dancer",
+            "role": "후배",
+            "major": "무용과",
+            "personality": "열정적",
+            "background": "발레 전공",
+            "speech_style": "존댓말, 밝음",
+        }
+    ]
+    _, dynamic = optimizer.build_system_blocks(
+        world={"name": "W"},
+        player={"name": "P"},
+        npcs=npcs,
+        memories=[],
+    )
+    assert "무용과" in dynamic
+    assert "배경: 발레 전공" in dynamic
+    assert "말투: 존댓말, 밝음" in dynamic

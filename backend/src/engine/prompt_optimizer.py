@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 class SystemPromptOptimizer:
@@ -11,13 +12,92 @@ class SystemPromptOptimizer:
     """
 
     @staticmethod
-    def _active_npcs_for_location(
-        active_location: str, npcs: list[dict[str, Any]]
+    def _dialogue_npc_cap(world: dict[str, Any]) -> int:
+        """매 턴 시스템 프롬프트에 넣을 NPC 프로필 상한(장소 무관).
+
+        월드 ``world_variables.dialogue_npc_cap`` (선택). 기본 4, 허용 2–12.
+        """
+        vars_ = world.get("world_variables")
+        raw = vars_.get("dialogue_npc_cap", 4) if isinstance(vars_, dict) else 4
+        try:
+            c = int(raw)
+        except (TypeError, ValueError):
+            c = 4
+        return max(2, min(12, c))
+
+    @staticmethod
+    def _parse_assistant_speaker_names(assistant_text: str) -> list[str]:
+        """플레이 응답 규칙(블록별 첫 줄: 이름 (행동) …)에서 화자 이름 후보 추출."""
+        names: list[str] = []
+        if not assistant_text or not assistant_text.strip():
+            return names
+        for block in re.split(r"\n\s*\n+", assistant_text.strip()):
+            line = block.strip().split("\n", 1)[0].strip()
+            line = line.replace("**", "").strip()
+            if not line:
+                continue
+            if "(" in line:
+                name_candidate = line.split("(", 1)[0].strip()
+            else:
+                parts = line.split()
+                name_candidate = parts[0].strip() if parts else ""
+            if name_candidate and name_candidate not in names:
+                names.append(name_candidate)
+        return names
+
+    @staticmethod
+    def _select_npcs_for_dialogue(
+        user_message: str,
+        npcs: list[dict[str, Any]],
+        recent_conversation: list[dict[str, Any]],
+        *,
+        cap: int,
     ) -> list[dict[str, Any]]:
-        if active_location == "Unknown":
-            return npcs
-        active = [npc for npc in npcs if npc.get("location") == active_location]
-        return active if active else npcs
+        """장소 불문 — 사용자 지목·직전 발화 화자·안정 순서로 참가 NPC 선택."""
+        if not npcs:
+            return []
+        cap = max(1, min(cap, len(npcs)))
+        if len(npcs) <= cap:
+            return list(npcs)
+
+        um = user_message or ""
+        selected: list[dict[str, Any]] = []
+        seen: set[Any] = set()
+
+        def add_npc(n: dict[str, Any]) -> None:
+            nid = n.get("id")
+            if nid in seen:
+                return
+            seen.add(nid)
+            selected.append(n)
+
+        # 1) 플레이어 메시지에 이름이 문자열 포함된 NPC
+        for n in npcs:
+            name = str(n.get("name", "")).strip()
+            if name and name in um:
+                add_npc(n)
+            if len(selected) >= cap:
+                return selected[:cap]
+
+        # 2) 직전 assistant 발화 순(최근 → 과거)에서 화자 매칭
+        for msg in reversed(recent_conversation):
+            if msg.get("role") != "assistant":
+                continue
+            content = str(msg.get("content", ""))
+            for sp in SystemPromptOptimizer._parse_assistant_speaker_names(content):
+                for n in npcs:
+                    if str(n.get("name", "")).strip() == sp:
+                        add_npc(n)
+                        break
+                if len(selected) >= cap:
+                    return selected[:cap]
+
+        # 3) 남은 칸은 ``npcs`` 정의 순으로 채움
+        for n in npcs:
+            add_npc(n)
+            if len(selected) >= cap:
+                break
+        return selected[:cap]
 
     @staticmethod
     def _world_lore_paragraphs(world: dict[str, Any]) -> tuple[str, str]:
@@ -65,23 +145,33 @@ class SystemPromptOptimizer:
         self,
         world: dict[str, Any],
         player: dict[str, Any],
-        active_location: str,
         npcs: list[dict[str, Any]],
         memories: list[dict[str, Any]],
         cache_reset_flag: str | None = None,
         *,
         turn: int = 0,
         day: int = 1,
+        user_message: str = "",
+        recent_conversation: list[dict[str, Any]] | None = None,
     ) -> tuple[str, str]:
         """시스템 프롬프트를 Anthropic 프롬프트 캐시용으로 분리.
 
         - **static**: 턴마다 거의 동일 → 첫 system 블록에만 ``cache_control: ephemeral`` 권장.
-        - **dynamic**: 장소·턴·NPC·기억 등 매 턴 변동.
+        - **dynamic**: 참가 NPC 선택·턴·기억 등 매 턴 변동. (장소 기반 필터 없음.)
 
         Returns:
             ``(static, dynamic)`` — 둘 다 strip 된 문자열.
         """
-        active_npcs = self._active_npcs_for_location(active_location, npcs)
+        recent = recent_conversation or []
+        cap = self._dialogue_npc_cap(world)
+        active_npcs = self._select_npcs_for_dialogue(
+            user_message, npcs, recent, cap=cap
+        )
+        dialogue_names = ", ".join(
+            str(n.get("name", "")).strip()
+            for n in active_npcs
+            if str(n.get("name", "")).strip()
+        )
         npc_profiles = self._format_compact_npcs(active_npcs)
         key_memories = self._select_key_memories(memories)
 
@@ -109,6 +199,7 @@ class SystemPromptOptimizer:
 - 호칭은 반드시 "{player_name}".
 
 ## 응답 규칙
+- 아래 「NPC」 블록에 나열된 인물을 중심으로 대사하고, 블록에 없는 다른 NPC의 대사는 정말 필요할 때만 짧게 쓴다.
 - 첫 줄: **NPC이름** (짧은 행동) 후 대사. 행동은 (괄호).
 - **여러 NPC가 말할 때는 NPC마다 빈 줄 한 줄로 블록을 나눈다.** (각 블록 첫 줄은 위와 동일: 이름 (행동) 대사)
 - 1~3문장 위주, 한 턴 NPC 1~3명(가능하면 1~2명). 장황한 묘사·반복 금지 — **출력 토큰 예산 내**에서 끝낸다.
@@ -134,7 +225,7 @@ class SystemPromptOptimizer:
         prefix = ("\n".join(prefix_lines) + "\n\n") if prefix_lines else ""
 
         dynamic = f"""{prefix}## 현재 상황
-- 장소: {active_location}
+- 이번 턴 중심 NPC (위 프로필을 기준으로 반응; 다른 인물은 필수 아님): {dialogue_names or "(프로필 없음)"}
 - 턴: {turn}
 - 일차: {day}
 
@@ -153,27 +244,44 @@ class SystemPromptOptimizer:
         self,
         world: dict[str, Any],
         player: dict[str, Any],
-        active_location: str,
         npcs: list[dict[str, Any]],
         memories: list[dict[str, Any]],
         cache_reset_flag: str | None = None,
         *,
         turn: int = 0,
         day: int = 1,
+        user_message: str = "",
+        recent_conversation: list[dict[str, Any]] | None = None,
     ) -> str:
         """최적화된 시스템 프롬프트 (단일 문자열, 테스트·로깅용)."""
         static, dynamic = self.build_system_blocks(
             world=world,
             player=player,
-            active_location=active_location,
             npcs=npcs,
             memories=memories,
             cache_reset_flag=cache_reset_flag,
             turn=turn,
             day=day,
+            user_message=user_message,
+            recent_conversation=recent_conversation,
         )
         parts = [p for p in (static, dynamic) if p]
         return "\n\n".join(parts)
+
+    @staticmethod
+    def _speaking_style_from_npc(npc: dict[str, Any]) -> Any:
+        if "speaking_style" in npc:
+            return npc["speaking_style"]
+        if "speech_style" in npc:
+            return npc["speech_style"]
+        return None
+
+    @staticmethod
+    def _truncate_for_prompt(text: str, max_len: int = 200) -> str:
+        s = text.strip()
+        if len(s) <= max_len:
+            return s
+        return s[: max_len - 1] + "…"
 
     def _format_compact_npcs(self, npcs: list[dict[str, Any]]) -> str:
         """세계관에 관계없이 NPC 정보를 포맷팅"""
@@ -186,10 +294,9 @@ class SystemPromptOptimizer:
             if role:
                 info_parts.append(f"({role})")
 
-            if "major" in npc:
-                info_parts.append(f"- {npc['major']}")
-            if "location" in npc:
-                info_parts.append(f"위치: {npc['location']}")
+            major = npc.get("major")
+            if isinstance(major, str) and major.strip():
+                info_parts.append(f"- {major.strip()}")
 
             info = " ".join(info_parts)
             lines.append(info)
@@ -197,7 +304,17 @@ class SystemPromptOptimizer:
             details = []
 
             if "personality" in npc:
-                details.append(f"  성격: {npc['personality']}")
+                p = npc["personality"]
+                if isinstance(p, str) and p.strip():
+                    details.append(f"  성격: {self._truncate_for_prompt(p, 300)}")
+
+            bg = npc.get("background")
+            if isinstance(bg, str) and bg.strip():
+                details.append(f"  배경: {self._truncate_for_prompt(bg, 200)}")
+            else:
+                desc = npc.get("description")
+                if isinstance(desc, str) and desc.strip():
+                    details.append(f"  배경: {self._truncate_for_prompt(desc, 200)}")
 
             if "persona" in npc:
                 persona = npc["persona"]
@@ -215,15 +332,14 @@ class SystemPromptOptimizer:
                 interests = ", ".join(npc["interests"])
                 details.append(f"  관심사: {interests}")
 
-            if "speaking_style" in npc:
-                style = npc["speaking_style"]
-                if isinstance(style, str):
-                    details.append(f"  말투: {style}")
-                elif isinstance(style, dict):
-                    formality = style.get("formality", "")
-                    mood = style.get("default_mood", "")
-                    if formality or mood:
-                        details.append(f"  말투: {formality}, {mood}")
+            style = self._speaking_style_from_npc(npc)
+            if isinstance(style, str) and style.strip():
+                details.append(f"  말투: {style.strip()}")
+            elif isinstance(style, dict):
+                formality = style.get("formality", "")
+                mood = style.get("default_mood", "")
+                if formality or mood:
+                    details.append(f"  말투: {formality}, {mood}")
 
             if details:
                 lines.extend(details)
