@@ -18,6 +18,7 @@ import { LoggedInNav } from "../components/LoggedInNav";
 import {
   campusSampleForm,
   defaultSimpleForm,
+  defaultSimpleNpcRow,
   formToWorldPayload,
   slugifyWorldId,
   tryImportSimpleFromJson,
@@ -136,13 +137,14 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
 
   useEffect(() => {
     if (editorMode !== "simple") return;
+    if (!isCreate && loading) return;
     const { world, characters } = formToWorldPayload({
       ...simpleForm,
       worldStoryName: name.trim() || simpleForm.worldStoryName || "새 세계",
     });
     setWorldText(stringifyJson(world));
     setCharsText(stringifyJson(characters));
-  }, [editorMode, simpleForm, name]);
+  }, [editorMode, simpleForm, name, isCreate, loading]);
 
   function applyJsonTemplate() {
     setWorldText(stringifyJson(EMPTY_WORLD));
@@ -211,7 +213,7 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
   function addNpc() {
     setSimpleForm((s) => ({
       ...s,
-      npcs: [...s.npcs, { id: "", name: "", role: "", appearanceForAi: "" }],
+      npcs: [...s.npcs, defaultSimpleNpcRow()],
     }));
   }
 
@@ -302,23 +304,8 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
     }
   }
 
-  function clearCoverFieldsEverywhere(): void {
-    setCoverGenInfo(null);
-    setSimpleForm((s) => ({ ...s, coverImageUrl: "" }));
-    setWorldText((text) => {
-      try {
-        const w = JSON.parse(text) as Record<string, unknown>;
-        delete w.cover_image_url;
-        return stringifyJson(w);
-      } catch {
-        return text;
-      }
-    });
-  }
-
   function selectCoverSource(next: CoverSourceMode): void {
     if (next === coverSource) return;
-    clearCoverFieldsEverywhere();
     setCoverSource(next);
   }
 
@@ -877,26 +864,71 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
                           />
                           <input
                             type="text"
-                            placeholder="역할"
+                            placeholder="역할 *"
                             value={row.role}
                             onChange={(e) => updateNpc(i, { role: e.target.value })}
                             className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white"
                           />
+                          <div>
+                            <input
+                              type="text"
+                              placeholder="전공·직업"
+                              value={row.major}
+                              onChange={(e) => updateNpc(i, { major: e.target.value })}
+                              className="w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white"
+                            />
+                            <p className="mt-0.5 text-[11px] text-slate-500">
+                              대화에 쓰임 — 자기소개·학과 언급에 반영
+                            </p>
+                          </div>
                           <div className="sm:col-span-2">
+                            <label className="text-xs font-medium text-slate-400">성격</label>
+                            <textarea
+                              value={row.personality}
+                              onChange={(e) => updateNpc(i, { personality: e.target.value })}
+                              rows={2}
+                              spellCheck={false}
+                              placeholder='예: "차분하고 책임감 강함"'
+                              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white placeholder:text-slate-600"
+                            />
+                            <p className="mt-0.5 text-[11px] text-slate-500">NPC 대사 톤·성격에 반영</p>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="text-xs font-medium text-slate-400">배경 (선택)</label>
+                            <textarea
+                              value={row.background}
+                              onChange={(e) => updateNpc(i, { background: e.target.value })}
+                              rows={2}
+                              spellCheck={false}
+                              placeholder="과거·동아리·추가 설정"
+                              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white placeholder:text-slate-600"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="text-xs font-medium text-slate-400">말투 (선택)</label>
+                            <input
+                              type="text"
+                              value={row.speakingStyle}
+                              onChange={(e) => updateNpc(i, { speakingStyle: e.target.value })}
+                              placeholder='예: "존댓말, 밝고 친근"'
+                              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white placeholder:text-slate-600"
+                            />
+                          </div>
+                          <div className="sm:col-span-2 border-t border-slate-800 pt-2">
                             <label className="text-xs font-medium text-slate-400">
-                              캐릭터 특징 (AI 초상·얼굴 생성에만 사용)
+                              외모·복장 (AI 초상 전용)
                             </label>
                             <textarea
                               value={row.appearanceForAi}
                               onChange={(e) => updateNpc(i, { appearanceForAi: e.target.value })}
                               rows={3}
                               spellCheck={false}
-                              placeholder="예: 검은 숏컷·날카로운 인상·교복 블레이저, 말 없는 타입. 연령대·복장 무드까지."
+                              placeholder="예: 검은 숏컷·교복 블레이저. 대화 LLM에는 넣지 않음."
                               className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white placeholder:text-slate-600"
                             />
                             <p className="mt-1 text-[11px] text-slate-500">
-                              플레이 LLM용 <code className="text-slate-500">location</code> 은 여기서 빼 두었습니다.
-                              이미 JSON에 있던 값은 저장 시 그대로 유지되고, 바꾸려면 「JSON」 탭에서 수정하세요.
+                              초상 AI만 사용. 레거시 <code className="text-slate-500">location</code> 은 JSON 탭에서
+                              수정 가능.
                             </p>
                           </div>
                           {row.portraitImageUrl ? (
@@ -974,8 +1006,12 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
                 <div>
                   <label className="block text-sm font-medium text-slate-300">characters (JSON)</label>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    필수 키: npcs 배열 — 초상 생성 문구는 <code className="text-slate-400">appearance_for_ai</code>(권장) 또는 기존
-                    personality 등. 초상 HTTPS URL 은 선택 필드 <code className="text-slate-400">portrait_image_url</code>
+                    필수 키: npcs 배열 — 대화: <code className="text-slate-400">major</code>,{" "}
+                    <code className="text-slate-400">personality</code>,{" "}
+                    <code className="text-slate-400">background</code>,{" "}
+                    <code className="text-slate-400">speaking_style</code> — 초상:{" "}
+                    <code className="text-slate-400">appearance_for_ai</code>, URL{" "}
+                    <code className="text-slate-400">portrait_image_url</code>
                   </p>
                   <textarea
                     value={charsText}

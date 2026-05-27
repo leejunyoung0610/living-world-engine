@@ -162,6 +162,117 @@ def test_worlds_crud_flow(client: TestClient) -> None:
     assert r.status_code == 404
 
 
+def test_update_world_preserves_cover_when_url_key_omitted(client: TestClient) -> None:
+    token = _signup_login(client, "merge_cov@example.com")
+    h = {"Authorization": f"Bearer {token}"}
+    cover = "https://cdn.example.test/poke.webp"
+    r = client.post(
+        "/api/worlds/",
+        headers=h,
+        json={
+            "name": "Pokemon",
+            "world": {**MIN_WORLD, "id": "pokemon_slug", "cover_image_url": cover},
+            "characters": MIN_CHARS,
+            "genres": MIN_GENRES,
+        },
+    )
+    assert r.status_code == 201, r.text
+    wid = r.json()["id"]
+    wo_cover = dict(MIN_WORLD)
+    wo_cover["id"] = "pokemon_slug"
+    wo_cover["name"] = "Pokemon 2"
+    assert "cover_image_url" not in wo_cover
+    assert (
+        client.put(
+            f"/api/worlds/{wid}",
+            headers=h,
+            json={
+                "name": "Pokemon 2",
+                "world": wo_cover,
+                "characters": MIN_CHARS,
+                "genres": MIN_GENRES,
+            },
+        ).status_code
+        == 200
+    )
+    assert (
+        client.get(f"/api/worlds/{wid}", headers=h).json()["world"]["cover_image_url"] == cover
+    )
+
+
+def test_update_world_explicit_empty_cover_clears(client: TestClient) -> None:
+    token = _signup_login(client, "clr_cov@example.com")
+    h = {"Authorization": f"Bearer {token}"}
+    cover = "https://cdn.example.test/x.webp"
+    r = client.post(
+        "/api/worlds/",
+        headers=h,
+        json={
+            "name": "W",
+            "world": {**MIN_WORLD, "id": "clr_slug", "cover_image_url": cover},
+            "characters": MIN_CHARS,
+            "genres": MIN_GENRES,
+        },
+    )
+    assert r.status_code == 201
+    wid = r.json()["id"]
+    w_payload = {**MIN_WORLD, "id": "clr_slug", "cover_image_url": ""}
+    assert (
+        client.put(
+            f"/api/worlds/{wid}",
+            headers=h,
+            json={
+                "name": "W",
+                "world": w_payload,
+                "characters": MIN_CHARS,
+                "genres": MIN_GENRES,
+            },
+        ).status_code
+        == 200
+    )
+    got = client.get(f"/api/worlds/{wid}", headers=h).json()["world"].get("cover_image_url")
+    assert got in ("", None)
+
+
+def test_update_world_preserves_npc_portrait_when_key_omitted(client: TestClient) -> None:
+    token = _signup_login(client, "npc_merge@example.com")
+    h = {"Authorization": f"Bearer {token}"}
+    portrait = "https://cdn.example.test/npc.webp"
+    chars = {
+        "npcs": [
+            {"id": "a", "name": "A", "role": "r", "portrait_image_url": portrait},
+        ]
+    }
+    r = client.post(
+        "/api/worlds/",
+        headers=h,
+        json={
+            "name": "N",
+            "world": {**MIN_WORLD, "id": "npcmerge_slug"},
+            "characters": chars,
+            "genres": MIN_GENRES,
+        },
+    )
+    assert r.status_code == 201
+    wid = r.json()["id"]
+    chars2 = {"npcs": [{"id": "a", "name": "A2", "role": "r2"}]}
+    assert (
+        client.put(
+            f"/api/worlds/{wid}",
+            headers=h,
+            json={
+                "name": "N2",
+                "world": {**MIN_WORLD, "id": "npcmerge_slug"},
+                "characters": chars2,
+                "genres": MIN_GENRES,
+            },
+        ).status_code
+        == 200
+    )
+    npc0 = client.get(f"/api/worlds/{wid}", headers=h).json()["characters"]["npcs"][0]
+    assert npc0.get("portrait_image_url") == portrait
+
+
 def test_worlds_limit_and_isolation(client: TestClient) -> None:
     t_a = _signup_login(client, "a@example.com")
     t_b = _signup_login(client, "b@example.com")

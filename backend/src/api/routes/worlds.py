@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from ...db.models import PlaySession, User, World, WorldUserLike
 from ...db.session import get_db
 from ...utils.config import get_settings
+from ...schemas.npc import normalize_characters_for_storage as _normalize_characters_npc
 from ...worlds.genre_catalog import GENRE_DEFINITIONS, normalize_genres
 from ...services.image_cover_quota import (
     assert_cover_quota_allows,
@@ -94,12 +95,13 @@ class WorldCharactersBody(BaseModel):
 
 def _normalize_characters_for_storage(characters: dict[str, Any]) -> dict[str, Any]:
     """UGC 월드에는 NPC(및 선택 quests)만 저장. 플레이어는 플레이 시작 시 합성."""
-    npcs = characters.get("npcs")
-    out: dict[str, Any] = {"npcs": npcs if isinstance(npcs, list) else []}
-    q = characters.get("quests")
-    if isinstance(q, list):
-        out["quests"] = q
-    return out
+    try:
+        return _normalize_characters_npc(characters)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        ) from e
 
 
 def _parse_genres_for_save(raw: list[str]) -> list[str]:
@@ -309,6 +311,64 @@ def _cover_image_url(wd: dict[str, Any]) -> str:
             continue
         return u
     return ""
+
+
+def _merge_visual_asset_urls_on_update(
+    existing_wd: dict[str, Any],
+    incoming_wd: dict[str, Any],
+) -> dict[str, Any]:
+    """PUT 시 ``cover_image_url`` 등 키가 **빠진** 경우(간편 에디터 동기화 누락 등) 기존 HTTPS 자산 URL 유지.
+
+    - 키가 **없음** → 이전 값이 있으면 유지
+    - 키가 있고 ``""`` → 의도적 삭제
+    """
+    out = dict(incoming_wd)
+    for key in ("cover_image_url", "hero_image_url", "thumbnail_url"):
+        if key in incoming_wd:
+            continue
+        old_v = existing_wd.get(key)
+        if isinstance(old_v, str) and old_v.strip():
+            out[key] = old_v.strip()
+    return out
+
+
+def _merge_npc_portrait_urls_on_update(
+    existing_chars: dict[str, Any],
+    incoming_chars: dict[str, Any],
+) -> dict[str, Any]:
+    """NPC dict에 ``portrait_image_url`` 키가 없으면 동일 ``id``의 기존 초상을 유지."""
+    out = dict(incoming_chars)
+    incoming_npcs = incoming_chars.get("npcs")
+    existing_npcs = existing_chars.get("npcs") if isinstance(existing_chars, dict) else None
+    if not isinstance(incoming_npcs, list):
+        return out
+    if not isinstance(existing_npcs, list):
+        return out
+
+    existing_by_id: dict[str, dict[str, Any]] = {}
+    for raw in existing_npcs:
+        if isinstance(raw, dict):
+            nid = raw.get("id")
+            if isinstance(nid, str) and nid.strip():
+                existing_by_id[nid.strip()] = raw
+
+    merged_npcs: list[Any] = []
+    for raw in incoming_npcs:
+        if not isinstance(raw, dict):
+            merged_npcs.append(raw)
+            continue
+        nid_raw = raw.get("id")
+        merged = dict(raw)
+        if isinstance(nid_raw, str) and nid_raw.strip() and "portrait_image_url" not in raw:
+            old_row = existing_by_id.get(nid_raw.strip())
+            if isinstance(old_row, dict):
+                p = old_row.get("portrait_image_url")
+                if isinstance(p, str) and p.strip():
+                    merged["portrait_image_url"] = p.strip()
+        merged_npcs.append(merged)
+
+    out["npcs"] = merged_npcs
+    return out
 
 
 def _npc_https_portrait_url(raw: dict[str, Any]) -> str:
@@ -795,8 +855,12 @@ def update_world(
     genres_save = _parse_genres_for_save(list(body.genres))
     w.name = body.name.strip()
     w.visibility = body.visibility
-    w.world_data = body.world
-    w.characters_data = _normalize_characters_for_storage(chars_raw)
+    existing_wd = w.world_data if isinstance(w.world_data, dict) else {}
+    merged_wd = _merge_visual_asset_urls_on_update(existing_wd, body.world)
+    w.world_data = merged_wd
+    existing_chars = w.characters_data if isinstance(w.characters_data, dict) else {}
+    merged_chars = _merge_npc_portrait_urls_on_update(existing_chars, chars_raw)
+    w.characters_data = _normalize_characters_for_storage(merged_chars)
     w.events_data = body.events
     w.genres = genres_save
     db.commit()
