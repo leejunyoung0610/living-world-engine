@@ -3,13 +3,21 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { TOKEN_KEY } from "../api/client";
 import {
   fetchPlayHistory,
+  fetchPlayRelationships,
   sendRegenerateStream,
   sendTurnStream,
   SESSION_EXPIRED,
+  type NpcRelationshipRow,
   type NpcSegment,
+  type TriggeredEvent,
   type TurnResult,
 } from "../api/play";
+import { EventCard } from "../components/EventCard";
 import { LoggedInNav } from "../components/LoggedInNav";
+import {
+  RELATIONSHIP_STAT_LABELS,
+  type RelationshipStatSlug,
+} from "../constants/relationshipStats";
 import { splitAssistantIntoSegments } from "../utils/dialogueSplit";
 
 type ChatLine =
@@ -67,6 +75,11 @@ export function PlayPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editDraft, setEditDraft] = useState("");
   const [editFieldError, setEditFieldError] = useState<string | null>(null);
+  const [relOpen, setRelOpen] = useState(false);
+  const [relLoading, setRelLoading] = useState(false);
+  const [relError, setRelError] = useState<string | null>(null);
+  const [relRows, setRelRows] = useState<NpcRelationshipRow[]>([]);
+  const [eventQueue, setEventQueue] = useState<TriggeredEvent[]>([]);
 
   useEffect(() => {
     const t = localStorage.getItem(TOKEN_KEY);
@@ -125,13 +138,43 @@ export function PlayPage() {
   }, [token, sessionId, nav]);
 
   useEffect(() => {
-    if (!editOpen) return;
+    if (!editOpen && !relOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setEditOpen(false);
+      if (e.key === "Escape") {
+        setEditOpen(false);
+        setRelOpen(false);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [editOpen]);
+  }, [editOpen, relOpen]);
+
+  async function openRelationshipsPanel() {
+    if (!token || !sessionId) return;
+    setRelOpen(true);
+    setRelLoading(true);
+    setRelError(null);
+    try {
+      const data = await fetchPlayRelationships(token, sessionId);
+      setRelRows(data.npcs);
+      if (meta) setMeta({ turn: data.turn, day: data.day });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "오류";
+      if (msg === SESSION_EXPIRED) {
+        localStorage.removeItem(TOKEN_KEY);
+        nav("/login");
+        return;
+      }
+      setRelError(msg);
+      setRelRows([]);
+    } finally {
+      setRelLoading(false);
+    }
+  }
+
+  function statLabel(slug: string): string {
+    return RELATIONSHIP_STAT_LABELS[slug as RelationshipStatSlug] ?? slug;
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -175,15 +218,7 @@ export function PlayPage() {
           setMeta({ turn: r.turn, day: r.day });
           updateAssistant(r.response, r.response_segments ?? []);
           if (r.events_triggered.length > 0) {
-            const ev = r.events_triggered.map((x) => x.description || x.event_id).join(" · ");
-            setLines((prev) => [
-              ...prev,
-              {
-                role: "assistant",
-                text: `[이벤트] ${ev}`,
-                segments: [{ speaker: "이벤트", text: `[이벤트] ${ev}` }],
-              },
-            ]);
+            setEventQueue(r.events_triggered);
           }
         },
         onError: (m) => {
@@ -276,15 +311,7 @@ export function PlayPage() {
             setMeta({ turn: r.turn, day: r.day });
             updateAssistant(r.response, r.response_segments ?? []);
             if (r.events_triggered.length > 0) {
-              const ev = r.events_triggered.map((x) => x.description || x.event_id).join(" · ");
-              setLines((prev) => [
-                ...prev,
-                {
-                  role: "assistant",
-                  text: `[이벤트] ${ev}`,
-                  segments: [{ speaker: "이벤트", text: `[이벤트] ${ev}` }],
-                },
-              ]);
+              setEventQueue(r.events_triggered);
             }
           },
           onError: (m) => {
@@ -346,6 +373,15 @@ export function PlayPage() {
                 Turn {meta.turn} · Day {meta.day}
               </span>
             )}
+            <button
+              type="button"
+              onClick={() => void openRelationshipsPanel()}
+              disabled={historyLoading}
+              title="NPC별 관계 수치 보기 (대화창에는 숫자 미표시)"
+              className="rounded-lg border border-slate-600/80 bg-slate-950/60 px-2.5 py-1.5 text-xs font-medium text-amber-200/90 hover:bg-slate-800/80 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              관계
+            </button>
             <div className="flex overflow-hidden rounded-lg border border-slate-600/80 bg-slate-950/60 shadow-sm">
               <button
                 type="button"
@@ -424,6 +460,76 @@ export function PlayPage() {
         </div>
       </div>
 
+      {relOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4"
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setRelOpen(false);
+          }}
+        >
+          <div
+            className="flex max-h-[min(85dvh,28rem)] w-full max-w-md flex-col rounded-t-2xl border border-slate-700 bg-slate-900 shadow-2xl sm:rounded-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="play-relationships-title"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-slate-800 px-4 py-3 sm:px-5">
+              <h2 id="play-relationships-title" className="text-base font-semibold text-white">
+                NPC 관계 수치
+              </h2>
+              <p className="mt-1 text-xs text-slate-500">
+                월드 편집에서 설정한 스탯만 표시됩니다. 대화 후 「관계」를 다시 눌러 갱신하세요.
+              </p>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 sm:px-5">
+              {relLoading && <p className="text-sm text-slate-500">불러오는 중…</p>}
+              {relError && <p className="text-sm text-red-300">{relError}</p>}
+              {!relLoading && !relError && relRows.length === 0 && (
+                <p className="text-sm text-slate-500">
+                  추적 중인 관계 수치가 없습니다. 월드 편집에서 NPC별 스탯을 추가하세요.
+                </p>
+              )}
+              {!relLoading && relRows.length > 0 && (
+                <ul className="space-y-4">
+                  {relRows.map((row) => (
+                    <li key={row.npc_id} className="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+                      <p className="text-sm font-medium text-white">{row.npc_name}</p>
+                      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                        {Object.entries(row.stats).map(([slug, val]) => (
+                          <div key={slug} className="flex justify-between gap-2 text-slate-400">
+                            <dt>{statLabel(slug)}</dt>
+                            <dd className="font-mono text-amber-200/90">{val}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-800 px-4 py-3 sm:px-5">
+              <button
+                type="button"
+                onClick={() => void openRelationshipsPanel()}
+                disabled={relLoading}
+                className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+              >
+                새로고침
+              </button>
+              <button
+                type="button"
+                onClick={() => setRelOpen(false)}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {editOpen && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4"
@@ -486,6 +592,13 @@ export function PlayPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {eventQueue.length > 0 && (
+        <EventCard
+          event={eventQueue[0]}
+          onContinue={() => setEventQueue((q) => q.slice(1))}
+        />
       )}
     </div>
   );

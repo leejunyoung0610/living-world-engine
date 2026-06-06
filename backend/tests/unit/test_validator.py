@@ -33,6 +33,19 @@ class TestStateChangeValidator:
         result = validator.validate(changes)
         assert len(result["relationship_changes"]) == 0
 
+    def test_disgust_and_wrath_stats_accepted(self, validator: StateChangeValidator) -> None:
+        """혐오·살의 관계 스탯 허용"""
+        changes = {
+            "relationship_changes": [
+                {"character": "엘레나", "stat": "disgust", "change": 3, "reason": "거짓말"},
+                {"character": "엘레나", "stat": "wrath", "change": 2, "reason": "위협"},
+            ],
+        }
+        result = validator.validate(changes)
+        assert len(result["relationship_changes"]) == 2
+        assert result["relationship_changes"][0]["stat"] == "disgust"
+        assert result["relationship_changes"][1]["stat"] == "wrath"
+
     def test_invalid_stat_rejected(self, validator: StateChangeValidator) -> None:
         """유효하지 않은 스탯 거부"""
         changes = {

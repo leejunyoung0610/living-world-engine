@@ -146,6 +146,8 @@ def test_build_system_blocks_split_for_cache():
     assert "OnlyHere" not in static
     assert "## Tool (update_game_state)" in static
     assert "## 응답 규칙" in static
+    assert "블록 합계 최대 10개" in static
+    assert "이번 턴 출력 제한" in dynamic
 
 
 def test_dynamic_includes_player_stats_not_static():
@@ -203,6 +205,43 @@ def test_only_important_memories():
     assert "Low importance" not in prompt
 
 
+def test_dynamic_includes_relationship_stats_for_llm():
+    """관계 수치는 dynamic에 포함 — 클로드가 현재값을 본다."""
+    optimizer = SystemPromptOptimizer()
+    npcs = [
+        {
+            "id": "kim",
+            "name": "김선배",
+            "role": "선배",
+            "relationship_stats": {"affection": 40, "trust": 30},
+        }
+    ]
+    player = {
+        "name": "P",
+        "relationships": {"kim": {"affection": 55, "trust": 30}},
+    }
+    _, dynamic = optimizer.build_system_blocks(
+        world={"name": "W"},
+        player=player,
+        npcs=npcs,
+        memories=[],
+    )
+    assert "## 관계 수치" in dynamic
+    assert "호감(affection): 55/100" in dynamic
+    assert "신뢰(trust): 30/100" in dynamic
+
+
+def test_static_forbids_relationship_numbers_in_user_dialogue():
+    optimizer = SystemPromptOptimizer()
+    static, _ = optimizer.build_system_blocks(
+        world={"name": "W"},
+        player={"name": "P"},
+        npcs=[],
+        memories=[],
+    )
+    assert "유저에게 보이는 대사에 관계 수치" in static
+
+
 def test_compact_npc_includes_major_background_and_speech_style_alias():
     optimizer = SystemPromptOptimizer()
     npcs = [
@@ -225,3 +264,29 @@ def test_compact_npc_includes_major_background_and_speech_style_alias():
     assert "무용과" in dynamic
     assert "배경: 발레 전공" in dynamic
     assert "말투: 존댓말, 밝음" in dynamic
+
+
+def test_pending_event_hints_injected_into_dynamic_block():
+    optimizer = SystemPromptOptimizer()
+    _, dynamic = optimizer.build_system_blocks(
+        world={"name": "W"},
+        player={"name": "P", "stats": {}, "relationships": {}},
+        npcs=[],
+        memories=[],
+        pending_event_hints=["아현을 떠올리며 멜로디가 흘렀다."],
+    )
+    assert "## 방금 일어난 일 (지난 턴)" in dynamic
+    assert "아현을 떠올리며 멜로디가 흘렀다." in dynamic
+    assert "자연스럽게 인지" in dynamic
+
+
+def test_empty_pending_event_hints_omits_block():
+    optimizer = SystemPromptOptimizer()
+    _, dynamic = optimizer.build_system_blocks(
+        world={"name": "W"},
+        player={"name": "P", "stats": {}, "relationships": {}},
+        npcs=[],
+        memories=[],
+        pending_event_hints=[],
+    )
+    assert "## 방금 일어난 일" not in dynamic

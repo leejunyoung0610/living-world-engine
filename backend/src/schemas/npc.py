@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from ..engine.relationship_stats import normalize_relationship_stat_values
+
 _NPC_ID_FALLBACK = re.compile(r"[^a-z0-9_-]+")
 
 MAJOR_MAX_LEN = 120
@@ -21,6 +23,7 @@ _PRESERVE_KEYS = (
     "interests",
     "age",
     "initial_stats",
+    "relationship_stats",
     "description",
 )
 
@@ -90,8 +93,18 @@ def normalize_npc_record(raw: Any, index: int) -> dict[str, Any]:
     if style is not None:
         out["speaking_style"] = style
 
+    rs = normalize_relationship_stat_values(raw.get("relationship_stats"))
+    if rs:
+        out["relationship_stats"] = rs
+    elif "initial_stats" in raw and raw["initial_stats"] is not None:
+        legacy = normalize_relationship_stat_values(raw.get("initial_stats"))
+        if legacy:
+            out["relationship_stats"] = legacy
+
     for key in _PRESERVE_KEYS:
         if key in raw and raw[key] is not None:
+            if key == "relationship_stats":
+                continue
             out[key] = raw[key]
 
     return out

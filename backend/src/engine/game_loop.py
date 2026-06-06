@@ -71,6 +71,7 @@ class GameEngine:
         self.performance = PerformanceMonitor()
         self.context_manager = ContextManager()
         self.cache_reset_flag = None  # Cache 강제 초기화용
+        self.pending_event_hints: list[dict[str, Any]] = []
 
     def initialize(self, world_dir: str) -> None:
         """게임 초기화 - 세계관 디렉토리에서 world.json + characters.json + events.json 로드"""
@@ -227,52 +228,8 @@ class GameEngine:
             #     loop_result = self.loop_detector.detect_loop(snapshot, response_text)
             loop_result = {"detected": False, "severity": 0}  # 비활성화
 
-            events_triggered: list[dict[str, Any]] = []
             with self.performance.measure("event_system"):
-                triggered_events = self.event_manager.check_events(snapshot)
-                # 같은 턴 발동 캡 — 월드별 ``world_variables.max_events_per_turn`` 우선,
-                # 없으면 모듈 기본값(1).
-                world_vars = self.state.world.get("world_variables", {}) or {}
-                try:
-                    cap = int(world_vars.get("max_events_per_turn", DEFAULT_MAX_EVENTS_PER_TURN))
-                except (TypeError, ValueError):
-                    cap = DEFAULT_MAX_EVENTS_PER_TURN
-                cap = max(0, cap)
-
-                for event in triggered_events[:cap]:
-                    self.event_manager.trigger_event(event["id"])
-                    applied_effects = self.event_manager.apply_effects(
-                        self.state, event.get("effects") or []
-                    )
-                    events_triggered.append(
-                        {
-                            "event_id": event["id"],
-                            "description": event.get("description", ""),
-                            "narrative_hint": event.get("narrative_hint", ""),
-                            "applied_effects": applied_effects,
-                        }
-                    )
-                    logger.info(
-                        f"🎲 이벤트 발생: {event.get('description', event['id'])}"
-                        + (
-                            f" — effects={len(applied_effects)}"
-                            if applied_effects
-                            else ""
-                        )
-                    )
-
-                # Loop Detection 비활성화
-                # if loop_result["detected"] and loop_result.get("severity", 0) >= 7:
-                #     surprise = {
-                #         "event_id": f"surprise_{self.state.turn}",
-                #         "description": "예상치 못한 돌발 상황이 발생합니다",
-                #         "narrative_hint": "갑자기 주변이 소란스러워진다...",
-                #     }
-                #     events_triggered.append(surprise)
-                #     logger.info(
-                #         f"⚠️ 루프 감지 (severity {loop_result['severity']}) → 강제 이벤트 주입"
-                #     )
-                self.event_manager.tick_cooldowns()
+                events_triggered = self._process_turn_events()
 
             self.conversation_history.append({"role": "user", "content": user_input})
             self.conversation_history.append({"role": "assistant", "content": response_text})
@@ -321,12 +278,69 @@ class GameEngine:
     def process_turn_stream(self, user_input: str) -> Iterator[dict[str, Any]]:
         yield from self._stream_turn_impl(user_input)
 
+    def _consume_pending_event_hints(self) -> list[str]:
+        """현재 턴에 해당하는 narrative_hint 1개만 소비 후 클리어 (TTL: for_turn 불일치 항목 제거)."""
+        turn = self.state.turn
+        matching = [h for h in self.pending_event_hints if h.get("for_turn") == turn]
+        self.pending_event_hints = [
+            h for h in self.pending_event_hints if int(h.get("for_turn", -1)) > turn
+        ]
+        hints = [str(h.get("hint", "")).strip() for h in matching if str(h.get("hint", "")).strip()]
+        return hints[:1]
+
+    def _queue_event_narrative_hints(self, events_triggered: list[dict[str, Any]]) -> None:
+        for ev in events_triggered:
+            hint = str(ev.get("narrative_hint", "")).strip()
+            if not hint:
+                continue
+            self.pending_event_hints.append({
+                "event_id": ev.get("event_id", ""),
+                "hint": hint,
+                "for_turn": self.state.turn,
+            })
+        if len(self.pending_event_hints) > 3:
+            self.pending_event_hints = self.pending_event_hints[-3:]
+
+    def _process_turn_events(self) -> list[dict[str, Any]]:
+        """이벤트 조건 검사 → 효과 적용 → narrative_hint 큐 → 쿨다운."""
+        snapshot = self.state.snapshot()
+        events_triggered: list[dict[str, Any]] = []
+        triggered_events = self.event_manager.check_events(snapshot)
+        world_vars = self.state.world.get("world_variables", {}) or {}
+        try:
+            cap = int(world_vars.get("max_events_per_turn", DEFAULT_MAX_EVENTS_PER_TURN))
+        except (TypeError, ValueError):
+            cap = DEFAULT_MAX_EVENTS_PER_TURN
+        cap = max(0, cap)
+
+        for event in triggered_events[:cap]:
+            self.event_manager.trigger_event(event["id"])
+            applied_effects = self.event_manager.apply_effects(
+                self.state, event.get("effects") or []
+            )
+            events_triggered.append({
+                "event_id": event["id"],
+                "name": event.get("name", ""),
+                "description": event.get("description", ""),
+                "narrative_hint": event.get("narrative_hint", ""),
+                "applied_effects": applied_effects,
+            })
+            logger.info(
+                f"🎲 이벤트 발생: {event.get('description', event['id'])}"
+                + (f" — effects={len(applied_effects)}" if applied_effects else "")
+            )
+
+        self._queue_event_narrative_hints(events_triggered)
+        self.event_manager.tick_cooldowns()
+        return events_triggered
+
     def _build_system_blocks(
         self,
         relevant_memories: list[dict[str, Any]],
         user_input: str,
     ) -> tuple[str, str]:
         """(static, dynamic) 시스템 블록 — static만 Anthropic 프롬프트 캐시 대상."""
+        pending_hints = self._consume_pending_event_hints()
         static, dynamic = self.prompt_optimizer.build_system_blocks(
             world=self.state.world,
             player=self.state.player,
@@ -337,6 +351,7 @@ class GameEngine:
             day=self.state.day,
             user_message=user_input,
             recent_conversation=self.conversation_history,
+            pending_event_hints=pending_hints,
         )
         total = len(static) + len(dynamic)
         logger.debug(
@@ -535,30 +550,7 @@ class GameEngine:
         response_text = llm_result.get("response", "")
         loop_result = {"detected": False, "severity": 0}
 
-        events_triggered: list[dict[str, Any]] = []
-        triggered_events = self.event_manager.check_events(snapshot)
-        world_vars = self.state.world.get("world_variables", {}) or {}
-        try:
-            cap = int(world_vars.get("max_events_per_turn", DEFAULT_MAX_EVENTS_PER_TURN))
-        except (TypeError, ValueError):
-            cap = DEFAULT_MAX_EVENTS_PER_TURN
-        cap = max(0, cap)
-
-        for event in triggered_events[:cap]:
-            self.event_manager.trigger_event(event["id"])
-            applied_effects = self.event_manager.apply_effects(
-                self.state, event.get("effects") or []
-            )
-            events_triggered.append(
-                {
-                    "event_id": event["id"],
-                    "description": event.get("description", ""),
-                    "narrative_hint": event.get("narrative_hint", ""),
-                    "applied_effects": applied_effects,
-                }
-            )
-
-        self.event_manager.tick_cooldowns()
+        events_triggered = self._process_turn_events()
 
         self.conversation_history.append({"role": "user", "content": user_input})
         self.conversation_history.append({"role": "assistant", "content": response_text})

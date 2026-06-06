@@ -139,6 +139,23 @@ class TestGameEngineEventIntegration:
         event = result["events_triggered"][0]
         assert event["narrative_hint"] == "혼돈이 커지고 있다."
 
+    def test_narrative_hint_queued_and_consumed_next_turn(self, mock_engine: GameEngine) -> None:
+        """이벤트 발동 시 hint 큐 → 다음 턴 프롬프트 1회 주입 후 클리어."""
+        mock_engine.state.world["world_variables"]["chaos_level"] = 0.7
+        mock_engine.process_turn("1턴")
+        assert len(mock_engine.pending_event_hints) == 1
+        assert mock_engine.pending_event_hints[0]["hint"] == "혼돈이 커지고 있다."
+
+        with patch.object(
+            mock_engine.prompt_optimizer,
+            "build_system_blocks",
+            wraps=mock_engine.prompt_optimizer.build_system_blocks,
+        ) as spy:
+            mock_engine.process_turn("2턴")
+            hints = spy.call_args.kwargs.get("pending_event_hints", [])
+            assert hints == ["혼돈이 커지고 있다."]
+        assert mock_engine.pending_event_hints == []
+
     def test_events_loaded_on_initialize(self) -> None:
         """initialize() 시 events.json 자동 로딩"""
         with patch("backend.src.engine.game_loop.ClaudeClient"):

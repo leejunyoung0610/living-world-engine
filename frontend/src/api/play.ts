@@ -25,16 +25,35 @@ export type SessionSummary = {
   last_message_preview: string;
   created_at: string;
   last_active: string;
+  /** 내가 만든 월드일 때만 편집 API 사용 가능 */
+  is_world_owner?: boolean;
 };
 
 export type NpcSegment = { speaker: string; text: string };
+
+export type EventEffectApplied = {
+  type: string;
+  key?: string;
+  delta?: number;
+  before?: number;
+  after?: number;
+  label_ko?: string;
+};
+
+export type TriggeredEvent = {
+  event_id: string;
+  name?: string;
+  description: string;
+  narrative_hint?: string;
+  applied_effects?: EventEffectApplied[];
+};
 
 export type TurnResult = {
   turn: number;
   day: number;
   response: string;
   response_segments: NpcSegment[];
-  events_triggered: { event_id: string; description: string }[];
+  events_triggered: TriggeredEvent[];
 };
 
 export type PlayHistoryMessage = {
@@ -49,6 +68,18 @@ export type PlayHistoryResult = {
   world_name: string;
   messages: PlayHistoryMessage[];
   npc_names: string[];
+};
+
+export type NpcRelationshipRow = {
+  npc_id: string;
+  npc_name: string;
+  stats: Record<string, number>;
+};
+
+export type PlayRelationshipsResult = {
+  turn: number;
+  day: number;
+  npcs: NpcRelationshipRow[];
 };
 
 async function failDetail(res: Response, fallback: string): Promise<never> {
@@ -127,6 +158,18 @@ export async function fetchPlayHistory(token: string, sessionId: string): Promis
   });
   if (!res.ok) await failDetail(res, "히스토리를 불러오지 못했습니다");
   return res.json() as Promise<PlayHistoryResult>;
+}
+
+export async function fetchPlayRelationships(
+  token: string,
+  sessionId: string,
+): Promise<PlayRelationshipsResult> {
+  const res = await apiFetch(`/api/play/${sessionId}/relationships`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) await failDetail(res, "관계 수치를 불러오지 못했습니다");
+  return res.json() as Promise<PlayRelationshipsResult>;
 }
 
 export async function sendTurn(token: string, sessionId: string, message: string): Promise<TurnResult> {

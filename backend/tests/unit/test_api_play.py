@@ -82,7 +82,15 @@ class StubGameEngine:
             "turn": 2,
             "day": 1,
             "response": reply,
-            "events_triggered": [{"event_id": "e1", "description": "이벤트", "narrative_hint": ""}],
+            "events_triggered": [{
+                "event_id": "e1",
+                "name": "테스트 이벤트",
+                "description": "이벤트",
+                "narrative_hint": "",
+                "applied_effects": [
+                    {"type": "resource_stat", "key": "focus", "change": 2, "before": 5, "after": 7},
+                ],
+            }],
         }
 
     def process_turn_stream(self, msg: str):
@@ -100,9 +108,15 @@ class StubGameEngine:
                 "turn": 2,
                 "day": 1,
                 "response": reply,
-                "events_triggered": [
-                    {"event_id": "e1", "description": "이벤트", "narrative_hint": ""}
-                ],
+                "events_triggered": [{
+                    "event_id": "e1",
+                    "name": "테스트 이벤트",
+                    "description": "이벤트",
+                    "narrative_hint": "",
+                    "applied_effects": [
+                        {"type": "resource_stat", "key": "focus", "change": 2, "before": 5, "after": 7},
+                    ],
+                }],
             },
         }
 
@@ -188,8 +202,44 @@ def test_play_start_and_turn(client: TestClient) -> None:
     assert body["response"] == "stub:안녕"
     assert body["turn"] == 2
     assert len(body["events_triggered"]) >= 1
+    eff = body["events_triggered"][0]["applied_effects"][0]
+    assert eff["delta"] == 2
+    assert eff["label_ko"] == "집중력"
     assert "response_segments" in body
     assert len(body["response_segments"]) >= 1
+
+
+def test_play_relationships_endpoint(client: TestClient) -> None:
+    token = _signup_token(client, "rel@example.com")
+    h = {"Authorization": f"Bearer {token}"}
+    chars = {
+        "npcs": [
+            {
+                "id": "kim",
+                "name": "김선배",
+                "role": "선배",
+                "relationship_stats": {"affection": 60, "trust": 40},
+            }
+        ]
+    }
+    r = client.post(
+        "/api/worlds/",
+        headers=h,
+        json={"name": "RelW", "world": MIN_WORLD, "characters": chars, "genres": MIN_GENRES},
+    )
+    assert r.status_code == 201
+    wid = r.json()["id"]
+
+    r = client.post("/api/play/start", headers=h, json={"world_id": wid, "player": PLAYER_START})
+    assert r.status_code == 201
+    sid = r.json()["session_id"]
+
+    r = client.get(f"/api/play/{sid}/relationships", headers=h)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert len(data["npcs"]) == 1
+    assert data["npcs"][0]["npc_name"] == "김선배"
+    assert data["npcs"][0]["stats"] == {"affection": 60, "trust": 40}
 
 
 def test_play_history_after_turn(client: TestClient) -> None:
@@ -429,6 +479,7 @@ def test_play_list_sessions(client: TestClient) -> None:
     data = r.json()
     assert len(data) == 1
     assert data[0]["world_name"] == "W"
+    assert data[0]["is_world_owner"] is True
     assert "session_id" in data[0]
 
 

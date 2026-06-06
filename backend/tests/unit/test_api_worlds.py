@@ -423,6 +423,18 @@ def test_genre_catalog_public(client: TestClient) -> None:
     assert {"slug", "label"} == set(data[0].keys())
 
 
+def test_image_storage_meta_public(client: TestClient) -> None:
+    r = client.get("/api/worlds/meta/image-storage")
+    assert r.status_code == 200
+    data = r.json()
+    assert set(data.keys()) == {"permanent_storage", "notice"}
+    assert isinstance(data["permanent_storage"], bool)
+    if not data["permanent_storage"]:
+        assert isinstance(data["notice"], str) and "R2" in data["notice"]
+    else:
+        assert data["notice"] is None
+
+
 def test_worlds_explore_genre_and_popular(client: TestClient) -> None:
     token = _signup_login(client, "sort@example.com")
     h = {"Authorization": f"Bearer {token}"}

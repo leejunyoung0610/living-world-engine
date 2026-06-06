@@ -6,15 +6,20 @@ import {
   EMPTY_CHARACTERS,
   EMPTY_WORLD,
   fetchGenreMeta,
+  fetchImageStorageMeta,
   generateNpcPortrait,
   generateWorldCover,
   getWorld,
   SESSION_EXPIRED,
   updateWorld,
   type GenreEntry,
+  type ImageStorageMeta,
   type WorldVisibility,
 } from "../api/worlds";
 import { LoggedInNav } from "../components/LoggedInNav";
+import { NpcRelationshipStatsEditor } from "../components/NpcRelationshipStatsEditor";
+import { PreviewHttpsImage } from "../components/PreviewHttpsImage";
+import { WorldEventsEditor } from "../components/WorldEventsEditor";
 import {
   campusSampleForm,
   defaultSimpleForm,
@@ -25,6 +30,12 @@ import {
   type SimpleNpcRow,
   type SimpleWorldFormState,
 } from "../utils/worldEditorSimple";
+import {
+  defaultResourceStatRow,
+  parseEventsFromJson,
+  serializeEventsToJson,
+  type SimpleEventRow,
+} from "../utils/worldEditorEvents";
 
 function stringifyJson(v: unknown): string {
   return JSON.stringify(v, null, 2);
@@ -52,6 +63,9 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
   const [worldText, setWorldText] = useState(stringifyJson(EMPTY_WORLD));
   const [charsText, setCharsText] = useState(stringifyJson(EMPTY_CHARACTERS));
   const [eventsText, setEventsText] = useState("");
+  const [simpleEvents, setSimpleEvents] = useState<SimpleEventRow[]>([]);
+  const [eventsUseAdvanced, setEventsUseAdvanced] = useState(false);
+  const [eventsImportWarn, setEventsImportWarn] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [loading, setLoading] = useState(!isCreate);
@@ -65,6 +79,7 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
   /** 커버: URL 입력 vs AI 생성 — 둘 중 하나만 활성 */
   const [coverSource, setCoverSource] = useState<CoverSourceMode>(() => (isCreate ? "ai" : "url"));
   const [npcPortraitBusyIndex, setNpcPortraitBusyIndex] = useState<number | null>(null);
+  const [imageStorageMeta, setImageStorageMeta] = useState<ImageStorageMeta | null>(null);
 
   useEffect(() => {
     const t = localStorage.getItem(TOKEN_KEY);
@@ -76,6 +91,9 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
     void fetchGenreMeta()
       .then(setGenreCatalog)
       .catch(() => setGenreCatalog([]));
+    void fetchImageStorageMeta()
+      .then(setImageStorageMeta)
+      .catch(() => setImageStorageMeta(null));
 
     if (isCreate) {
       setLoading(false);
@@ -104,7 +122,18 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
         setSelectedGenres(g.length > 0 ? g : ["fantasy"]);
         setWorldText(stringifyJson(w.world));
         setCharsText(stringifyJson(w.characters));
+        const { rows: evRows, unparsedCount } = parseEventsFromJson(w.events);
+        setSimpleEvents(evRows);
         setEventsText(w.events ? stringifyJson(w.events) : "");
+        if (unparsedCount > 0) {
+          setEventsUseAdvanced(true);
+          setEventsImportWarn(
+            `간편 폼으로 읽지 못한 이벤트 ${unparsedCount}개가 있습니다. 고급 JSON을 확인하세요.`,
+          );
+        } else {
+          setEventsUseAdvanced(false);
+          setEventsImportWarn(null);
+        }
         const imp = tryImportSimpleFromJson(
           w.world as Record<string, unknown>,
           w.characters as Record<string, unknown>,
@@ -128,7 +157,13 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
           nav("/login");
           return;
         }
-        setApiError(e instanceof Error ? e.message : "불러오기 실패");
+        setApiError(
+          e instanceof Error
+            ? e.message === "World not found"
+              ? "월드를 찾을 수 없거나, 이 계정이 만든 월드가 아닙니다. 마이페이지「내가 만든 월드」에서 편집하세요."
+              : e.message
+            : "불러오기 실패",
+        );
       } finally {
         setLoading(false);
       }
@@ -159,6 +194,10 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
   function applySimpleTemplate() {
     const next = defaultSimpleForm();
     setSimpleForm(next);
+    setSimpleEvents([]);
+    setEventsUseAdvanced(false);
+    setEventsImportWarn(null);
+    setEventsText("");
     setName("");
     setEditorMode("simple");
     setParseError(null);
@@ -200,6 +239,22 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
       return;
     }
     setSimpleForm(imp);
+    const et = eventsText.trim();
+    if (et) {
+      try {
+        const { rows, unparsedCount } = parseEventsFromJson(JSON.parse(et));
+        setSimpleEvents(rows);
+        setEventsUseAdvanced(unparsedCount > 0);
+        setEventsImportWarn(
+          unparsedCount > 0
+            ? `간편 폼으로 읽지 못한 이벤트 ${unparsedCount}개 — 고급 JSON 유지`
+            : null,
+        );
+      } catch {
+        setEventsImportWarn("events JSON 파싱 실패 — 고급 JSON만 유지됩니다.");
+        setEventsUseAdvanced(true);
+      }
+    }
     setEditorMode("simple");
   }
 
@@ -225,28 +280,30 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
   }
 
   function parseBodies():
-    | { ok: true; world: Record<string, unknown>; characters: Record<string, unknown>; events: Record<string, unknown> | null }
+    | { ok: true; world: Record<string, unknown>; characters: Record<string, unknown>; events: unknown }
     | { ok: false; message: string } {
     if (editorMode === "simple") {
       const { world, characters } = formToWorldPayload({
         ...simpleForm,
         worldStoryName: name.trim() || simpleForm.worldStoryName || "새 세계",
       });
-      let events: Record<string, unknown> | null = null;
-      const et = eventsText.trim();
-      if (et) {
+      if (eventsUseAdvanced) {
+        const et = eventsText.trim();
+        if (!et) return { ok: true, world, characters, events: null };
         try {
-          events = JSON.parse(et) as Record<string, unknown>;
+          return { ok: true, world, characters, events: JSON.parse(et) as unknown };
         } catch {
           return { ok: false, message: "events JSON 파싱 실패" };
         }
       }
+      const events =
+        simpleEvents.length > 0 ? serializeEventsToJson(simpleEvents) : null;
       return { ok: true, world, characters, events };
     }
 
     let world: unknown;
     let characters: unknown;
-    let events: Record<string, unknown> | null = null;
+    let events: unknown = null;
     try {
       world = JSON.parse(worldText) as unknown;
     } catch {
@@ -358,6 +415,7 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
           if (genRes.remaining_world_monthly !== null) {
             parts.push(`이 월드 ${genRes.remaining_world_monthly}회 남음`);
           }
+          if (genRes.storage_notice) parts.push(genRes.storage_notice);
           setCoverGenInfo(parts.join(" · ") || null);
         } catch (genErr) {
           if (genErr instanceof Error && genErr.message === SESSION_EXPIRED) {
@@ -391,6 +449,7 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
       if (res.remaining_world_monthly !== null) {
         parts.push(`이 월드 ${res.remaining_world_monthly}회 남음`);
       }
+      if (res.storage_notice) parts.push(res.storage_notice);
       setCoverGenInfo(parts.join(" · ") || null);
     } catch (err) {
       if (err instanceof Error && err.message === SESSION_EXPIRED) {
@@ -536,6 +595,13 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
               </p>
             )}
 
+            {imageStorageMeta && !imageStorageMeta.permanent_storage && imageStorageMeta.notice && (
+              <p className="rounded-lg border border-amber-900/50 bg-amber-950/30 px-3 py-2 text-sm text-amber-200">
+                {imageStorageMeta.notice}{" "}
+                <span className="text-amber-300/80">자세히: docs/IMAGE_STORAGE.md</span>
+              </p>
+            )}
+
             <fieldset className="rounded-lg border border-slate-800 bg-slate-900/40 px-4 py-3">
               <legend className="px-1 text-sm font-medium text-slate-300">커버 이미지 (공개 상세)</legend>
               <p className="mt-1 text-xs text-slate-500">
@@ -591,9 +657,8 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
                   {currentCoverPreviewUrl().startsWith("https://") && (
                     <div className="mt-3">
                       <p className="text-xs text-slate-500">미리보기</p>
-                      <img
+                      <PreviewHttpsImage
                         src={currentCoverPreviewUrl()}
-                        alt=""
                         className="mt-1 max-h-40 w-full max-w-xl rounded-md border border-slate-700 object-cover"
                       />
                     </div>
@@ -620,9 +685,8 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
                   {readCoverUrlFromWorldJson().startsWith("https://") && (
                     <div className="mt-2">
                       <p className="text-xs text-slate-500">미리보기</p>
-                      <img
+                      <PreviewHttpsImage
                         src={readCoverUrlFromWorldJson()}
-                        alt=""
                         className="mt-1 max-h-40 w-full max-w-xl rounded-md border border-slate-700 object-cover"
                       />
                     </div>
@@ -656,9 +720,8 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
                   {currentCoverPreviewUrl().startsWith("https://") && (
                     <div className="mt-2">
                       <p className="text-xs text-slate-500">미리보기</p>
-                      <img
+                      <PreviewHttpsImage
                         src={currentCoverPreviewUrl()}
-                        alt=""
                         className="mt-1 max-h-40 w-full max-w-xl rounded-md border border-slate-700 object-cover"
                       />
                     </div>
@@ -915,6 +978,12 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
                             />
                           </div>
                           <div className="sm:col-span-2 border-t border-slate-800 pt-2">
+                            <NpcRelationshipStatsEditor
+                              value={row.relationshipStats}
+                              onChange={(relationshipStats) => updateNpc(i, { relationshipStats })}
+                            />
+                          </div>
+                          <div className="sm:col-span-2 border-t border-slate-800 pt-2">
                             <label className="text-xs font-medium text-slate-400">
                               외모·복장 (AI 초상 전용)
                             </label>
@@ -932,12 +1001,12 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
                             </p>
                           </div>
                           {row.portraitImageUrl ? (
-                            <div className="sm:col-span-2 flex items-center gap-2">
+                            <div className="sm:col-span-2 flex flex-wrap items-center gap-2">
                               <span className="text-xs text-slate-500">초상</span>
-                              <img
+                              <PreviewHttpsImage
                                 src={row.portraitImageUrl}
-                                alt=""
                                 className="h-14 w-14 rounded-md border border-slate-700 object-cover"
+                                expiredMessage="초상 만료 — AI 초상으로 다시 생성하세요."
                               />
                             </div>
                           ) : null}
@@ -968,10 +1037,110 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
                   )}
                 </div>
 
-                <p className="text-xs text-slate-500">
-                  이벤트·세밀한 필드는 상단 <strong className="text-slate-400">JSON (고급)</strong> 탭에서만
-                  다룹니다.
-                </p>
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="text-sm font-medium text-slate-300">플레이어 스탯 (자원)</label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSimpleForm((s) => ({
+                          ...s,
+                          resourceStats: [...s.resourceStats, defaultResourceStatRow()],
+                        }))
+                      }
+                      className="rounded-md border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
+                    >
+                      + 스탯
+                    </button>
+                  </div>
+                  <p className="mb-2 text-xs text-slate-500">
+                    입장 시 플레이어가 설정하는 수치. 이벤트 조건·효과·카드 한글 라벨에 사용됩니다.
+                  </p>
+                  <ul className="space-y-2">
+                    {simpleForm.resourceStats.map((row, i) => (
+                      <li key={i} className="flex flex-wrap gap-2">
+                        <input
+                          type="text"
+                          placeholder="키 (영문, 예: producing)"
+                          value={row.key}
+                          onChange={(e) =>
+                            setSimpleForm((s) => ({
+                              ...s,
+                              resourceStats: s.resourceStats.map((r, j) =>
+                                j === i ? { ...r, key: e.target.value } : r,
+                              ),
+                            }))
+                          }
+                          className="w-36 rounded border border-slate-700 bg-slate-950 px-2 py-1 font-mono text-xs text-slate-200"
+                        />
+                        <input
+                          type="text"
+                          placeholder="한글 라벨"
+                          value={row.label}
+                          onChange={(e) =>
+                            setSimpleForm((s) => ({
+                              ...s,
+                              resourceStats: s.resourceStats.map((r, j) =>
+                                j === i ? { ...r, label: e.target.value } : r,
+                              ),
+                            }))
+                          }
+                          className="min-w-[8rem] flex-1 rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSimpleForm((s) => ({
+                              ...s,
+                              resourceStats: s.resourceStats.filter((_, j) => j !== i),
+                            }))
+                          }
+                          className="text-xs text-red-400 hover:text-red-300"
+                        >
+                          삭제
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <WorldEventsEditor
+                  events={simpleEvents}
+                  onChange={setSimpleEvents}
+                  npcs={simpleForm.npcs.map((row, i) => ({
+                    id: effectiveNpcRowId(row, i),
+                    name: row.name.trim() || `NPC ${i + 1}`,
+                  }))}
+                  resourceStats={simpleForm.resourceStats.filter((r) => r.key.trim())}
+                />
+
+                {eventsImportWarn && (
+                  <p className="rounded-lg border border-amber-900/50 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
+                    {eventsImportWarn}
+                  </p>
+                )}
+
+                <details className="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2">
+                  <summary className="cursor-pointer text-xs text-slate-400">
+                    이벤트 고급 JSON {eventsUseAdvanced ? "(사용 중)" : "(선택)"}
+                  </summary>
+                  <label className="mt-2 flex items-center gap-2 text-xs text-slate-400">
+                    <input
+                      type="checkbox"
+                      checked={eventsUseAdvanced}
+                      onChange={(e) => setEventsUseAdvanced(e.target.checked)}
+                    />
+                    간편 폼 대신 아래 JSON을 저장에 사용
+                  </label>
+                  <textarea
+                    value={eventsText}
+                    onChange={(e) => setEventsText(e.target.value)}
+                    rows={8}
+                    spellCheck={false}
+                    className="mt-2 w-full resize-y rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xs text-slate-200"
+                    placeholder='[{"id":"evt_1", ...}] 또는 {"events":[...]}'
+                  />
+                </details>
               </div>
             )}
 
@@ -1024,6 +1193,10 @@ export function WorldEditorPage({ create }: { create?: boolean }) {
 
                 <div>
                   <label className="block text-sm font-medium text-slate-300">events (JSON, 선택)</label>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    배열 또는 {"{ \"events\": [...] }"}. 조건: relationship_threshold(npc_id), resource_stat_threshold,
+                    compound · 효과: resource_stat
+                  </p>
                   <textarea
                     value={eventsText}
                     onChange={(e) => setEventsText(e.target.value)}

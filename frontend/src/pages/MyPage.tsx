@@ -168,12 +168,21 @@ export function MyPage() {
                     >
                       처음부터
                     </button>
-                    <Link
-                      to={`/worlds/${s.world_id}`}
-                      className="rounded-md border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800"
-                    >
-                      월드 편집
-                    </Link>
+                    {s.is_world_owner !== false ? (
+                      <Link
+                        to={`/worlds/${s.world_id}`}
+                        className="rounded-md border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800"
+                      >
+                        월드 편집
+                      </Link>
+                    ) : (
+                      <Link
+                        to={`/world/${s.world_id}`}
+                        className="rounded-md border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800"
+                      >
+                        월드 보기
+                      </Link>
+                    )}
                   </div>
                 </li>
               ))}

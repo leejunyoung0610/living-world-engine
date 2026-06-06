@@ -6,7 +6,7 @@ EventManager - 이벤트 시스템
 
 - **이벤트 = 자원 스탯 / 플래그 / 내러티브 힌트**. ``hp``·``stress``·``focus`` 같은
   플레이어 자원 수치를 가끔(조건/확률) 변동시키는 게 주 용도.
-- **감정·관계 (affection·trust·romance·fear·respect) 는 LLM 이 이야기 흐름에서
+- **감정·관계 (affection·trust·respect·fear·loyalty·romance·disgust·wrath) 는 LLM 이 이야기 흐름에서
   자연스럽게** ``update_relationship`` 으로 변동. 이벤트 *효과* 로는 만지지 않는다.
   (조건은 ``relationship_threshold`` 로 *읽는* 건 허용 — 트리거에는 유용.)
 
@@ -15,7 +15,8 @@ EventManager - 이벤트 시스템
 
 - ``turn_range`` (기존): 턴 구간
 - ``variable_threshold`` (기존): ``world.world_variables[key]`` 비교
-- ``relationship_threshold`` (기존): ``player.relationships.*[stat]`` 비교 (1명이라도 충족 시 True)
+- ``relationship_threshold`` (기존): ``player.relationships.*[stat]`` 비교.
+  선택적 ``npc_id`` 가 있으면 해당 NPC만, 없으면 1명이라도 충족 시 True (하위 호환).
 - ``resource_stat_threshold`` (신규): ``player.stats[key]`` 비교
 - ``flag`` (신규): ``player.flags[key] == equals``
 - ``time_window`` (신규): ``min_day``/``max_day``/``phase``("day"/"night")
@@ -107,6 +108,9 @@ class EventManager:
             event_id = event.get("id", "")
             if event_id in self.cooldowns:
                 continue
+            if event.get("once") and event_id:
+                if any(rec.get("id") == event_id for rec in self.triggered_events):
+                    continue
 
             condition = event.get("condition", {})
             if self._evaluate_condition(condition, state):
@@ -132,17 +136,7 @@ class EventManager:
             return self._compare(actual, condition.get("op", ">="), condition.get("value", 0))
 
         if cond_type == "relationship_threshold":
-            stat = condition.get("stat", "")
-            op_str = condition.get("op", ">=")
-            threshold = condition.get("value", 0)
-            relationships = state.get("player", {}).get("relationships", {}) or {}
-            # 어떤 NPC라도 조건 충족하면 True
-            for _npc_id, stats in relationships.items():
-                if not isinstance(stats, dict):
-                    continue
-                if self._compare(stats.get(stat, 0), op_str, threshold):
-                    return True
-            return False
+            return self._evaluate_relationship_threshold(condition, state)
 
         if cond_type == "resource_stat_threshold":
             stat = condition.get("stat", "")
@@ -184,6 +178,27 @@ class EventManager:
                 return any(self._evaluate_condition(c, state) for c in conditions)
             return all(self._evaluate_condition(c, state) for c in conditions)
 
+        return False
+
+    def _evaluate_relationship_threshold(
+        self, condition: dict[str, Any], state: dict[str, Any]
+    ) -> bool:
+        """관계 스탯 임계값. ``npc_id`` 가 있으면 해당 NPC만, 없으면 아무 NPC 충족 시 True."""
+        stat = condition.get("stat", "")
+        op_str = condition.get("op", ">=")
+        threshold = condition.get("value", 0)
+        relationships = state.get("player", {}).get("relationships", {}) or {}
+        npc_id = condition.get("npc_id")
+        if npc_id:
+            npc_rels = relationships.get(npc_id)
+            if not isinstance(npc_rels, dict):
+                return False
+            return self._compare(npc_rels.get(stat, 0), op_str, threshold)
+        for _npc_id, stats in relationships.items():
+            if not isinstance(stats, dict):
+                continue
+            if self._compare(stats.get(stat, 0), op_str, threshold):
+                return True
         return False
 
     @staticmethod

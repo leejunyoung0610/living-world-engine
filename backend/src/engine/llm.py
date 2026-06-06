@@ -15,6 +15,7 @@ from typing import Any, Iterator
 from anthropic import Anthropic
 
 from ..utils.config import get_settings
+from .relationship_stats import RELATIONSHIP_STAT_ORDER
 from ..utils.logger import get_logger
 from .context_manager import ContextManager
 
@@ -41,7 +42,7 @@ GAME_STATE_TOOL = {
                         "character": {"type": "string", "description": "NPC 이름"},
                         "stat": {
                             "type": "string",
-                            "enum": ["affection", "trust", "respect", "fear", "loyalty", "romance"],
+                            "enum": list(RELATIONSHIP_STAT_ORDER),
                             "description": "변경할 관계 수치",
                         },
                         "change": {

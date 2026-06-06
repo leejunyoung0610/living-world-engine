@@ -41,6 +41,10 @@
     "affection": {"min": 0, "max": 100, "default": 50},
     "trust": {"min": 0, "max": 100, "default": 50},
     "respect": {"min": 0, "max": 100, "default": 50},
-    "romance": {"min": 0, "max": 100, "default": 0}
+    "fear": {"min": 0, "max": 100, "default": 50},
+    "loyalty": {"min": 0, "max": 100, "default": 50},
+    "romance": {"min": 0, "max": 100, "default": 0},
+    "disgust": {"min": 0, "max": 100, "default": 0},
+    "wrath": {"min": 0, "max": 100, "default": 0}
   }
 }

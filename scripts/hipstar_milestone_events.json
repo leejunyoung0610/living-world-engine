@@ -1,0 +1,123 @@
+[
+  {
+    "id": "ahyeon_first_inspiration",
+    "name": "아현의 영감",
+    "description": "김아현을 떠올리다 멜로디가 흘렀다. 비트가 손끝에서 자연스럽게 이어진다.",
+    "narrative_hint": "플레이어가 최근 김아현과 친해지며 작곡에 영감을 받은 상태다. 아현이나 주변 NPC가 음악적 변화를 은근히 느낄 수 있다.",
+    "condition": {
+      "type": "relationship_threshold",
+      "npc_id": "world_1780761374",
+      "stat": "affection",
+      "op": ">=",
+      "value": 40
+    },
+    "effects": [{ "type": "resource_stat", "key": "producing", "change": 10 }],
+    "once": true,
+    "cooldown": 999,
+    "priority": 10
+  },
+  {
+    "id": "junyoung_workshop_bond",
+    "name": "준영과의 신뢰",
+    "description": "이준영이 홈스튜디오 비밀을 알려줬다. 믹싱 팁이 귀에 박힌다.",
+    "narrative_hint": "플레이어가 이준영과 깊은 신뢰를 쌓아 프로듀싱 실력이 늘었다. 준영은 플레이어의 성장을 알아챌 수 있다.",
+    "condition": {
+      "type": "relationship_threshold",
+      "npc_id": "world_1780761374_2",
+      "stat": "affection",
+      "op": ">=",
+      "value": 65
+    },
+    "effects": [
+      { "type": "resource_stat", "key": "producing", "change": 8 },
+      { "type": "resource_stat", "key": "music_skill", "change": 5 }
+    ],
+    "once": true,
+    "cooldown": 999,
+    "priority": 9
+  },
+  {
+    "id": "ahyeon_romance_spark",
+    "name": "아현에게 바치는 곡",
+    "description": "김아현을 생각하며 쓴 랩 가사가 입에서 맴돈다.",
+    "narrative_hint": "플레이어가 김아현에게 로맨틱한 감정을 키우며 랩 실력이 올랐다.",
+    "condition": {
+      "type": "relationship_threshold",
+      "npc_id": "world_1780761374",
+      "stat": "romance",
+      "op": ">=",
+      "value": 30
+    },
+    "effects": [{ "type": "resource_stat", "key": "rap", "change": 10 }],
+    "once": true,
+    "cooldown": 999,
+    "priority": 8
+  },
+  {
+    "id": "studio_breakthrough",
+    "name": "스튜디오 돌파",
+    "description": "만든 트랙이 사운드클라우드에서 조용히 입소문 나기 시작했다.",
+    "narrative_hint": "플레이어의 프로듀싱 실력이 눈에 띄게 성장했다. 음악 관련 NPC들이 변화를 감지할 수 있다.",
+    "condition": {
+      "type": "resource_stat_threshold",
+      "stat": "producing",
+      "op": ">=",
+      "value": 30
+    },
+    "effects": [{ "type": "resource_stat", "key": "music_skill", "change": 3 }],
+    "once": true,
+    "cooldown": 999,
+    "priority": 7
+  },
+  {
+    "id": "rap_lane_open",
+    "name": "랩 배틀 초대",
+    "description": "동네 랩 배틀에 이름이 올랐다. 무대가 기다린다.",
+    "narrative_hint": "플레이어의 랩 실력이 인정받기 시작했다.",
+    "condition": {
+      "type": "resource_stat_threshold",
+      "stat": "rap",
+      "op": ">=",
+      "value": 20
+    },
+    "effects": [{ "type": "resource_stat", "key": "rap", "change": 5 }],
+    "once": true,
+    "cooldown": 999,
+    "priority": 6
+  },
+  {
+    "id": "hyunyoung_hype",
+    "name": "현용의 응원",
+    "description": "조현용이 SNS에 플레이어 트랙을 공유했다. 팔로워가 조금 늘었다.",
+    "narrative_hint": "조현용과 친해지며 플레이어의 랩에 관심이 생겼다.",
+    "condition": {
+      "type": "relationship_threshold",
+      "npc_id": "world_1780761374_3",
+      "stat": "affection",
+      "op": ">=",
+      "value": 55
+    },
+    "effects": [{ "type": "resource_stat", "key": "rap", "change": 3 }],
+    "once": true,
+    "cooldown": 999,
+    "priority": 5
+  },
+  {
+    "id": "major_label_interest",
+    "name": "관심의 신호",
+    "description": "작은 레이블 A&R이 DM을 보냈다. 데모를 보내달라고 한다.",
+    "narrative_hint": "플레이어의 프로듀싱과 랩 실력이 동시에 눈에 띄게 성장했다. 음악 업계 관심이 스며들 수 있다.",
+    "condition": {
+      "type": "compound",
+      "op": "and",
+      "conditions": [
+        { "type": "resource_stat_threshold", "stat": "producing", "op": ">=", "value": 25 },
+        { "type": "resource_stat_threshold", "stat": "rap", "op": ">=", "value": 15 }
+      ]
+    },
+    "effects": [{ "type": "resource_stat", "key": "music_skill", "change": 8 }],
+    "once": true,
+    "cooldown": 999,
+    "priority": 11
+  }
+]

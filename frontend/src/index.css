@@ -49,3 +49,14 @@
     @apply rounded-xl border border-slate-800 bg-slate-900/50 p-4 shadow-sm sm:p-5;
   }
 }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

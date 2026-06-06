@@ -20,13 +20,27 @@ _MAX_DOWNLOAD_BYTES = 35 * 1024 * 1024
 _DOWNLOAD_TIMEOUT_SEC = 120
 
 
-def _r2_fully_configured(settings: Settings) -> bool:
+def permanent_image_storage_enabled(settings: Settings) -> bool:
+    """R2 다섯 값이 모두 있으면 Replicate 결과를 영구 공개 URL로 미러."""
     return bool(
         (settings.r2_account_id or "").strip()
         and (settings.r2_access_key or "").strip()
         and (settings.r2_secret_key or "").strip()
         and (settings.r2_bucket or "").strip()
         and (settings.r2_public_url or "").strip()
+    )
+
+
+def _r2_fully_configured(settings: Settings) -> bool:
+    return permanent_image_storage_enabled(settings)
+
+
+def image_storage_notice_ko(settings: Settings) -> str | None:
+    if permanent_image_storage_enabled(settings):
+        return None
+    return (
+        "R2(Cloudflare) 미설정: AI 이미지는 Replicate 임시 URL로만 저장되어 "
+        "며칠~수주 내 만료(404)될 수 있습니다. .env에 R2_* 5개를 설정하면 영구 URL로 저장됩니다."
     )
 
 
@@ -81,6 +95,10 @@ def mirror_https_asset_to_permanent_url(
 ) -> str:
     """R2 미설정 시 원본 URL. ``object_key`` 는 버킷 루트 기준 슬래시 안 붙임."""
     if not _r2_fully_configured(settings):
+        logger.warning(
+            "R2 not configured; keeping transient Replicate URL (will expire): %s",
+            transient_https_url[:80],
+        )
         return transient_https_url.strip()
 
     key = object_key.strip().lstrip("/")

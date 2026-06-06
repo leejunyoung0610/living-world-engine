@@ -1,5 +1,15 @@
 /** 월드 에디터 간편 모드 ↔ 엔진 JSON (world / characters.npcs만) — 플레이어는 입장 시 설정 */
 
+import {
+  type NpcRelationshipStats,
+  parseRelationshipStatsFromNpcJson,
+} from "../constants/relationshipStats";
+import {
+  defaultResourceStatRow,
+  parseResourceStatsFromWorld,
+  type SimpleResourceStatRow,
+} from "./worldEditorEvents";
+
 export type SimpleNpcRow = {
   id: string;
   name: string;
@@ -18,6 +28,8 @@ export type SimpleNpcRow = {
   appearanceForAi: string;
   /** 초상 미리보기용 — 저장 시 npc.portrait_image_url 로 직렬화 */
   portraitImageUrl?: string;
+  /** 활성 관계 스탯만 키로 — 저장 시 relationship_stats */
+  relationshipStats: NpcRelationshipStats;
 };
 
 export type SimpleWorldFormState = {
@@ -29,6 +41,8 @@ export type SimpleWorldFormState = {
   /** 공개 상세 상단 히어로 — HTTPS 이미지 URL (AI 생성 URL·CDN 등). 비우면 표시 안 함. */
   coverImageUrl: string;
   time: string;
+  /** 이벤트 효과·조건용 — `world.stats_schema.resource` */
+  resourceStats: SimpleResourceStatRow[];
   npcs: SimpleNpcRow[];
 };
 
@@ -42,6 +56,7 @@ export function defaultSimpleNpcRow(): SimpleNpcRow {
     background: "",
     speakingStyle: "",
     appearanceForAi: "",
+    relationshipStats: {},
   };
 }
 
@@ -53,6 +68,7 @@ export function defaultSimpleForm(): SimpleWorldFormState {
     worldSetting: "",
     coverImageUrl: "",
     time: "개강 첫 주",
+    resourceStats: [defaultResourceStatRow()],
     npcs: [],
   };
 }
@@ -117,6 +133,10 @@ export function formToWorldPayload(s: SimpleWorldFormState): {
     if (p) {
       npc.portrait_image_url = p;
     }
+    const rs = row.relationshipStats;
+    if (rs && Object.keys(rs).length > 0) {
+      npc.relationship_stats = { ...rs };
+    }
     return npc;
   });
 
@@ -135,6 +155,21 @@ export function formToWorldPayload(s: SimpleWorldFormState): {
   const cover = s.coverImageUrl.trim();
   if (cover) {
     world.cover_image_url = cover;
+  }
+
+  const resource: Record<string, unknown> = {};
+  for (const row of s.resourceStats) {
+    const key = row.key.trim();
+    if (!key) continue;
+    resource[key] = {
+      label: row.label.trim() || key,
+      min: 0,
+      max: 100,
+      default: 5,
+    };
+  }
+  if (Object.keys(resource).length > 0) {
+    world.stats_schema = { resource };
   }
 
   return {
@@ -173,6 +208,7 @@ export function tryImportSimpleFromJson(
       appearanceForAi: optionalNpcString(o, "appearance_for_ai"),
       portraitImageUrl:
         typeof o.portrait_image_url === "string" ? o.portrait_image_url : undefined,
+      relationshipStats: parseRelationshipStatsFromNpcJson(o),
     };
   });
 
@@ -194,6 +230,10 @@ export function tryImportSimpleFromJson(
           ? world.hero_image_url
           : "",
     time: typeof world.time === "string" ? world.time : "Day 1",
+    resourceStats: (() => {
+      const parsed = parseResourceStatsFromWorld(world);
+      return parsed.length > 0 ? parsed : [defaultResourceStatRow()];
+    })(),
     npcs,
   };
 }
@@ -209,6 +249,10 @@ export function campusSampleForm(): SimpleWorldFormState {
       "현실 기반 슬라이스 오브 라이프로 유지한다. 판타지·실존 비판·정치 선동은 넣지 않는다. 강의·팀플·조교·동아리 행사·취업 상담 같은 일상 단위로 전개한다.",
     coverImageUrl: "",
     time: "12주차 · 레포트 마감 전날",
+    resourceStats: [
+      { key: "focus", label: "집중력" },
+      { key: "stress", label: "스트레스" },
+    ],
     npcs: [
       {
         id: "kim_sunbae",
@@ -219,6 +263,7 @@ export function campusSampleForm(): SimpleWorldFormState {
         background: "동아리 회장 2년차. 대기업 인턴 경험.",
         speakingStyle: "존댓말, 명확하고 차분",
         appearanceForAi: "마른 편 체격, 검은 미디엄 헤어, 후드티, 펜슬 허깅 카고. 친근한 웃음·말 많은 타입.",
+        relationshipStats: { affection: 55, trust: 60 },
       },
       {
         id: "lee_peer",
@@ -229,6 +274,7 @@ export function campusSampleForm(): SimpleWorldFormState {
         background: "알고리즘 동아리 부회장. 해커톤 수상.",
         speakingStyle: "반말, 차분하고 진지",
         appearanceForAi: "안경 착용 반삭, 카키 자켓, 노트와 태블릿을 자주 들고 다님. 진지하지만 속은 여림.",
+        relationshipStats: { affection: 45, trust: 50 },
       },
     ],
   };

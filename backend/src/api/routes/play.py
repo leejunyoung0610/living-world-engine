@@ -18,8 +18,10 @@ from sqlalchemy.orm import Session
 
 from ...db.models import User, World
 from ...db.session import get_db
+from ..event_response import format_events_for_client
 from ...engine.dialogue_split import split_assistant_into_segments
 from ...engine.game_loop import GameEngine
+from ...engine.relationship_stats import build_session_relationship_view, seed_player_relationships_from_npcs
 from ...engine.play_persistence import (
     apply_play_payload,
     export_play_payload,
@@ -79,6 +81,8 @@ class SessionSummary(BaseModel):
     last_message_preview: str = ""
     created_at: datetime
     last_active: datetime
+    #: ``GET /api/worlds/{id}`` 편집 API — 소유자만 True
+    is_world_owner: bool = False
 
 
 class TurnBody(BaseModel):
@@ -96,12 +100,29 @@ class NpcLineSegment(BaseModel):
     text: str
 
 
+class EventEffectApplied(BaseModel):
+    type: str
+    key: str = ""
+    delta: int = 0
+    before: int | float | None = None
+    after: int | float | None = None
+    label_ko: str = ""
+
+
+class TriggeredEventResponse(BaseModel):
+    event_id: str
+    name: str = ""
+    description: str = ""
+    narrative_hint: str = ""
+    applied_effects: list[EventEffectApplied] = Field(default_factory=list)
+
+
 class TurnResponse(BaseModel):
     turn: int
     day: int
     response: str
     response_segments: list[NpcLineSegment] = Field(default_factory=list)
-    events_triggered: list[dict[str, str]]
+    events_triggered: list[TriggeredEventResponse] = Field(default_factory=list)
 
 
 class PlayHistoryMessage(BaseModel):
@@ -117,6 +138,18 @@ class PlayHistoryResponse(BaseModel):
     messages: list[PlayHistoryMessage]
     #: 화자 분할 알고리즘이 클라이언트에서 점진 분할(스트리밍 중 화자 블록)에 사용한다.
     npc_names: list[str] = Field(default_factory=list)
+
+
+class NpcRelationshipRow(BaseModel):
+    npc_id: str
+    npc_name: str
+    stats: dict[str, int] = Field(default_factory=dict)
+
+
+class PlayRelationshipsResponse(BaseModel):
+    turn: int
+    day: int
+    npcs: list[NpcRelationshipRow] = Field(default_factory=list)
 
 
 def _memory_file(session_id: uuid.UUID) -> Path:
@@ -361,6 +394,7 @@ def list_play_sessions(
     world_ids = {r.world_id for r in rows}
     worlds = db.scalars(select(World).where(World.id.in_(world_ids))).all()
     name_by_wid = {w.id: w.name for w in worlds}
+    owner_by_wid = {w.id: w.owner_id for w in worlds}
 
     out: list[SessionSummary] = []
     for r in rows:
@@ -374,6 +408,7 @@ def list_play_sessions(
                 last_message_preview=r.last_preview or "",
                 created_at=r.created_at,
                 last_active=r.updated_at,
+                is_world_owner=owner_by_wid.get(r.world_id) == user.id,
             )
         )
     return out
@@ -429,6 +464,34 @@ def play_history(
         world_name=world_name,
         messages=messages,
         npc_names=_npc_names_from_engine(eng),
+    )
+
+
+@router.get("/{session_id}/relationships", response_model=PlayRelationshipsResponse)
+def play_relationships(
+    session_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PlayRelationshipsResponse:
+    """세션 관계 수치 — NPC별 활성 스탯만 (프롬프트 미포함, 플레이 UI용)."""
+    bundle = _ensure_bundle(db, session_id, user.id)
+    if bundle is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
+    eng = bundle.engine
+    state = getattr(eng, "state", None)
+    turn = int(getattr(state, "turn", 0) or 0)
+    day = int(getattr(state, "day", 1) or 1)
+    npcs = getattr(state, "npcs", None) or []
+    player = getattr(state, "player", None) or {}
+    rows = build_session_relationship_view(
+        [n for n in npcs if isinstance(n, dict)],
+        player if isinstance(player, dict) else {},
+    )
+    return PlayRelationshipsResponse(
+        turn=turn,
+        day=day,
+        npcs=[NpcRelationshipRow(**r) for r in rows],
     )
 
 
@@ -490,6 +553,12 @@ def play_start(
     _validate_entry_player(body.player)
     template_chars = w.characters_data if isinstance(w.characters_data, dict) else {}
     characters_merged = _merge_template_and_entry_player(template_chars, body.player)
+    npcs_raw = characters_merged.get("npcs")
+    npcs_list = npcs_raw if isinstance(npcs_raw, list) else []
+    seed_player_relationships_from_npcs(
+        characters_merged["player"],
+        [n for n in npcs_list if isinstance(n, dict)],
+    )
 
     engine = GameEngine()
     try:
@@ -587,17 +656,7 @@ def play_turn(
 
     _persist_session(db, session_id, user.id, bundle.world_id, bundle.engine, bundle=bundle)
 
-    ev = result.get("events_triggered") or []
-    safe_events: list[dict[str, str]] = []
-    for e in ev:
-        if isinstance(e, dict):
-            safe_events.append(
-                {
-                    "event_id": str(e.get("event_id", "")),
-                    "description": str(e.get("description", "")),
-                    "narrative_hint": str(e.get("narrative_hint", "")),
-                }
-            )
+    safe_events = format_events_for_client(bundle.engine, result.get("events_triggered") or [])
 
     response_text = str(result.get("response", ""))
     segs = _segments_for_assistant(bundle.engine, response_text)
@@ -607,7 +666,7 @@ def play_turn(
         day=int(result.get("day", 1)),
         response=response_text,
         response_segments=segs,
-        events_triggered=safe_events,
+        events_triggered=safe_events,  # type: ignore[arg-type]
     )
 
 
@@ -669,17 +728,9 @@ def play_turn_stream(
 
             response_text = str(final_result.get("response", ""))
             segs = _segments_for_assistant(bundle.engine, response_text)
-            ev_list = final_result.get("events_triggered") or []
-            safe_events: list[dict[str, str]] = []
-            for e in ev_list:
-                if isinstance(e, dict):
-                    safe_events.append(
-                        {
-                            "event_id": str(e.get("event_id", "")),
-                            "description": str(e.get("description", "")),
-                            "narrative_hint": str(e.get("narrative_hint", "")),
-                        }
-                    )
+            safe_events = format_events_for_client(
+                bundle.engine, final_result.get("events_triggered") or []
+            )
 
             done_payload = {
                 "turn": int(final_result.get("turn", 0)),
@@ -797,17 +848,9 @@ def play_regenerate_stream(
 
             response_text = str(final_result.get("response", ""))
             segs = _segments_for_assistant(bundle.engine, response_text)
-            ev_list = final_result.get("events_triggered") or []
-            safe_events: list[dict[str, str]] = []
-            for e in ev_list:
-                if isinstance(e, dict):
-                    safe_events.append(
-                        {
-                            "event_id": str(e.get("event_id", "")),
-                            "description": str(e.get("description", "")),
-                            "narrative_hint": str(e.get("narrative_hint", "")),
-                        }
-                    )
+            safe_events = format_events_for_client(
+                bundle.engine, final_result.get("events_triggered") or []
+            )
 
             done_payload = {
                 "turn": int(final_result.get("turn", 0)),

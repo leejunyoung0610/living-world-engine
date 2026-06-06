@@ -3,12 +3,12 @@
 | 항목 | 내용 |
 |------|------|
 | 작성일 | 2026-05-10 |
-| 상태 | **PR-1 백엔드 완료 / 베타 후 데이터 도입 보류** (코드는 들어갔지만 캠퍼스 `events.json` 이 옛 스키마라 실제 발동 0회) |
+| 상태 | **마일스톤 루프 완료 (2026-06-07)** — [`2026-06-07_milestone_events_sprint.md`](2026-06-07_milestone_events_sprint.md) |
 | 관련 문서 | `UGC_MVP_PLAN.md` · `ARCHITECTURE.md` · `BETA_DEV_EXECUTION.md` · `STREAMING.md` |
 | 관련 코드 | `backend/src/engine/events.py`, `backend/src/engine/state.py`, `backend/src/engine/game_loop.py`, `backend/src/api/routes/play.py` |
 
 > **핵심 원칙 (사용자 명시)**
-> - **감정·관계** (affection / trust / romance / fear / respect) 는 LLM 의 이야기 흐름에서 자연스럽게 `update_relationship` 으로 변동 — *기존 그대로*.
+> - **감정·관계** (affection / trust / respect / fear / loyalty / romance / disgust / wrath) 는 LLM 의 이야기 흐름에서 자연스럽게 `update_relationship` 으로 변동 — *플랫폼 고정 8종* (wrath = 살의).
 > - **자원 스탯** (hp / stress / focus 등) 과 **플래그** 만 이벤트의 `resource_stat` / `flag_set` / `narrative` 효과로 가끔 움직인다.
 > - 따라서 `apply_effects` 는 의도적으로 `relationship` 효과를 미지원 — 누가 실수로 써도 조용히 무시 (테스트 `test_relationship_effect_is_ignored_in_pr1` 로 박제).
 
@@ -228,6 +228,7 @@ clamp는 월드의 `standard_stats[stat].min/max`(있으면)를 따른다.
 
 - 2026-05-10 — 초안 작성 (계획 + 분리 작업 정리). 이번 주 보고서 기준점.
 - 2026-05-10 — **PR-1 백엔드 구현 완료**. 사용자 결정으로 데이터(이벤트 정의) 도입은 베타 피드백 후 결정.
+- 2026-06-07 — **마일스톤 루프 완료** (EventCard, narrative_hint, 월드 에디터, 민근이 시드). 상세: [`2026-06-07_milestone_events_sprint.md`](2026-06-07_milestone_events_sprint.md).
 
 ---
 
@@ -251,12 +252,21 @@ clamp는 월드의 `standard_stats[stat].min/max`(있으면)를 따른다.
 - 이 코드는 **백엔드 메커니즘만 들어가있는 상태** — 캠퍼스/아케인의 `events.json` 이 옛 `trigger:"random"+probability` 스키마라 새 `condition` 평가기에선 모두 False → 실제 발동 0.
 - 데이터(이벤트 정의)와 LLM 시스템 프롬프트의 `narrative_hint` 주입은 **베타 피드백 후 진행** 결정.
 
-### 9-3. 베타 후 재개 시 남은 작업
+### 9-3. 마일스톤 스프린트 완료 (2026-06-07)
+
+| # | 작업 | 상태 |
+|---|------|------|
+| PR-B | `narrative_hint` 다음 턴 dynamic 1회 주입 | ✅ |
+| PR-C | EventCard 모달 (채팅 `[이벤트]` 제거) | ✅ |
+| PR-5 | UGC 간편 이벤트·스탯 에디터 | ✅ |
+| — | `npc_id`, `once`, `applied_effects` API | ✅ |
+| — | 민근이 월드 7 마일스톤 시드·실플레이 검증 | ✅ |
+
+### 9-4. 다음 스프린트 (2026-06-08~)
 
 | # | 작업 | 비고 |
 |---|------|------|
-| PR-A | 캠퍼스 `events.json` 신규 스키마로 마이그레이션 (`time_window` + `flag` + `resource_stat` 효과 1~2개) | 실제 발동 시작 |
-| PR-B | `narrative_hint` 를 다음 턴 `system_prompt` 의 dynamic 블록에 1턴만 주입 | "이야기 속에서 반영" 의 핵심 |
-| PR-C | 채팅의 `[이벤트] ...` 별도 메시지를 토스트/배지로 격리 | 이야기와 시스템 분리 |
-| PR-D | 헤더에 자원 스탯 게이지·배지 (`hp 80/100`, `stress 0→5↑`) | 변화 가시화 |
-| PR-5 (원래 계획) | UGC 에디터 — 조건 템플릿 (간편 모드) | UGC 진입 장벽 ↓ |
+| E-09 | 관계 스탯 **2개 이상** compound (에디터 UX) | [`2026-06-07_milestone_events_sprint.md` §4-1](2026-06-07_milestone_events_sprint.md) |
+| E-10 | LLM `resource_stat_changes` + 동일 EventCard | §4-2 |
+| PR-D | 헤더 자원 스탯 게이지 (선택) | 변화 가시화 |
+| PR-A | 캠퍼스 `events.json` 신규 스키마 마이그레이션 | 공식 번들 |

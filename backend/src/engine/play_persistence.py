@@ -37,6 +37,7 @@ def export_play_payload(engine: Any) -> dict[str, Any]:
             "triggered_events": deepcopy(em.triggered_events),
             "cooldowns": dict(em.cooldowns),
         },
+        "pending_event_hints": deepcopy(getattr(engine, "pending_event_hints", [])),
         "long_term_memory": {"memories": deepcopy(mem)},
     }
 
@@ -73,6 +74,9 @@ def apply_play_payload(engine: Any, payload: dict[str, Any] | None) -> None:
         cd = ev.get("cooldowns")
         if isinstance(cd, dict):
             engine.event_manager.cooldowns = {str(k): int(v) for k, v in cd.items()}
+    peh = payload.get("pending_event_hints")
+    if isinstance(peh, list):
+        engine.pending_event_hints = deepcopy(peh)
     ltm = payload.get("long_term_memory")
     if isinstance(ltm, dict):
         mems = ltm.get("memories")

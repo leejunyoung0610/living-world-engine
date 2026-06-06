@@ -40,8 +40,10 @@ from ...services.image_generator import (
     generate_world_cover_image_url,
 )
 from ...services.r2_storage import (
+    image_storage_notice_ko,
     mirror_generated_cover_to_permanent_url,
     mirror_npc_avatar_to_permanent_url,
+    permanent_image_storage_enabled,
 )
 from ..deps import get_current_user
 from ..limiter import limiter
@@ -118,7 +120,7 @@ class WorldCreateBody(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     world: dict[str, Any]
     characters: WorldCharactersBody
-    events: dict[str, Any] | None = None
+    events: list[Any] | dict[str, Any] | None = None
     visibility: WorldVisibility = "private"
     genres: list[str] = Field(min_length=1)
 
@@ -134,7 +136,7 @@ class WorldUpdateBody(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     world: dict[str, Any]
     characters: WorldCharactersBody
-    events: dict[str, Any] | None = None
+    events: list[Any] | dict[str, Any] | None = None
     visibility: WorldVisibility = "private"
     genres: list[str] = Field(min_length=1)
 
@@ -182,7 +184,7 @@ class WorldDetail(BaseModel):
     visibility: WorldVisibility
     world: dict[str, Any]
     characters: dict[str, Any]
-    events: dict[str, Any] | None
+    events: list[Any] | dict[str, Any] | None
     genres: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
@@ -245,10 +247,17 @@ class WorldLikeState(BaseModel):
     like_count: int
 
 
+class ImageStorageMeta(BaseModel):
+    permanent_storage: bool
+    notice: str | None = None
+
+
 class GenerateCoverResponse(BaseModel):
     cover_image_url: str
     remaining_user_monthly: int | None = None
     remaining_world_monthly: int | None = None
+    permanent_storage: bool = False
+    storage_notice: str | None = None
 
 
 class GenerateNpcPortraitResponse(BaseModel):
@@ -256,6 +265,8 @@ class GenerateNpcPortraitResponse(BaseModel):
     portrait_image_url: str
     remaining_avatar_user_monthly: int | None = None
     remaining_avatar_world_monthly: int | None = None
+    permanent_storage: bool = False
+    storage_notice: str | None = None
 
 
 class ExploreWorldsPage(BaseModel):
@@ -486,6 +497,17 @@ def list_genre_meta() -> list[GenreEntry]:
     return [GenreEntry(slug=s, label=L) for s, L in GENRE_DEFINITIONS]
 
 
+@router.get("/meta/image-storage", response_model=ImageStorageMeta)
+def image_storage_meta() -> ImageStorageMeta:
+    """AI 커버·초상 영구 저장(R2) 여부 — 에디터 안내용."""
+    settings = get_settings()
+    permanent = permanent_image_storage_enabled(settings)
+    return ImageStorageMeta(
+        permanent_storage=permanent,
+        notice=image_storage_notice_ko(settings),
+    )
+
+
 @router.get("/", response_model=list[WorldSummary])
 def list_worlds(
     user: User = Depends(get_current_user),
@@ -711,10 +733,13 @@ def generate_world_cover_ai(
     u_rem, w_rem = remaining_cover_quota(
         db, user_id=user.id, world_id=world_id, settings=settings
     )
+    permanent = permanent_image_storage_enabled(settings)
     return GenerateCoverResponse(
         cover_image_url=url,
         remaining_user_monthly=u_rem,
         remaining_world_monthly=w_rem,
+        permanent_storage=permanent,
+        storage_notice=image_storage_notice_ko(settings),
     )
 
 
@@ -787,11 +812,14 @@ def generate_npc_portrait_ai(
     u_rem, w_rem = remaining_npc_avatar_quota(
         db, user_id=user.id, world_id=world_id, settings=settings
     )
+    permanent = permanent_image_storage_enabled(settings)
     return GenerateNpcPortraitResponse(
         npc_id=nid,
         portrait_image_url=url,
         remaining_avatar_user_monthly=u_rem,
         remaining_avatar_world_monthly=w_rem,
+        permanent_storage=permanent,
+        storage_notice=image_storage_notice_ko(settings),
     )
 
 

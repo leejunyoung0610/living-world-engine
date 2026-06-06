@@ -17,7 +17,7 @@ export type WorldDetail = {
   visibility: WorldVisibility;
   world: Record<string, unknown>;
   characters: Record<string, unknown>;
-  events: Record<string, unknown> | null;
+  events: unknown;
   genres: string[];
   created_at: string;
   updated_at: string;
@@ -88,10 +88,21 @@ export type ExploreSort = "latest" | "popular" | "recommended";
 
 export type GenreEntry = { slug: string; label: string };
 
+export type ImageStorageMeta = {
+  permanent_storage: boolean;
+  notice: string | null;
+};
+
 export async function fetchGenreMeta(): Promise<GenreEntry[]> {
   const res = await apiFetch("/api/worlds/meta/genres");
   if (!res.ok) throw new Error(await textDetail(res));
   return res.json() as Promise<GenreEntry[]>;
+}
+
+export async function fetchImageStorageMeta(): Promise<ImageStorageMeta> {
+  const res = await apiFetch("/api/worlds/meta/image-storage");
+  if (!res.ok) throw new Error(await textDetail(res));
+  return res.json() as Promise<ImageStorageMeta>;
 }
 
 export async function exploreWorlds(
@@ -153,6 +164,8 @@ export type GenerateCoverResponse = {
   cover_image_url: string;
   remaining_user_monthly: number | null;
   remaining_world_monthly: number | null;
+  permanent_storage?: boolean;
+  storage_notice?: string | null;
 };
 
 export async function fetchPublicWorld(token: string, id: string): Promise<PublicWorldDetail> {
@@ -181,6 +194,8 @@ export type GenerateNpcPortraitResponse = {
   portrait_image_url: string;
   remaining_avatar_user_monthly: number | null;
   remaining_avatar_world_monthly: number | null;
+  permanent_storage?: boolean;
+  storage_notice?: string | null;
 };
 
 export async function generateNpcPortrait(
@@ -207,7 +222,7 @@ export async function createWorld(
     name: string;
     world: Record<string, unknown>;
     characters: Record<string, unknown>;
-    events?: Record<string, unknown> | null;
+    events?: unknown;
     visibility?: WorldVisibility;
     genres: string[];
   },
@@ -232,7 +247,7 @@ export async function updateWorld(
     name: string;
     world: Record<string, unknown>;
     characters: Record<string, unknown>;
-    events?: Record<string, unknown> | null;
+    events?: unknown;
     visibility?: WorldVisibility;
     genres: string[];
   },

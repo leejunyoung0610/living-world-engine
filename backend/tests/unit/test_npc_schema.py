@@ -41,6 +41,14 @@ def test_normalize_characters_payload():
     assert out["quests"] == []
 
 
+def test_normalize_npc_relationship_stats():
+    n = normalize_npc_record(
+        {"name": "X", "relationship_stats": {"affection": 80, "disgust": 2}},
+        0,
+    )
+    assert n["relationship_stats"] == {"affection": 80, "disgust": 2}
+
+
 def test_normalize_npc_requires_name():
     with pytest.raises(ValueError, match="name is required"):
         normalize_npc_record({"role": "x"}, 0)

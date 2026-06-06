@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..utils.logger import logger
+from .relationship_stats import VALID_RELATIONSHIP_STATS
 
 
 class StateChangeValidator:
@@ -20,7 +21,7 @@ class StateChangeValidator:
     def __init__(self, valid_characters: list[str] | None = None) -> None:
         self.valid_characters = valid_characters or []
         self.max_relationship_change = 10  # 한 턴당 최대 변화량
-        self.valid_stats = {"affection", "trust", "respect", "fear", "loyalty", "romance"}
+        self.valid_stats = set(VALID_RELATIONSHIP_STATS)
 
     def set_valid_characters(self, characters: list[str]) -> None:
         """유효한 캐릭터 목록 설정"""

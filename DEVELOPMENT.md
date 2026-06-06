@@ -17,6 +17,18 @@
 
 ---
 
+## 2026-06-07 — 마일스톤 이벤트 루프 (베타 전)
+
+요약: [`docs/2026-06-07_milestone_events_sprint.md`](docs/2026-06-07_milestone_events_sprint.md) · [`docs/STAT_DRIVEN_EVENTS.md`](docs/STAT_DRIVEN_EVENTS.md) §9-3.
+
+- **백엔드:** `npc_id` 관계 조건, `once`, `applied_effects` API, `pending_event_hints` → 다음 턴 프롬프트, `events` list/dict API 수정.
+- **프론트:** `EventCard`, `WorldEventsEditor`, 플레이어 스탯(`stats_schema.resource`), NPC 관계 스탯 에디터.
+- **UX:** 나레이션 블록 합치기·카드 상한(6), 프롬프트 블록 5개 가이드.
+- **데이터:** `scripts/hipstar_milestone_events.json` → 민근이 월드 7 이벤트, 실플레이 검증.
+- **내일:** 복합 관계(감정 2+), LLM 자원 스탯 + EventCard 설계·구현 (요건 E-09~E-10).
+
+---
+
 ## 2026-05-12 — 홈 탐색 UX, 공개 월드 상세, 따봉, Docker/PWA 반영성
 
 요약 커밋 범위(대략 `4205902`…`a41c172`).

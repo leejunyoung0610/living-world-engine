@@ -192,6 +192,7 @@ export function HomePage() {
     const [coverBroken, setCoverBroken] = useState(false);
     const coverSrc = coverBroken ? null : exploreCoverUrl(w.cover_image_url);
 
+    const hadCoverUrl = Boolean(w.cover_image_url?.trim());
     let coverBlock: JSX.Element | null = null;
     if (coverSrc) {
       coverBlock = (
@@ -205,6 +206,14 @@ export function HomePage() {
               referrerPolicy="no-referrer"
               onError={() => setCoverBroken(true)}
             />
+          </div>
+        </div>
+      );
+    } else if (hadCoverUrl && coverBroken) {
+      coverBlock = (
+        <div className="-mx-4 -mt-4 shrink-0 border-b border-amber-900/40 sm:-mx-5 sm:-mt-5">
+          <div className="flex aspect-[2/1] max-h-44 w-full items-center justify-center bg-amber-950/20 px-4 text-center text-xs text-amber-200/90 sm:aspect-[21/9]">
+            커버 이미지 만료 — 소유자가 월드 편집에서 AI로 다시 생성할 수 있습니다
           </div>
         </div>
       );

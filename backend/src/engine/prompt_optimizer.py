@@ -5,6 +5,13 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from .relationship_stats import (
+    RELATIONSHIP_STAT_LABELS_KO,
+    RELATIONSHIP_STAT_ORDER,
+    build_session_relationship_view,
+)
+
+
 class SystemPromptOptimizer:
     """시스템 프롬프트 — 토큰 절약·static/dynamic 분리(프롬프트 캐시).
 
@@ -141,6 +148,30 @@ class SystemPromptOptimizer:
             return "(stats 객체에 표시 가능한 숫자/짧은 문자열 값이 없음)"
         return "\n".join(lines)
 
+    @staticmethod
+    def _format_relationships_block(
+        npcs: list[dict[str, Any]],
+        player: dict[str, Any],
+    ) -> str:
+        """NPC별 활성 관계 수치 — LLM 전용(유저 대사에 노출 금지)."""
+        rows = build_session_relationship_view(npcs, player)
+        if not rows:
+            return "(월드에 설정된 관계 스탯 없음 — `relationship_stats` 미설정 NPC)"
+        lines: list[str] = []
+        for row in rows:
+            name = str(row.get("npc_name", ""))
+            stats = row.get("stats")
+            if not isinstance(stats, dict) or not stats:
+                continue
+            lines.append(f"### {name}")
+            for slug in RELATIONSHIP_STAT_ORDER:
+                if slug not in stats:
+                    continue
+                label = RELATIONSHIP_STAT_LABELS_KO.get(slug, slug)
+                lines.append(f"- {label}({slug}): {stats[slug]}/100")
+            lines.append("")
+        return "\n".join(lines).strip() if lines else "(활성 관계 스탯 없음)"
+
     def build_system_blocks(
         self,
         world: dict[str, Any],
@@ -153,6 +184,7 @@ class SystemPromptOptimizer:
         day: int = 1,
         user_message: str = "",
         recent_conversation: list[dict[str, Any]] | None = None,
+        pending_event_hints: list[str] | None = None,
     ) -> tuple[str, str]:
         """시스템 프롬프트를 Anthropic 프롬프트 캐시용으로 분리.
 
@@ -179,6 +211,7 @@ class SystemPromptOptimizer:
         world_display = world.get("name", "")
         player_name = player.get("name", "플레이어")
         stats_block = self._format_player_stats_block(player)
+        relationships_block = self._format_relationships_block(npcs, player)
 
         desc_line, lore_body = self._world_lore_paragraphs(world)
         world_context = ""
@@ -198,12 +231,14 @@ class SystemPromptOptimizer:
 - 이름: {player_name}
 - 호칭은 반드시 "{player_name}".
 
-## 응답 규칙
-- 아래 「NPC」 블록에 나열된 인물을 중심으로 대사하고, 블록에 없는 다른 NPC의 대사는 정말 필요할 때만 짧게 쓴다.
-- 첫 줄: **NPC이름** (짧은 행동) 후 대사. 행동은 (괄호).
-- **여러 NPC가 말할 때는 NPC마다 빈 줄 한 줄로 블록을 나눈다.** (각 블록 첫 줄은 위와 동일: 이름 (행동) 대사)
-- 1~3문장 위주, 한 턴 NPC 1~3명(가능하면 1~2명). 장황한 묘사·반복 금지 — **출력 토큰 예산 내**에서 끝낸다.
+## 응답 규칙 (가장 중요 — 유저 화면이 빈 줄마다 카드로 쪼개짐)
+- **빈 줄 한 줄 = 화면 카드 1개.** 한 턴 **블록 합계 최대 5개**(NPC+내레이션). **6개 이상 절대 금지.**
+- **이름 없는 내레이션 블록은 한 턴에 최대 1개.** 배경·분위기·동작은 **NPC 줄의 (괄호)** 안에 넣고, 별도 내레이션 블록으로 쪼개지 마세요.
+- 짧은 반응·표정·환경마다 빈 줄 넣지 마세요. 한 NPC 블록에 (행동)+대사 2~3문장까지 묶어도 됩니다.
+- NPC가 바뀔 때만 빈 줄로 블록을 나눕니다. 첫 줄: **NPC이름** (짧은 행동) 후 대사.
+- 한 턴 NPC 1~2명(많아도 3명). 장황한 묘사·반복·장면 나열 금지.
 - 진행 안내·플레이어님·시스템 톤 금지.
+- **유저에게 보이는 대사에 관계 수치·변화량(호감+5 등)·스탯 이름을 절대 쓰지 마세요.** 수치는 시스템·툴로만 갱신한다.
 - **중요: `update_game_state` 툴을 사용하는 경우에도 반드시 같은 응답에 NPC 대사(텍스트)를 포함하세요.**
   - 툴만 보내지 마세요.
   - 대사와 툴을 항상 함께 보내세요.
@@ -212,7 +247,8 @@ class SystemPromptOptimizer:
 ## Tool (update_game_state)
 **도구를 사용할 때도 NPC 대사는 반드시 같은 응답에 함께 포함하세요.**
 대화에 변화가 있으면 매 턴 사용. 무의미한 한 단어("응"만 등)만 예외.
-관계 변화는 상황에 맞게. new_memories importance: 1~3 일상, 4~6 의미, 7+ 중요 사건.
+관계 변화는 아래 「관계 수치」와 상황에 맞게 `relationship_changes`로 갱신(활성 스탯만). new_memories importance: 1~3 일상, 4~6 의미, 7+ 중요 사건.
+관계 스탯 종류: affection, trust, respect, fear, loyalty, romance, disgust, wrath (한 턴 change ±10).
 감정 태그: joy, sadness, anger, fear, surprise, trust, neutral
 """
         static = static_body.strip()
@@ -224,6 +260,19 @@ class SystemPromptOptimizer:
             prefix_lines.append(f"[{cache_reset_flag}]")
         prefix = ("\n".join(prefix_lines) + "\n\n") if prefix_lines else ""
 
+        recent_events_block = ""
+        hints = [h.strip() for h in (pending_event_hints or []) if h and h.strip()]
+        if hints:
+            hints_text = "\n".join(hints)
+            recent_events_block = f"""
+
+## 방금 일어난 일 (지난 턴)
+{hints_text}
+
+NPC들은 이 변화를 자연스럽게 인지할 수 있습니다.
+명시적으로 언급하기보다는 분위기나 대사에 녹여주세요.
+"""
+
         dynamic = f"""{prefix}## 현재 상황
 - 이번 턴 중심 NPC (위 프로필을 기준으로 반응; 다른 인물은 필수 아님): {dialogue_names or "(프로필 없음)"}
 - 턴: {turn}
@@ -232,11 +281,19 @@ class SystemPromptOptimizer:
 ## 플레이어 스텟 (저장된 수치를 따른다. LLM이 임의로 변경하지 말 것)
 {stats_block}
 
+## 관계 수치 (LLM 전용 — 아래 값을 반응의 기준으로 삼고, 유저 대사에는 숫자·스탯명 노출 금지)
+{relationships_block}
+
 ## NPC
 {npc_profiles if npc_profiles else "(없음)"}
 
 ## 중요 기억
-{self._format_memories(key_memories)}
+{self._format_memories(key_memories)}{recent_events_block}
+
+## 이번 턴 출력 제한 (필수 — 위반 시 UX 깨짐)
+- 빈 줄로 나눈 블록 **합계 5개 이하**. 6개 이상 쓰지 마세요.
+- **내레이션-only 블록 1개 이하.** 나머지 묘사는 NPC 대사 (괄호) 로 처리.
+- 출력이 길어지면 문장을 줄이세요. 블록을 늘리지 마세요.
 """
         return static.strip(), dynamic.strip()
 

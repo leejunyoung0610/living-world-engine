@@ -118,6 +118,80 @@ class TestCheckEvents:
         ids = [e["id"] for e in triggered]
         assert "test_rel_event" not in ids
 
+
+class TestRelationshipThresholdNpcId:
+    """``relationship_threshold`` + 선택적 ``npc_id``."""
+
+    def test_without_npc_id_any_npc_still_works(self) -> None:
+        em = EventManager()
+        em.load_events([{
+            "id": "any_npc",
+            "condition": {"type": "relationship_threshold", "stat": "affection", "op": ">=", "value": 40},
+            "cooldown": 1,
+        }])
+        snap = _snap_with(player={"stats": {}, "flags": {}, "relationships": {
+            "npc_a": {"affection": 10},
+            "npc_b": {"affection": 45},
+        }})
+        assert [e["id"] for e in em.check_events(snap)] == ["any_npc"]
+
+    def test_with_npc_id_only_that_npc(self) -> None:
+        em = EventManager()
+        em.load_events([{
+            "id": "ahyeon_only",
+            "condition": {
+                "type": "relationship_threshold",
+                "npc_id": "world_1780761374",
+                "stat": "affection",
+                "op": ">=",
+                "value": 40,
+            },
+            "cooldown": 999,
+        }])
+        snap = _snap_with(player={"stats": {}, "flags": {}, "relationships": {
+            "world_1780761374": {"affection": 39},
+            "world_1780761374_2": {"affection": 80},
+        }})
+        assert em.check_events(snap) == []
+
+        snap["player"]["relationships"]["world_1780761374"]["affection"] = 40
+        assert [e["id"] for e in em.check_events(snap)] == ["ahyeon_only"]
+
+    def test_unknown_npc_id_returns_false(self) -> None:
+        em = EventManager()
+        em.load_events([{
+            "id": "missing_npc",
+            "condition": {
+                "type": "relationship_threshold",
+                "npc_id": "does_not_exist",
+                "stat": "affection",
+                "op": ">=",
+                "value": 1,
+            },
+            "cooldown": 1,
+        }])
+        snap = _snap_with(player={"stats": {}, "flags": {}, "relationships": {
+            "elena": {"affection": 99},
+        }})
+        assert em.check_events(snap) == []
+
+
+class TestOnceFlag:
+    """``once: true`` 이벤트는 이미 발동한 ID는 재트리거하지 않음."""
+
+    def test_once_skips_after_trigger(self) -> None:
+        em = EventManager()
+        em.load_events([{
+            "id": "milestone",
+            "once": True,
+            "condition": {"type": "turn_range", "min_turn": 0, "max_turn": 99},
+            "cooldown": 999,
+        }])
+        snap = _snap_with(turn=5)
+        assert [e["id"] for e in em.check_events(snap)] == ["milestone"]
+        em.trigger_event("milestone")
+        assert em.check_events(snap) == []
+
     def test_cooldown_blocks_trigger(self, event_manager: EventManager, snapshot_base: dict) -> None:
         """쿨다운 중인 이벤트는 트리거 안 됨"""
         snapshot_base["world"]["world_variables"]["chaos_level"] = 0.7

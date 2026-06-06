@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from ..utils.logger import get_logger
+from .relationship_stats import npc_allows_relationship_stat
 
 logger = get_logger(__name__)
 
@@ -207,6 +208,13 @@ class WorldState:
             npc = self.get_npc_by_name(character) or self.get_npc(character)
             if npc:
                 npc_id = npc["id"]
+                if not npc_allows_relationship_stat(npc, stat):
+                    logger.info(
+                        "Skip relationship change — stat not enabled for NPC %s: %s",
+                        npc_id,
+                        stat,
+                    )
+                    continue
                 new_val = self.update_relationship(npc_id, stat, change)
                 applied["relationship_changes"].append(
                     {"character": character, "stat": stat, "change": change, "new_value": new_val}

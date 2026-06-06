@@ -108,7 +108,7 @@ poetry run python backend/scripts/check_beta_env.py --strict # 베타 프로덕�
 - [ ] `IMAGE_MODEL_NPC_AVATAR=black-forest-labs/flux-schnell`
 - [ ] `IMAGE_COVER_ASPECT_RATIO=16:9`
 
-**Cloudflare R2 (영구 URL — 다섯 값 모두 필요)**
+**Cloudflare R2 (영구 URL — 다섯 값 모두 필요)** — 미설정 시 Replicate URL 만료로 커버·초상 404. 자세한 원인·복구: [`docs/IMAGE_STORAGE.md`](IMAGE_STORAGE.md)
 
 - [ ] `R2_ACCOUNT_ID`
 - [ ] `R2_ACCESS_KEY`
