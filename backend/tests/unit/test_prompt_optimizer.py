@@ -146,8 +146,8 @@ def test_build_system_blocks_split_for_cache():
     assert "OnlyHere" not in static
     assert "## Tool (update_game_state)" in static
     assert "## 응답 규칙" in static
-    assert "블록 합계 최대 5개" in static
-    assert "resource_stat_changes" in static
+    assert "턴당 자동 아님" in static
+    assert "npc_memory_updates" in static
     assert "이번 턴 출력 제한" in dynamic
 
 
@@ -279,6 +279,19 @@ def test_pending_event_hints_injected_into_dynamic_block():
     assert "## 방금 일어난 일 (지난 턴)" in dynamic
     assert "아현을 떠올리며 멜로디가 흘렀다." in dynamic
     assert "자연스럽게 인지" in dynamic
+
+
+def test_npc_short_term_block_in_dynamic():
+    optimizer = SystemPromptOptimizer()
+    _, dynamic = optimizer.build_system_blocks(
+        world={"name": "W"},
+        player={"name": "P", "stats": {}, "relationships": {}},
+        npcs=[],
+        memories=[],
+        npc_short_term_block="### 아현\n- [턴 2] 비밀을 들려줬다",
+    )
+    assert "## NPC 단기기억" in dynamic
+    assert "비밀을 들려줬다" in dynamic
 
 
 def test_empty_pending_event_hints_omits_block():

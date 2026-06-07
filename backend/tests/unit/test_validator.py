@@ -13,7 +13,7 @@ class TestStateChangeValidator:
         """유효한 상태 변경"""
         changes = {
             "relationship_changes": [
-                {"character": "엘레나", "stat": "affection", "change": 5, "reason": "선물"},
+                {"character": "엘레나", "stat": "affection", "change": 2, "reason": "선물을 받아 기뻐했다"},
             ],
             "new_memories": [
                 {"content": "꽃을 선물했다", "emotion": "joy", "importance": 7},
@@ -37,8 +37,8 @@ class TestStateChangeValidator:
         """혐오·살의 관계 스탯 허용"""
         changes = {
             "relationship_changes": [
-                {"character": "엘레나", "stat": "disgust", "change": 3, "reason": "거짓말"},
-                {"character": "엘레나", "stat": "wrath", "change": 2, "reason": "위협"},
+                {"character": "엘레나", "stat": "disgust", "change": 2, "reason": "거짓말을 들었다"},
+                {"character": "엘레나", "stat": "wrath", "change": 2, "reason": "위협을 느꼈다"},
             ],
         }
         result = validator.validate(changes)
@@ -57,16 +57,46 @@ class TestStateChangeValidator:
         assert len(result["relationship_changes"]) == 0
 
     def test_change_clamping(self, validator: StateChangeValidator) -> None:
-        """변화량 제한 (-10 ~ +10)"""
+        """변화량 제한 (±3)"""
         changes = {
             "relationship_changes": [
-                {"character": "엘레나", "stat": "affection", "change": 50},
-                {"character": "벨라", "stat": "trust", "change": -30},
+                {"character": "엘레나", "stat": "affection", "change": 50, "reason": "큰 갈등 후 화해"},
+                {"character": "벨라", "stat": "trust", "change": -30, "reason": "거짓말이 들통났다"},
             ],
         }
         result = validator.validate(changes)
-        assert result["relationship_changes"][0]["change"] == 10  # 50 → 10
-        assert result["relationship_changes"][1]["change"] == -10  # -30 → -10
+        assert len(result["relationship_changes"]) == 1
+        assert result["relationship_changes"][0]["change"] == 3
+
+    def test_relationship_requires_reason(self, validator: StateChangeValidator) -> None:
+        changes = {
+            "relationship_changes": [
+                {"character": "엘레나", "stat": "affection", "change": 2},
+            ],
+        }
+        result = validator.validate(changes)
+        assert len(result.get("relationship_changes", [])) == 0
+
+    def test_relationship_sum_cap(self, validator: StateChangeValidator) -> None:
+        changes = {
+            "relationship_changes": [
+                {"character": "엘레나", "stat": "affection", "change": 3, "reason": "깊은 신뢰 형성"},
+                {"character": "벨라", "stat": "trust", "change": 3, "reason": "함께 연습했다"},
+            ],
+        }
+        result = validator.validate(changes)
+        total = sum(abs(x["change"]) for x in result["relationship_changes"])
+        assert total <= 5
+
+    def test_npc_memory_updates(self, validator: StateChangeValidator) -> None:
+        changes = {
+            "npc_memory_updates": [
+                {"character": "엘레나", "summary": "플레이어가 비밀을 털어놓았다"},
+                {"character": "엘레나", "summary": "중복은 무시"},
+            ],
+        }
+        result = validator.validate(changes)
+        assert len(result["npc_memory_updates"]) == 1
 
     def test_resource_stat_change_valid(self, validator: StateChangeValidator) -> None:
         validator.set_valid_resource_stats(["rap", "producing"])
@@ -130,8 +160,9 @@ class TestStateChangeValidator:
         v = StateChangeValidator(valid_characters=[])
         changes = {
             "relationship_changes": [
-                {"character": "아무나", "stat": "affection", "change": 5},
+                {"character": "아무나", "stat": "affection", "change": 2, "reason": "친절한 대화"},
             ],
         }
         result = v.validate(changes)
         assert len(result["relationship_changes"]) == 1
+        assert result["relationship_changes"][0]["change"] == 2

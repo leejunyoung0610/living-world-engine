@@ -17,6 +17,7 @@ from .validator import StateChangeValidator
 from .loop_detector import LoopDetector
 from .events import DEFAULT_MAX_EVENTS_PER_TURN, EventManager
 from .llm_stat_events import build_llm_stat_event
+from .npc_short_term_memory import NpcShortTermMemory
 from .prompt_optimizer import SystemPromptOptimizer
 from ..utils.config import get_settings
 from ..utils.logger import get_logger
@@ -73,6 +74,7 @@ class GameEngine:
         self.context_manager = ContextManager()
         self.cache_reset_flag = None  # Cache 강제 초기화용
         self.pending_event_hints: list[dict[str, Any]] = []
+        self.npc_short_term = NpcShortTermMemory()
 
     def initialize(self, world_dir: str) -> None:
         """게임 초기화 - 세계관 디렉토리에서 world.json + characters.json + events.json 로드"""
@@ -101,6 +103,7 @@ class GameEngine:
             self.event_manager.load_events_from_file(events_path)
             logger.info(f"이벤트 {len(self.event_manager.event_templates)}개 로딩 완료")
 
+        self.npc_short_term = NpcShortTermMemory()
         logger.info("게임 초기화 완료: %s", world_dir)
         logger.info("🤖 LLM: %s (max_tokens=%s)", self.llm.model, self.llm.max_tokens)
 
@@ -134,6 +137,7 @@ class GameEngine:
                     self.event_manager.load_events(ev)
 
         self.conversation_history = []
+        self.npc_short_term = NpcShortTermMemory()
         logger.info("게임 초기화 완료 (dict 소스), memory=%s", memory_storage_path or "default")
 
     def process_turn(self, user_input: str) -> dict[str, Any]:
@@ -212,16 +216,10 @@ class GameEngine:
                     state_changes = self.validator.validate(state_changes)
 
                 applied = self.state.apply_changes(state_changes)
+                self._apply_npc_memory_updates(state_changes)
                 self.state.advance_turn()
 
-                for mem in state_changes.get("new_memories", []):
-                    self.memory.add_memory(
-                        content=mem["content"],
-                        emotion=mem.get("emotion", "neutral"),
-                        importance=mem.get("importance", 5),
-                        player_id=self.state.player.get("id", "default"),
-                    )
-                self.memory.maybe_compact_if_oversized()
+                self._apply_new_memories(state_changes)
 
             snapshot = self.state.snapshot()
             response_text = llm_result.get("response", "")
@@ -280,6 +278,39 @@ class GameEngine:
 
     def process_turn_stream(self, user_input: str) -> Iterator[dict[str, Any]]:
         yield from self._stream_turn_impl(user_input)
+
+    def _resolve_npc_id_by_character(self, character: str) -> str | None:
+        npc = self.state.get_npc_by_name(character) or self.state.get_npc(character)
+        if npc and npc.get("id"):
+            return str(npc["id"])
+        return None
+
+    def _apply_new_memories(self, state_changes: dict[str, Any]) -> None:
+        for mem in state_changes.get("new_memories", []):
+            self.memory.add_memory(
+                content=mem["content"],
+                emotion=mem.get("emotion", "neutral"),
+                importance=mem.get("importance", 5),
+                player_id=self.state.player.get("id", "default"),
+            )
+        self.memory.maybe_compact_if_oversized()
+
+    def _apply_npc_memory_updates(self, state_changes: dict[str, Any]) -> None:
+        updates = state_changes.get("npc_memory_updates") or []
+        if not updates:
+            return
+        turn = self.state.turn
+        self.npc_short_term.apply_updates(
+            updates,
+            resolve_npc_id=self._resolve_npc_id_by_character,
+            turn=turn,
+        )
+
+    def _npc_short_term_prompt_block(self) -> str:
+        return self.npc_short_term.format_for_prompt(
+            self.state.npcs,
+            current_turn=self.state.turn,
+        )
 
     def _consume_pending_event_hints(self) -> list[str]:
         """현재 턴에 해당하는 narrative_hint 1개만 소비 후 클리어 (TTL: for_turn 불일치 항목 제거)."""
@@ -382,6 +413,7 @@ class GameEngine:
             user_message=user_input,
             recent_conversation=self.conversation_history,
             pending_event_hints=pending_hints,
+            npc_short_term_block=self._npc_short_term_prompt_block(),
         )
         total = len(static) + len(dynamic)
         logger.debug(
@@ -565,16 +597,10 @@ class GameEngine:
             state_changes = self.validator.validate(state_changes)
 
         applied = self.state.apply_changes(state_changes)
+        self._apply_npc_memory_updates(state_changes)
         self.state.advance_turn()
 
-        for mem in state_changes.get("new_memories", []):
-            self.memory.add_memory(
-                content=mem["content"],
-                emotion=mem.get("emotion", "neutral"),
-                importance=mem.get("importance", 5),
-                player_id=self.state.player.get("id", "default"),
-            )
-        self.memory.maybe_compact_if_oversized()
+        self._apply_new_memories(state_changes)
 
         snapshot = self.state.snapshot()
         response_text = llm_result.get("response", "")

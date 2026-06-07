@@ -185,6 +185,7 @@ class SystemPromptOptimizer:
         user_message: str = "",
         recent_conversation: list[dict[str, Any]] | None = None,
         pending_event_hints: list[str] | None = None,
+        npc_short_term_block: str | None = None,
     ) -> tuple[str, str]:
         """시스템 프롬프트를 Anthropic 프롬프트 캐시용으로 분리.
 
@@ -232,7 +233,7 @@ class SystemPromptOptimizer:
 - 호칭은 반드시 "{player_name}".
 
 ## 응답 규칙 (가장 중요 — 유저 화면이 빈 줄마다 카드로 쪼개짐)
-- **빈 줄 한 줄 = 화면 카드 1개.** 한 턴 **블록 합계 최대 5개**(NPC+내레이션). **6개 이상 절대 금지.**
+- **빈 줄 한 줄 = 화면 카드 1개.** 한 턴 ** 평균 블록 2~4개, 블록 합계 최대 8개**(NPC+내레이션). **9개 이상 절대 금지.**
 - **이름 없는 내레이션 블록은 한 턴에 최대 1개.** 배경·분위기·동작은 **NPC 줄의 (괄호)** 안에 넣고, 별도 내레이션 블록으로 쪼개지 마세요.
 - 짧은 반응·표정·환경마다 빈 줄 넣지 마세요. 한 NPC 블록에 (행동)+대사 2~3문장까지 묶어도 됩니다.
 - NPC가 바뀔 때만 빈 줄로 블록을 나눕니다. 첫 줄: **NPC이름** (짧은 행동) 후 대사.
@@ -246,10 +247,24 @@ class SystemPromptOptimizer:
 
 ## Tool (update_game_state)
 **도구를 사용할 때도 NPC 대사는 반드시 같은 응답에 함께 포함하세요.**
-대화에 변화가 있으면 매 턴 사용. 무의미한 한 단어("응"만 등)만 예외.
-관계 변화는 아래 「관계 수치」와 상황에 맞게 `relationship_changes`로 갱신(활성 스탯만). new_memories importance: 1~3 일상, 4~6 의미, 7+ 중요 사건.
-플레이어 능력·자원 스탯은 `resource_stat_changes`로만 갱신(아래 「플레이어 스탯」 키만). **매 턴 남발 금지** — 연습·훈련·중요한 성과 등 의미 있는 행동에만. 한 턴 change ±5. |change|≥3 또는 `show_card:true`면 유저에게 EventCard로 표시된다. 대사에 스탯 이름·수치를 쓰지 마세요.
-관계 스탯 종류: affection, trust, respect, fear, loyalty, romance, disgust, wrath (한 턴 change ±10).
+
+### 관계 수치 (`relationship_changes`) — 턴당 자동 아님
+- **실질적 상호작용**(갈등·도움·비밀·약속·칭찬·실망 등)이 **이번 턴 대화**에서 있었을 때만 기입. 없으면 **빈 배열 `[]`**.
+- 잡담·「응」「고마워」만 → 관계 변화 **0 (배열 비움)**.
+- 변화량: 평소 **±1~2**, 강한 사건 **±3** (코드가 ±3 캡). 턴당 최대 2건, 합계 |change| ≤ 5.
+- **`reason` 필수** — 직전 대화·아래 「NPC 단기기억」과 연결된 한 줄. 모순되면 change 넣지 마세요.
+- 활성 관계 스탯만. 종류: affection, trust, respect, fear, loyalty, romance, disgust, wrath.
+
+### NPC 단기기억 (`npc_memory_updates`)
+- 이번 턴 **그 NPC와 실질 대화**가 있었으면 NPC당 **0~1건** `summary` (한 줄).
+- 다음 턴 관계 판단·대사 톤의 근거. 없으면 빈 배열.
+
+### 플레이어 기억 (`new_memories`)
+- 의미 있는 사건만. importance: 1~3 일상, 4~6 의미, 7+ 중요. 남발 금지.
+
+### 플레이어 능력 (`resource_stat_changes`)
+- 연습·훈련·중요 성과 등에만. 한 턴 change ±5. |change|≥3 또는 `show_card:true`면 EventCard.
+
 감정 태그: joy, sadness, anger, fear, surprise, trust, neutral
 """
         static = static_body.strip()
@@ -287,6 +302,9 @@ NPC들은 이 변화를 자연스럽게 인지할 수 있습니다.
 
 ## NPC
 {npc_profiles if npc_profiles else "(없음)"}
+
+## NPC 단기기억 (최근 대화·감정 — 관계 변화·대사 톤의 근거)
+{npc_short_term_block if npc_short_term_block else "(없음)"}
 
 ## 중요 기억
 {self._format_memories(key_memories)}{recent_events_block}

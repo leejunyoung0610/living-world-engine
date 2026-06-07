@@ -48,14 +48,14 @@ def test_apply_changes_skips_disabled_stat() -> None:
     applied = state.apply_changes(
         {
             "relationship_changes": [
-                {"character": "엘레나", "stat": "trust", "change": 5},
-                {"character": "엘레나", "stat": "affection", "change": 3},
+                {"character": "엘레나", "stat": "trust", "change": 2, "reason": "신뢰가 쌓였다"},
+                {"character": "엘레나", "stat": "affection", "change": 2, "reason": "호감이 올랐다"},
             ],
         }
     )
     assert len(applied["relationship_changes"]) == 1
     assert applied["relationship_changes"][0]["stat"] == "affection"
-    assert state.player["relationships"]["elena"]["affection"] == 53
+    assert state.player["relationships"]["elena"]["affection"] == 52
     assert "trust" not in state.player["relationships"]["elena"]
 
 

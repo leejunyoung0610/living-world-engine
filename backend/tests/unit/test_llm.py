@@ -525,7 +525,8 @@ class TestEdgeCases:
         assert schema["type"] == "object"
         assert "relationship_changes" in schema["properties"]
         assert "new_memories" in schema["properties"]
-        assert schema["required"] == ["relationship_changes", "new_memories"]
+        assert schema["required"] == []
+        assert "npc_memory_updates" in schema["properties"]
 
     def test_tool_input_contains_relationship_and_memory(self, claude_client: ClaudeClient) -> None:
         """Tool Use input에서 relationship_changes와 new_memories가 모두 추출되는지"""

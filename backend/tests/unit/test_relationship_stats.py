@@ -28,6 +28,6 @@ def test_validator_accepts_all_platform_stats() -> None:
     v = StateChangeValidator(valid_characters=[])
     for stat in RELATIONSHIP_STAT_ORDER:
         result = v.validate(
-            {"relationship_changes": [{"character": "NPC", "stat": stat, "change": 1}]}
+            {"relationship_changes": [{"character": "NPC", "stat": stat, "change": 1, "reason": "테스트 상호작용"}]}
         )
         assert len(result["relationship_changes"]) == 1

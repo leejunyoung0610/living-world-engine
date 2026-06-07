@@ -28,7 +28,7 @@ GAME_STATE_TOOL = {
     "description": (
         "플레이어의 행동에 따른 게임 상태 변경을 제안합니다. "
         "관계 변화, 플레이어 능력(자원) 스탯 변화, 새 기억 등을 포함합니다. "
-        "반드시 이 도구를 사용하여 상태 변경을 제안하세요. "
+        "대사·상태가 변할 때 이 도구로 관계·기억·NPC 단기기억을 갱신하세요. "
         "도구를 사용할 때도 NPC 대사(텍스트)는 같은 assistant 응답에 반드시 함께 포함하세요."
     ),
     "input_schema": {
@@ -47,13 +47,44 @@ GAME_STATE_TOOL = {
                         },
                         "change": {
                             "type": "number",
-                            "description": "변화량 (-10 ~ +10)",
+                            "description": "변화량 (-3 ~ +3, 평소 ±1~2)",
                         },
-                        "reason": {"type": "string", "description": "변화 이유"},
+                        "reason": {
+                            "type": "string",
+                            "description": "직전 대화·NPC 단기기억과 연결된 변화 이유 (필수)",
+                        },
                     },
-                    "required": ["character", "stat", "change"],
+                    "required": ["character", "stat", "change", "reason"],
                 },
-                "description": "관계 수치 변화 목록",
+                "description": "관계 수치 변화 — 실질적 상호작용·개연성 있을 때만, 없으면 빈 배열",
+            },
+            "npc_memory_updates": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "character": {"type": "string", "description": "NPC 이름"},
+                        "summary": {
+                            "type": "string",
+                            "description": "이번 턴 해당 NPC가 기억할 한 줄 (플레이어 행동·감정)",
+                        },
+                        "emotion": {
+                            "type": "string",
+                            "enum": [
+                                "joy",
+                                "sadness",
+                                "anger",
+                                "fear",
+                                "surprise",
+                                "trust",
+                                "neutral",
+                            ],
+                            "description": "NPC 관점 감정",
+                        },
+                    },
+                    "required": ["character", "summary"],
+                },
+                "description": "NPC별 단기기억 — 이번 턴 실질 대화가 있었을 때만, NPC당 0~1건",
             },
             "resource_stat_changes": {
                 "type": "array",
@@ -110,7 +141,7 @@ GAME_STATE_TOOL = {
                 "description": "새로 형성된 기억들",
             },
         },
-        "required": ["relationship_changes", "new_memories"],
+        "required": [],
     },
 }
 

@@ -38,6 +38,9 @@ def export_play_payload(engine: Any) -> dict[str, Any]:
             "cooldowns": dict(em.cooldowns),
         },
         "pending_event_hints": deepcopy(getattr(engine, "pending_event_hints", [])),
+        "npc_short_term": deepcopy(
+            getattr(getattr(engine, "npc_short_term", None), "by_npc", {})
+        ),
         "long_term_memory": {"memories": deepcopy(mem)},
     }
 
@@ -77,6 +80,10 @@ def apply_play_payload(engine: Any, payload: dict[str, Any] | None) -> None:
     peh = payload.get("pending_event_hints")
     if isinstance(peh, list):
         engine.pending_event_hints = deepcopy(peh)
+    nst = payload.get("npc_short_term")
+    npc_stm = getattr(engine, "npc_short_term", None)
+    if npc_stm is not None and isinstance(nst, dict):
+        npc_stm.load_from_dict(nst)
     ltm = payload.get("long_term_memory")
     if isinstance(ltm, dict):
         mems = ltm.get("memories")
