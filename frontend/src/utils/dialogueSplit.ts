@@ -1,57 +1,5 @@
 import type { NpcSegment } from "../api/play";
 
-const MAX_DISPLAY_SEGMENTS = 6;
-const MAX_NARRATION_BLOCKS = 1;
-
-/** 백엔드 compact_assistant_segments 와 동일 — 내레이션 남발 완화 */
-function compactAssistantSegments(
-  segments: NpcSegment[],
-  maxTotal = MAX_DISPLAY_SEGMENTS,
-  maxNarrationBlocks = MAX_NARRATION_BLOCKS,
-): NpcSegment[] {
-  if (segments.length === 0) return [];
-
-  const merged: NpcSegment[] = [];
-  for (const seg of segments) {
-    const text = (seg.text || "").trim();
-    if (!text) continue;
-    const last = merged[merged.length - 1];
-    if (seg.speaker === "내레이션" && last?.speaker === "내레이션") {
-      last.text = `${last.text}\n\n${text}`;
-    } else {
-      merged.push({ speaker: seg.speaker, text });
-    }
-  }
-
-  const narrIndices = merged
-    .map((s, i) => (s.speaker === "내레이션" ? i : -1))
-    .filter((i) => i >= 0);
-  if (narrIndices.length > maxNarrationBlocks) {
-    const allNarr = narrIndices.map((i) => merged[i].text).join("\n\n");
-    const out: NpcSegment[] = [];
-    let inserted = false;
-    for (let i = 0; i < merged.length; i++) {
-      if (merged[i].speaker === "내레이션") {
-        if (!inserted && i === narrIndices[0]) {
-          out.push({ speaker: "내레이션", text: allNarr });
-          inserted = true;
-        }
-        continue;
-      }
-      out.push(merged[i]);
-    }
-    return out.length > maxTotal
-      ? [...out.filter((s) => s.speaker !== "내레이션").slice(0, maxTotal - 1), out.find((s) => s.speaker === "내레이션")!].filter(Boolean)
-      : out;
-  }
-
-  if (merged.length <= maxTotal) return merged;
-  const npcs = merged.filter((s) => s.speaker !== "내레이션");
-  const narr = merged.find((s) => s.speaker === "내레이션");
-  const keepNpcs = npcs.slice(0, narr ? maxTotal - 1 : maxTotal);
-  return narr ? [...keepNpcs, narr] : keepNpcs.slice(0, maxTotal);
-}
-
 /**
  * 백엔드 backend/src/engine/dialogue_split.py 와 동일 알고리즘.
  * 빈 줄로 화자 블록을 구분하고, 첫 줄이 NPC 이름으로 시작하면 그 NPC, 아니면 "내레이션".
@@ -97,5 +45,6 @@ export function splitAssistantIntoSegments(
     if (sp) segments.push({ speaker: sp, text: block });
     else segments.push({ speaker: "내레이션", text: block });
   }
-  return compactAssistantSegments(segments);
+  // 빈 줄 단위 분리 유지 — 스트리밍·완료 시 카드가 하나로 합쳐지지 않게
+  return segments;
 }

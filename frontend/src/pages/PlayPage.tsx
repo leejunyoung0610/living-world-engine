@@ -216,7 +216,10 @@ export function PlayPage() {
         onDone: (r: TurnResult) => {
           doneFired = true;
           setMeta({ turn: r.turn, day: r.day });
-          updateAssistant(r.response, r.response_segments ?? []);
+          updateAssistant(
+            r.response,
+            splitAssistantIntoSegments(r.response, npcNames),
+          );
           if (r.events_triggered.length > 0) {
             setEventQueue(r.events_triggered);
           }
@@ -309,7 +312,10 @@ export function PlayPage() {
           onDone: (r: TurnResult) => {
             doneFired = true;
             setMeta({ turn: r.turn, day: r.day });
-            updateAssistant(r.response, r.response_segments ?? []);
+            updateAssistant(
+              r.response,
+              splitAssistantIntoSegments(r.response, npcNames),
+            );
             if (r.events_triggered.length > 0) {
               setEventQueue(r.events_triggered);
             }

@@ -34,17 +34,15 @@ def test_no_npc_names_one_blob() -> None:
     assert segs[0]["speaker"] == "응답"
 
 
-def test_many_narration_blocks_merged_to_one() -> None:
-    parts = [f"장면 묘사 {i}" for i in range(15)]
+def test_many_narration_blocks_stay_separate() -> None:
+    parts = [f"장면 묘사 {i}" for i in range(5)]
     text = "\n\n".join(parts)
     segs = split_assistant_into_segments(text, ["김아현"])
-    assert len(segs) == 1
-    assert segs[0]["speaker"] == "내레이션"
-    assert "장면 묘사 0" in segs[0]["text"]
-    assert "장면 묘사 14" in segs[0]["text"]
+    assert len(segs) == 5
+    assert all(s["speaker"] == "내레이션" for s in segs)
 
 
-def test_interleaved_narration_collapsed() -> None:
+def test_interleaved_npcs_stay_separate() -> None:
     text = (
         "김아현 (웃으며) 안녕\n\n"
         "바다 냄새가 난다.\n\n"
@@ -53,9 +51,10 @@ def test_interleaved_narration_collapsed() -> None:
         "김아현 (미소) 좋지?"
     )
     segs = split_assistant_into_segments(text, ["김아현", "이준영"])
-    narr_count = sum(1 for s in segs if s["speaker"] == "내레이션")
-    assert narr_count == 1
-    assert len(segs) <= 6
+    assert len(segs) == 5
+    assert segs[0]["speaker"] == "김아현"
+    assert segs[2]["speaker"] == "이준영"
+    assert segs[4]["speaker"] == "김아현"
 
 
 def test_compact_preserves_npc_blocks() -> None:

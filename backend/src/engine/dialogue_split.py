@@ -91,4 +91,5 @@ def split_assistant_into_segments(text: str, npc_names: list[str]) -> list[dict[
         else:
             segments.append({"speaker": "내레이션", "text": block})
 
-    return compact_assistant_segments(segments)
+    # NPC·내레이션 블록은 빈 줄 단위 그대로 유지 (합치지 않음)
+    return segments

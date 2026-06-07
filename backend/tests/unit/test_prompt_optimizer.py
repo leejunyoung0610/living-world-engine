@@ -146,7 +146,7 @@ def test_build_system_blocks_split_for_cache():
     assert "OnlyHere" not in static
     assert "## Tool (update_game_state)" in static
     assert "## 응답 규칙" in static
-    assert "턴당 자동 아님" in static
+    assert "NPC가 바뀔 때마다 반드시" in static
     assert "npc_memory_updates" in static
     assert "이번 턴 출력 제한" in dynamic
 
