@@ -26,16 +26,42 @@ def test_keep_recent(context_manager, sample_history):
 
 
 def test_build_context_recent_only(context_manager):
-    """Layer1(최근 3턴=6메시지) + Layer2(other 상한 1) — 전체 10메시지를 다 쓰지 않는다."""
+    """Layer1(최근 5턴)만 — Layer2 비활성 시 짧은 히스토리는 전부 유지."""
     history = []
     for i in range(5):
         history.append({"role": "user", "content": f"Turn {i+1}"})
         history.append({"role": "assistant", "content": "Response"})
 
     optimized = context_manager.build_context("test", history, max_tokens=3000)
-    assert len(optimized) < len(history)
+    assert optimized == history
+
+
+def test_build_context_keeps_last_seven_turns(context_manager):
+    history = []
+    for i in range(10):
+        history.append({"role": "user", "content": f"Turn {i+1}"})
+        history.append({"role": "assistant", "content": "Response"})
+
+    optimized = context_manager.build_context("test", history, max_tokens=3000)
+    assert len(optimized) == 14
+    assert optimized[0]["content"] == "Turn 4"
     assert optimized[-1] == history[-1]
-    assert len(optimized) == 7  # other 샘플 1 + 최근 3턴 6
+
+
+def test_build_context_preserves_user_message_without_npc_name(context_manager):
+    """NPC 이름 없는 유저 발언도 최근 5턴 안이면 LLM 컨텍스트에 포함."""
+    history = []
+    for i in range(6):
+        history.append({"role": "user", "content": f"Turn {i+1}"})
+        history.append({"role": "assistant", "content": "**루아** (웃으며) 응"})
+    history[8] = {"role": "user", "content": "나 내일 일 뺐어 반장님한테 얘기해서"}
+    history[10] = {"role": "user", "content": "여기 침대에서 자 난 소파에서 잘게"}
+    history[11] = {"role": "assistant", "content": "**루아** 일요일 노가다 없어?"}
+
+    optimized = context_manager.build_context("test", history, max_tokens=3000)
+    joined = " ".join(m["content"] for m in optimized)
+    assert "일 뺐어" in joined
+    assert optimized[-1] == history[-1]
 
 
 def test_build_context_with_sampling(context_manager):
@@ -61,8 +87,8 @@ def test_empty_history(context_manager):
     assert optimized == []
 
 
-def test_budget_trims_layer2_then_fits(context_manager):
-    """예산 초과 시 Layer2 턴 수·필요 시 Layer1을 줄인다."""
+def test_budget_trims_layer1_when_over_budget(context_manager):
+    """예산 초과 시 Layer1 턴 수만 축소 (Layer2 기본 비활성)."""
     history = []
     for i in range(25):
         history.append({"role": "user", "content": f"Turn {i} 루아에게 말함"})
@@ -80,3 +106,9 @@ def test_layer2_empty_when_no_sampling_window(context_manager):
     ]
     optimized = context_manager.build_context("test", history, max_tokens=3000)
     assert optimized == history
+
+
+def test_max_stored_turns_constant():
+    assert ContextManager.MAX_STORED_TURNS == 30
+    assert ContextManager.KEEP_RECENT_TURNS == 7
+    assert ContextManager.NPC_RECENT_TURNS == 0

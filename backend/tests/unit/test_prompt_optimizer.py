@@ -27,7 +27,7 @@ def test_prompt_length():
     )
 
     # 공통 코어만 (Sonnet 경로) — 슬림 유지
-    assert len(prompt) < 3500, f"Prompt too long: {len(prompt)} chars"
+    assert len(prompt) < 3700, f"Prompt too long: {len(prompt)} chars"
     assert "[Haiku·경량 모델 전용" not in prompt
 
 
@@ -146,7 +146,8 @@ def test_build_system_blocks_split_for_cache():
     assert "OnlyHere" not in static
     assert "## Tool (update_game_state)" in static
     assert "## 응답 규칙" in static
-    assert "NPC가 바뀔 때마다 반드시" in static
+    assert "NPC가 바뀔 때만" in static
+    assert "`---`" in static
     assert "npc_memory_updates" in static
     assert "이번 턴 출력 제한" in dynamic
 
@@ -230,6 +231,33 @@ def test_dynamic_includes_relationship_stats_for_llm():
     assert "## 관계 수치" in dynamic
     assert "호감(affection): 55/100" in dynamic
     assert "신뢰(trust): 30/100" in dynamic
+
+
+def test_static_forbids_player_npc_blocks_and_flag_changes_guide():
+    optimizer = SystemPromptOptimizer()
+    static, _ = optimizer.build_system_blocks(
+        world={"name": "W"},
+        player={"name": "조현용"},
+        npcs=[],
+        memories=[],
+    )
+    assert "플레이어(조현용) NPC 블록 절대 금지" in static
+    assert "flag_changes" in static
+    assert "debt_paid" in static
+    assert "모순" in static
+
+
+def test_static_forbids_npc_group_chat_and_solo_scene_rules():
+    optimizer = SystemPromptOptimizer()
+    static, _ = optimizer.build_system_blocks(
+        world={"name": "W"},
+        player={"name": "P"},
+        npcs=[],
+        memories=[],
+    )
+    assert "NPC끼리 대화 연속 금지" in static
+    assert "따라 말하기" in static or "echo" in static
+    assert "혼자·이별·귀가" in static
 
 
 def test_static_forbids_relationship_numbers_in_user_dialogue():

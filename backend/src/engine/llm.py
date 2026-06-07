@@ -27,8 +27,8 @@ GAME_STATE_TOOL = {
     "name": "update_game_state",
     "description": (
         "플레이어의 행동에 따른 게임 상태 변경을 제안합니다. "
-        "관계 변화, 플레이어 능력(자원) 스탯 변화, 새 기억 등을 포함합니다. "
-        "대사·상태가 변할 때 이 도구로 관계·기억·NPC 단기기억을 갱신하세요. "
+        "관계 변화, 확정 스토리 플래그, 플레이어 능력(자원) 스탯 변화, 새 기억 등을 포함합니다. "
+        "대사·상태가 변할 때 이 도구로 관계·플래그·기억·NPC 단기기억을 갱신하세요. "
         "도구를 사용할 때도 NPC 대사(텍스트)는 같은 assistant 응답에 반드시 함께 포함하세요."
     ),
     "input_schema": {
@@ -111,6 +111,33 @@ GAME_STATE_TOOL = {
                     "required": ["key", "change"],
                 },
                 "description": "플레이어 능력·자원 스탯 변화 (매 턴 남발 금지)",
+            },
+            "flag_changes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "key": {
+                            "type": "string",
+                            "description": (
+                                "확정 사실 키 (snake_case, 영문 소문자·숫자·_). "
+                                "예: debt_paid, dating_ahyun, job_quit_sunday"
+                            ),
+                        },
+                        "value": {
+                            "description": "true/false, 짧은 문자열, 또는 숫자",
+                        },
+                        "reason": {
+                            "type": "string",
+                            "description": "이번 턴 대화에서 확정된 이유 (필수)",
+                        },
+                    },
+                    "required": ["key", "value", "reason"],
+                },
+                "description": (
+                    "번복 불가한 스토리 사실 확정 — 빚 상환·사귐·이별·퇴사·동거 등. "
+                    "턴마다 최대 3건. 없으면 빈 배열."
+                ),
             },
             "new_memories": {
                 "type": "array",

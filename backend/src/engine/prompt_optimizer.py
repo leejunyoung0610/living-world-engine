@@ -10,6 +10,7 @@ from .relationship_stats import (
     RELATIONSHIP_STAT_ORDER,
     build_session_relationship_view,
 )
+from .state_block import build_state_block
 
 
 class SystemPromptOptimizer:
@@ -231,13 +232,20 @@ class SystemPromptOptimizer:
 ## 플레이어
 - 이름: {player_name}
 - 호칭은 반드시 "{player_name}".
+- **플레이어({player_name}) NPC 블록 절대 금지** — 유저 메시지가 이미 플레이어 대사입니다. `**{player_name}**`·`{player_name} (행동)` 형식으로 플레이어 말·행동·대사를 쓰지 마세요. 응답은 **NPC 반응 + 내레이션**만.
 
 ## 응답 규칙 (가장 중요 — 유저 화면이 빈 줄마다 카드로 쪼개짐)
 - **빈 줄 한 줄 = 화면 카드 1개.** 한 턴 **블록 합계 최대 5개**(NPC+내레이션). **6개 이상 절대 금지.**
-- **NPC가 바뀔 때마다 반드시 빈 줄 한 줄로 블록을 나눕니다.** (필수 — 안 하면 화면에 한 덩어리로 보임)
+- **`---` / 마크다운 구분선 절대 금지.** 장면 전환은 빈 줄만 쓰거나 같은 NPC 블록 안 (행동)으로 이어 쓰세요.
+- **같은 NPC의 (행동)과 대사 사이에 빈 줄 넣지 마세요** — 한 블록에 2~3문장까지 묶습니다.
+- **NPC가 바뀔 때만** 빈 줄 한 줄로 블록을 나눕니다.
 - 첫 줄: **NPC이름** (짧은 행동) 후 대사. 같은 NPC 안에서는 (행동)+대사 2~3문장까지 한 블록에 묶어도 됩니다.
 - **이름 없는 내레이션 블록은 한 턴에 최대 1개.** 배경·분위기는 NPC (괄호) 안에 넣고, 내레이션 블록을 여러 개 쪼개지 마세요.
 - 한 턴 NPC 1~2명(많아도 3명). 장황한 묘사·반복·장면 나열 금지.
+- **NPC끼리 대화 연속 금지** — A가 말하고 B가 이어받는 「단체 수다」 형식 쓰지 마세요. NPC 대사는 **플레이어에게 하는 반응**만. 한 턴에 NPC가 여럿 나와도 각각 플레이어에게 한 마디씩.
+- **플레이어 말투·멘트를 그대로 따라 말하기(echo) 금지** — 유저가 한 말을 NPC가 반복·인용하지 마세요.
+- **혼자·이별·귀가** — 플레이어가 집에 간다·헤어진다·혼자 간다·잘 자 등 **동행 없이 장면을 끝내면**, 그 턴은 **내레이션 1블록**(귀가·취침·짧은 묘사)으로 마무리하고 **다른 NPC 대사를 넣지 마세요**. 다음 턴은 필요 시 「다음 날 아침」 등으로 시작.
+- **동행이 없으면 NPC 등장 금지** — 택시에서 내린 뒤 혼자 건물에 들어가는 등, 플레이어 옆에 없는 NPC는 그 턴에 말하지 마세요.
 - 진행 안내·플레이어님·시스템 톤 금지.
 - **유저에게 보이는 대사에 관계 수치·변화량(호감+5 등)·스탯 이름을 절대 쓰지 마세요.** 수치는 시스템·툴로만 갱신한다.
 - **중요: `update_game_state` 툴을 사용하는 경우에도 반드시 같은 응답에 NPC 대사(텍스트)를 포함하세요.**
@@ -265,6 +273,14 @@ class SystemPromptOptimizer:
 ### 플레이어 능력 (`resource_stat_changes`)
 - 연습·훈련·중요 성과 등에만. 한 턴 change ±5. |change|≥3 또는 `show_card:true`면 EventCard.
 
+### 확정 스토리 플래그 (`flag_changes`) — 모순 방지 핵심
+- 빚 상환·사귐·이별·퇴사·동거·사망 등 **번복 불가 사실**이 이번 턴 대화에서 확정되면 기록. 없으면 **빈 배열 `[]`**.
+- 턴당 최대 3건. key는 snake_case 영문 (예: `debt_paid`, `dating_ahyun`, `job_quit_sunday`).
+- value: `true`/`false`, 짧은 문자열, 또는 숫자.
+- **`reason` 필수** — 유저 행동·대화에서 확정된 이유 한 줄.
+- State 블록 「지금 사실」에 이미 있는 플래그와 **모순되는 상황·대사 금지**. 예: `debt_paid`가 있으면 「빚 갚아야 한다」 같은 미완 서사를 다시 쓰지 마세요.
+- 중요 사건이 확정됐는데 플래그를 안 남기면 다음 턴에 잊힐 수 있으니, 확실할 때 반드시 기록하세요.
+
 감정 태그: joy, sadness, anger, fear, surprise, trust, neutral
 """
         static = static_body.strip()
@@ -275,6 +291,7 @@ class SystemPromptOptimizer:
         if cache_reset_flag:
             prefix_lines.append(f"[{cache_reset_flag}]")
         prefix = ("\n".join(prefix_lines) + "\n\n") if prefix_lines else ""
+        state_block = build_state_block(player, day)
 
         recent_events_block = ""
         hints = [h.strip() for h in (pending_event_hints or []) if h and h.strip()]
@@ -289,7 +306,9 @@ NPC들은 이 변화를 자연스럽게 인지할 수 있습니다.
 명시적으로 언급하기보다는 분위기나 대사에 녹여주세요.
 """
 
-        dynamic = f"""{prefix}## 현재 상황
+        dynamic = f"""{prefix}{state_block}
+
+## 현재 상황
 - 이번 턴 중심 NPC (위 프로필을 기준으로 반응; 다른 인물은 필수 아님): {dialogue_names or "(프로필 없음)"}
 - 턴: {turn}
 - 일차: {day}
@@ -311,7 +330,7 @@ NPC들은 이 변화를 자연스럽게 인지할 수 있습니다.
 
 ## 이번 턴 출력 제한 (필수 — 위반 시 UX 깨짐)
 - 빈 줄로 나눈 블록 **합계 5개 이하**. 6개 이상 쓰지 마세요.
-- **내레이션-only 블록 1개 이하.** 나머지 묘사는 NPC 대사 (괄호) 로 처리.
+- **내레이션-only 블록 1개 이하.** (단, 플레이어가 혼자·귀가·취침이면 **내레이션만**으로 끝내고 NPC 블록 0개도 됨.)
 - 출력이 길어지면 문장을 줄이세요. 블록을 늘리지 마세요.
 """
         return static.strip(), dynamic.strip()

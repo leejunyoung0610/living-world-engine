@@ -104,6 +104,20 @@ class TestWorldState:
         assert applied["resource_stat_changes"][0]["after"] == 13
         assert world_state.player["stats"]["rap"] == 13
 
+    def test_apply_changes_flag(self, world_state: WorldState) -> None:
+        """확정 스토리 플래그 적용"""
+        changes = {
+            "relationship_changes": [],
+            "flag_changes": [
+                {"key": "debt_paid", "value": True, "reason": "빚 상환 완료"},
+            ],
+            "new_memories": [],
+        }
+        applied = world_state.apply_changes(changes)
+        assert len(applied["flag_changes"]) == 1
+        assert applied["flag_changes"][0]["after"] is True
+        assert world_state.get_flag("debt_paid") is True
+
     def test_apply_changes_memories(self, world_state: WorldState) -> None:
         """상태 변경 적용 - 기억"""
         changes = {

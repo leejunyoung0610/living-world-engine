@@ -234,8 +234,9 @@ class GameEngine:
 
             self.conversation_history.append({"role": "user", "content": user_input})
             self.conversation_history.append({"role": "assistant", "content": response_text})
-            if len(self.conversation_history) > 40:
-                self.conversation_history = self.conversation_history[-40:]
+            max_hist = ContextManager.MAX_STORED_TURNS * 2
+            if len(self.conversation_history) > max_hist:
+                self.conversation_history = self.conversation_history[-max_hist:]
 
         result = {
             "turn": self.state.turn,
@@ -610,8 +611,9 @@ class GameEngine:
 
         self.conversation_history.append({"role": "user", "content": user_input})
         self.conversation_history.append({"role": "assistant", "content": response_text})
-        if len(self.conversation_history) > 40:
-            self.conversation_history = self.conversation_history[-40:]
+        max_hist = ContextManager.MAX_STORED_TURNS * 2
+        if len(self.conversation_history) > max_hist:
+            self.conversation_history = self.conversation_history[-max_hist:]
 
         return {
             "turn": self.state.turn,

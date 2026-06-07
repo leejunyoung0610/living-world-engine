@@ -150,6 +150,34 @@ class TestStateChangeValidator:
         result = validator.validate(changes)
         assert result["new_memories"][0]["emotion"] == "neutral"
 
+    def test_flag_changes_valid(self, validator: StateChangeValidator) -> None:
+        changes = {
+            "flag_changes": [
+                {"key": "debt_paid", "value": True, "reason": "대부에게 1000만 상환 완료"},
+                {"key": "Debt-Paid", "value": True, "reason": "중복 키 무시"},
+                {"key": "!@#", "value": True, "reason": "잘못된 키"},
+            ],
+        }
+        result = validator.validate(changes)
+        assert len(result["flag_changes"]) == 1
+        assert result["flag_changes"][0]["key"] == "debt_paid"
+        assert result["flag_changes"][0]["value"] is True
+
+    def test_flag_changes_requires_reason(self, validator: StateChangeValidator) -> None:
+        changes = {"flag_changes": [{"key": "debt_paid", "value": True, "reason": "짧"}]}
+        result = validator.validate(changes)
+        assert len(result.get("flag_changes", [])) == 0
+
+    def test_flag_changes_max_three(self, validator: StateChangeValidator) -> None:
+        changes = {
+            "flag_changes": [
+                {"key": f"f{i}", "value": True, "reason": f"사유 {i}"}
+                for i in range(5)
+            ],
+        }
+        result = validator.validate(changes)
+        assert len(result["flag_changes"]) == 3
+
     def test_empty_changes(self, validator: StateChangeValidator) -> None:
         """빈 변경 사항"""
         result = validator.validate({})

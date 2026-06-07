@@ -138,6 +138,7 @@ class PlayHistoryResponse(BaseModel):
     messages: list[PlayHistoryMessage]
     #: 화자 분할 알고리즘이 클라이언트에서 점진 분할(스트리밍 중 화자 블록)에 사용한다.
     npc_names: list[str] = Field(default_factory=list)
+    player_name: str | None = None
 
 
 class NpcRelationshipRow(BaseModel):
@@ -219,8 +220,23 @@ def _npc_names_from_engine(engine: Any) -> list[str]:
     return out
 
 
+def _player_name_from_engine(engine: Any) -> str | None:
+    state = getattr(engine, "state", None)
+    if state is None:
+        return None
+    player = getattr(state, "player", None) or {}
+    if not isinstance(player, dict):
+        return None
+    name = str(player.get("name", "")).strip()
+    return name or None
+
+
 def _segments_for_assistant(engine: Any, content: str) -> list[NpcLineSegment]:
-    raw = split_assistant_into_segments(content, _npc_names_from_engine(engine))
+    raw = split_assistant_into_segments(
+        content,
+        _npc_names_from_engine(engine),
+        player_name=_player_name_from_engine(engine),
+    )
     return [NpcLineSegment(speaker=s["speaker"], text=s["text"]) for s in raw]
 
 
@@ -248,7 +264,11 @@ def _last_message_preview(engine: Any) -> str:
     if role == "user":
         t = content.strip().replace("\n", " ")
         return (t[:80] + "…") if len(t) > 80 else t
-    segs = split_assistant_into_segments(content, _npc_names_from_engine(engine))
+    segs = split_assistant_into_segments(
+        content,
+        _npc_names_from_engine(engine),
+        player_name=_player_name_from_engine(engine),
+    )
     if not segs:
         return ""
     s0 = segs[0]
@@ -464,6 +484,7 @@ def play_history(
         world_name=world_name,
         messages=messages,
         npc_names=_npc_names_from_engine(eng),
+        player_name=_player_name_from_engine(eng),
     )
 
 

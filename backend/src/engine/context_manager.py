@@ -10,17 +10,18 @@ logger = get_logger(__name__)
 class ContextManager:
     """3-Layer Memory Architecture - Context Window 최적화
 
-    Layer 1 (Immediate): 최근 N턴(KEEP_RECENT_TURNS) — 즉각 대화
-    Layer 2 (NPC Relationship): 중기 윈도에서 NPC별 샘플링 — 관계 맥락
-    Layer 3 (Critical Events): LongTermMemory + 시스템 프롬프트 — 중요 사건
+    Layer 1 (Immediate): 최근 N턴(KEEP_RECENT_TURNS) — 유저·NPC 대화 전문
+    Layer 2 (NPC Relationship): 중기 샘플링 (기본 비활성 — 유저 발언 누락 방지)
+    Layer 3 (Critical Events): LongTermMemory + NPC 단기기억 + 시스템 프롬프트
     """
 
-    # Phase 2: 컨텍스트 예산 축소 (입력 토큰·비용 절감, 품질는 플레이로 검증)
-    MAX_CONTEXT_TOKENS = 1600
-    KEEP_RECENT_TURNS = 3      # Layer 1: 최근 N턴 (메시지 2N개)
+    # Phase 2 튜닝 (2026-06): 5턴 verbatim + 단기기억/LTM 보완. 턴당 +~2–3원 예상.
+    MAX_CONTEXT_TOKENS = 2200
+    KEEP_RECENT_TURNS = 7      # Layer 1: 최근 7턴 (유저 발언 6~7턴 전까지 verbatim)
+    MAX_STORED_TURNS = 30      # 세션 conversation_history 보존 (메시지 2N개)
     NPC_SAMPLING_WINDOW = 20   # Layer 2: 샘플링 윈도(턴 단위 ×2는 build에서 처리)
-    NPC_RECENT_TURNS = 1       # Layer 2: NPC별 최근 N턴 (2N개 메시지까지)
-    OTHER_CAP = 1              # Layer 2: NPC 미포함(other) 메시지 최대 개수
+    NPC_RECENT_TURNS = 0       # Layer 2 비활성 (NPC명 없는 유저 발언 탈락 방지)
+    OTHER_CAP = 4              # Layer 2 사용 시 other(유저 단독 발언) 상한
 
     def __init__(self):
         self.npc_names = []  # 동적으로 설정됨

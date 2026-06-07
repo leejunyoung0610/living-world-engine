@@ -68,6 +68,7 @@ export type PlayHistoryResult = {
   world_name: string;
   messages: PlayHistoryMessage[];
   npc_names: string[];
+  player_name?: string | null;
 };
 
 export type NpcRelationshipRow = {

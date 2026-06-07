@@ -13,6 +13,12 @@ from typing import Any
 
 from ..utils.logger import logger
 from .relationship_stats import VALID_RELATIONSHIP_STATS
+from .story_facts import (
+    MAX_FLAG_CHANGES_PER_TURN,
+    MIN_FLAG_REASON_LEN,
+    normalize_flag_key,
+    normalize_flag_value,
+)
 
 MAX_RELATIONSHIP_CHANGES_PER_TURN = 2
 MAX_RELATIONSHIP_CHANGE_SUM_ABS = 5
@@ -65,7 +71,39 @@ class StateChangeValidator:
                 changes["npc_memory_updates"]
             )
 
+        if "flag_changes" in changes:
+            validated["flag_changes"] = self._validate_flag_changes(changes["flag_changes"])
+
         return validated
+
+    def _validate_flag_changes(self, raw: Any) -> list[dict[str, Any]]:
+        if not isinstance(raw, list):
+            return []
+        out: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for item in raw[:MAX_FLAG_CHANGES_PER_TURN]:
+            if not isinstance(item, dict):
+                continue
+            key = normalize_flag_key(item.get("key"))
+            if not key or key in seen:
+                continue
+            if "value" not in item:
+                continue
+            raw_value = item["value"]
+            if isinstance(raw_value, bool):
+                value: bool | str | int | float = raw_value
+            else:
+                norm = normalize_flag_value(raw_value)
+                if norm is None:
+                    continue
+                value = norm
+            reason = str(item.get("reason", "")).strip()
+            if len(reason) < MIN_FLAG_REASON_LEN:
+                logger.warning("플래그 변경 거부 — reason 부족: %s", key)
+                continue
+            seen.add(key)
+            out.append({"key": key, "value": value, "reason": reason})
+        return out
 
     def _validate_relationship_changes(self, raw: Any) -> list[dict[str, Any]]:
         """관계 변경 목록 — 건수·합계 캡 적용."""

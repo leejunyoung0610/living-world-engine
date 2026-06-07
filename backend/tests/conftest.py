@@ -41,12 +41,14 @@ def world_state() -> WorldState:
             "name": "엘레나",
             "role": "2학년 수석",
             "location": "결투장",
+            "relationship_stats": {"affection": True, "trust": True},
         },
         {
             "id": "bella",
             "name": "벨라",
             "role": "귀족 정크",
             "location": "기숙사",
+            "relationship_stats": {"affection": True, "trust": True},
         },
         {
             "id": "lua",

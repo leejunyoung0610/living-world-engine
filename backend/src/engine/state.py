@@ -205,6 +205,7 @@ class WorldState:
             "relationship_changes": [],
             "resource_stat_changes": [],
             "memories_added": [],
+            "flag_changes": [],
         }
 
         # 관계 변경 적용
@@ -251,6 +252,21 @@ class WorldState:
                 "after": after,
                 "reason": sc.get("reason", ""),
                 "show_card": bool(sc.get("show_card")),
+            })
+
+        for fc in changes.get("flag_changes", []):
+            if not isinstance(fc, dict):
+                continue
+            key = fc.get("key")
+            if not isinstance(key, str) or not key.strip():
+                continue
+            value = fc.get("value")
+            before, after = self.set_flag(key, value)
+            applied["flag_changes"].append({
+                "key": key,
+                "before": before,
+                "after": after,
+                "reason": fc.get("reason", ""),
             })
 
         # 새 기억 추가

@@ -71,6 +71,7 @@ export function PlayPage() {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [meta, setMeta] = useState<{ turn: number; day: number } | null>(null);
   const [npcNames, setNpcNames] = useState<string[]>([]);
+  const [playerName, setPlayerName] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [editDraft, setEditDraft] = useState("");
@@ -104,6 +105,7 @@ export function PlayPage() {
         if (cancelled) return;
         setMeta({ turn: h.turn, day: h.day });
         setNpcNames(h.npc_names ?? []);
+        setPlayerName(h.player_name ?? null);
         const next: ChatLine[] = [];
         for (const m of h.messages) {
           if (m.role === "user") {
@@ -210,7 +212,7 @@ export function PlayPage() {
       await sendTurnStream(token, sessionId, msg, {
         onDelta: (chunk) => {
           streamedText += chunk;
-          const segs = splitAssistantIntoSegments(streamedText, npcNames);
+          const segs = splitAssistantIntoSegments(streamedText, npcNames, playerName);
           updateAssistant(streamedText, segs);
         },
         onDone: (r: TurnResult) => {
@@ -218,7 +220,7 @@ export function PlayPage() {
           setMeta({ turn: r.turn, day: r.day });
           updateAssistant(
             r.response,
-            splitAssistantIntoSegments(r.response, npcNames),
+            splitAssistantIntoSegments(r.response, npcNames, playerName),
           );
           if (r.events_triggered.length > 0) {
             setEventQueue(r.events_triggered);
@@ -306,7 +308,7 @@ export function PlayPage() {
         {
           onDelta: (chunk) => {
             streamedText += chunk;
-            const segs = splitAssistantIntoSegments(streamedText, npcNames);
+            const segs = splitAssistantIntoSegments(streamedText, npcNames, playerName);
             updateAssistant(streamedText, segs);
           },
           onDone: (r: TurnResult) => {
@@ -314,7 +316,7 @@ export function PlayPage() {
             setMeta({ turn: r.turn, day: r.day });
             updateAssistant(
               r.response,
-              splitAssistantIntoSegments(r.response, npcNames),
+              splitAssistantIntoSegments(r.response, npcNames, playerName),
             );
             if (r.events_triggered.length > 0) {
               setEventQueue(r.events_triggered);
