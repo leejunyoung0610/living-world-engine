@@ -88,6 +88,22 @@ class TestWorldState:
         applied = world_state.apply_changes(changes)
         assert len(applied["relationship_changes"]) == 0
 
+    def test_apply_changes_resource_stat(self, world_state: WorldState) -> None:
+        """상태 변경 적용 - 플레이어 자원 스탯"""
+        world_state.player.setdefault("stats", {})["rap"] = 10
+        changes = {
+            "relationship_changes": [],
+            "resource_stat_changes": [
+                {"key": "rap", "change": 3, "reason": "연습", "show_card": True},
+            ],
+            "new_memories": [],
+        }
+        applied = world_state.apply_changes(changes)
+        assert len(applied["resource_stat_changes"]) == 1
+        assert applied["resource_stat_changes"][0]["before"] == 10
+        assert applied["resource_stat_changes"][0]["after"] == 13
+        assert world_state.player["stats"]["rap"] == 13
+
     def test_apply_changes_memories(self, world_state: WorldState) -> None:
         """상태 변경 적용 - 기억"""
         changes = {

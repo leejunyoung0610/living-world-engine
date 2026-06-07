@@ -248,6 +248,7 @@ class SystemPromptOptimizer:
 **도구를 사용할 때도 NPC 대사는 반드시 같은 응답에 함께 포함하세요.**
 대화에 변화가 있으면 매 턴 사용. 무의미한 한 단어("응"만 등)만 예외.
 관계 변화는 아래 「관계 수치」와 상황에 맞게 `relationship_changes`로 갱신(활성 스탯만). new_memories importance: 1~3 일상, 4~6 의미, 7+ 중요 사건.
+플레이어 능력·자원 스탯은 `resource_stat_changes`로만 갱신(아래 「플레이어 스탯」 키만). **매 턴 남발 금지** — 연습·훈련·중요한 성과 등 의미 있는 행동에만. 한 턴 change ±5. |change|≥3 또는 `show_card:true`면 유저에게 EventCard로 표시된다. 대사에 스탯 이름·수치를 쓰지 마세요.
 관계 스탯 종류: affection, trust, respect, fear, loyalty, romance, disgust, wrath (한 턴 change ±10).
 감정 태그: joy, sadness, anger, fear, surprise, trust, neutral
 """

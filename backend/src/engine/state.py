@@ -194,9 +194,18 @@ class WorldState:
             return default
         return flags.get(key, default)
 
+    def _resource_stat_clamp(self, key: str) -> tuple[int, int] | None:
+        from .events import EventManager
+
+        return EventManager._resolve_resource_clamp(self.world, key)
+
     def apply_changes(self, changes: dict[str, Any]) -> dict[str, Any]:
         """검증된 상태 변경을 적용하고 적용된 변경 내역을 반환"""
-        applied: dict[str, Any] = {"relationship_changes": [], "memories_added": []}
+        applied: dict[str, Any] = {
+            "relationship_changes": [],
+            "resource_stat_changes": [],
+            "memories_added": [],
+        }
 
         # 관계 변경 적용
         for rc in changes.get("relationship_changes", []):
@@ -219,6 +228,30 @@ class WorldState:
                 applied["relationship_changes"].append(
                     {"character": character, "stat": stat, "change": change, "new_value": new_val}
                 )
+
+        for sc in changes.get("resource_stat_changes", []):
+            if not isinstance(sc, dict):
+                continue
+            key = str(sc.get("key", "")).strip()
+            if not key:
+                continue
+            try:
+                change = int(sc.get("change", 0))
+            except (TypeError, ValueError):
+                continue
+            if change == 0:
+                continue
+            before, after = self.update_player_stat(
+                key, change, clamp=self._resource_stat_clamp(key)
+            )
+            applied["resource_stat_changes"].append({
+                "key": key,
+                "change": change,
+                "before": before,
+                "after": after,
+                "reason": sc.get("reason", ""),
+                "show_card": bool(sc.get("show_card")),
+            })
 
         # 새 기억 추가
         for mem in changes.get("new_memories", []):

@@ -27,7 +27,7 @@ GAME_STATE_TOOL = {
     "name": "update_game_state",
     "description": (
         "플레이어의 행동에 따른 게임 상태 변경을 제안합니다. "
-        "관계 변화, 새 기억, 성격 변화 등을 포함합니다. "
+        "관계 변화, 플레이어 능력(자원) 스탯 변화, 새 기억 등을 포함합니다. "
         "반드시 이 도구를 사용하여 상태 변경을 제안하세요. "
         "도구를 사용할 때도 NPC 대사(텍스트)는 같은 assistant 응답에 반드시 함께 포함하세요."
     ),
@@ -54,6 +54,32 @@ GAME_STATE_TOOL = {
                     "required": ["character", "stat", "change"],
                 },
                 "description": "관계 수치 변화 목록",
+            },
+            "resource_stat_changes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "key": {
+                            "type": "string",
+                            "description": "플레이어 자원 스탯 키 (stats_schema.resource)",
+                        },
+                        "change": {
+                            "type": "number",
+                            "description": "변화량 (-5 ~ +5, 의미 있는 행동에만)",
+                        },
+                        "reason": {
+                            "type": "string",
+                            "description": "변화 이유 (EventCard 설명에 사용)",
+                        },
+                        "show_card": {
+                            "type": "boolean",
+                            "description": "true면 |change|가 작아도 EventCard 표시",
+                        },
+                    },
+                    "required": ["key", "change"],
+                },
+                "description": "플레이어 능력·자원 스탯 변화 (매 턴 남발 금지)",
             },
             "new_memories": {
                 "type": "array",

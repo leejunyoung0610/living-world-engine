@@ -16,6 +16,7 @@ from .llm import ClaudeClient
 from .validator import StateChangeValidator
 from .loop_detector import LoopDetector
 from .events import DEFAULT_MAX_EVENTS_PER_TURN, EventManager
+from .llm_stat_events import build_llm_stat_event
 from .prompt_optimizer import SystemPromptOptimizer
 from ..utils.config import get_settings
 from ..utils.logger import get_logger
@@ -83,6 +84,7 @@ class GameEngine:
             characters_path=world_dir_path / "characters.json",
         )
         self.validator.set_valid_characters(self.state.get_all_character_names())
+        self._sync_validator_resource_stats()
 
         # NPC 이름 추출 (세계관 독립적)
         npc_names = [npc.get("name") for npc in self.state.npcs if npc.get("name")]
@@ -113,6 +115,7 @@ class GameEngine:
         """DB·UGC JSON으로 초기화. `memory_storage_path`가 있으면 세션별 장기기억 파일 사용."""
         self.state = WorldState.load_from_dicts(world_data, characters_data)
         self.validator.set_valid_characters(self.state.get_all_character_names())
+        self._sync_validator_resource_stats()
 
         npc_names = [npc.get("name") for npc in self.state.npcs if npc.get("name")]
         self.context_manager.set_npc_names(npc_names)
@@ -229,7 +232,7 @@ class GameEngine:
             loop_result = {"detected": False, "severity": 0}  # 비활성화
 
             with self.performance.measure("event_system"):
-                events_triggered = self._process_turn_events()
+                events_triggered = self._collect_turn_events(applied)
 
             self.conversation_history.append({"role": "user", "content": user_input})
             self.conversation_history.append({"role": "assistant", "content": response_text})
@@ -300,6 +303,33 @@ class GameEngine:
             })
         if len(self.pending_event_hints) > 3:
             self.pending_event_hints = self.pending_event_hints[-3:]
+
+    def _sync_validator_resource_stats(self) -> None:
+        """``stats_schema.resource`` + 현재 ``player.stats`` 키를 LLM 자원 스탯 허용 목록으로."""
+        schema = self.state.world.get("stats_schema", {}) or {}
+        resource = schema.get("resource", {}) if isinstance(schema, dict) else {}
+        keys: set[str] = set()
+        if isinstance(resource, dict):
+            keys.update(str(k).strip() for k in resource if str(k).strip())
+        player_stats = self.state.player.get("stats", {}) or {}
+        if isinstance(player_stats, dict):
+            keys.update(str(k).strip() for k in player_stats if str(k).strip())
+        self.validator.set_valid_resource_stats(keys)
+
+    def _collect_turn_events(self, applied: dict[str, Any]) -> list[dict[str, Any]]:
+        """마일스톤 이벤트 + LLM 자원 스탯 EventCard 합성."""
+        events_triggered = self._process_turn_events()
+        llm_ev = build_llm_stat_event(
+            self.state.turn,
+            applied.get("resource_stat_changes", []),
+        )
+        if llm_ev:
+            events_triggered.append(llm_ev)
+            logger.info(
+                "🎲 LLM 능력 변화 카드: %s",
+                llm_ev.get("description", ""),
+            )
+        return events_triggered
 
     def _process_turn_events(self) -> list[dict[str, Any]]:
         """이벤트 조건 검사 → 효과 적용 → narrative_hint 큐 → 쿨다운."""
@@ -550,7 +580,7 @@ class GameEngine:
         response_text = llm_result.get("response", "")
         loop_result = {"detected": False, "severity": 0}
 
-        events_triggered = self._process_turn_events()
+        events_triggered = self._collect_turn_events(applied)
 
         self.conversation_history.append({"role": "user", "content": user_input})
         self.conversation_history.append({"role": "assistant", "content": response_text})

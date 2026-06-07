@@ -21,11 +21,17 @@ class StateChangeValidator:
     def __init__(self, valid_characters: list[str] | None = None) -> None:
         self.valid_characters = valid_characters or []
         self.max_relationship_change = 10  # 한 턴당 최대 변화량
+        self.max_resource_stat_change = 5
         self.valid_stats = set(VALID_RELATIONSHIP_STATS)
+        self.valid_resource_stats: set[str] = set()
 
     def set_valid_characters(self, characters: list[str]) -> None:
         """유효한 캐릭터 목록 설정"""
         self.valid_characters = characters
+
+    def set_valid_resource_stats(self, keys: list[str] | set[str]) -> None:
+        """플레이어 자원 스탯 허용 키 (`stats_schema.resource` + 현재 player.stats)."""
+        self.valid_resource_stats = {str(k).strip() for k in keys if str(k).strip()}
 
     def validate(self, changes: dict[str, Any]) -> dict[str, Any]:
         """검증 후 안전한 변경만 반환"""
@@ -38,6 +44,13 @@ class StateChangeValidator:
                 validated_rc = self._validate_relationship_change(rc)
                 if validated_rc is not None:
                     validated["relationship_changes"].append(validated_rc)
+
+        if "resource_stat_changes" in changes:
+            validated["resource_stat_changes"] = []
+            for rc in changes["resource_stat_changes"]:
+                validated_rc = self._validate_resource_stat_change(rc)
+                if validated_rc is not None:
+                    validated["resource_stat_changes"].append(validated_rc)
 
         # 새 기억 검증
         if "new_memories" in changes:
@@ -76,6 +89,34 @@ class StateChangeValidator:
             "change": clamped,
             "reason": change.get("reason", ""),
         }
+
+    def _validate_resource_stat_change(self, change: dict[str, Any]) -> dict[str, Any] | None:
+        key = str(change.get("key", "")).strip()
+        if not key:
+            return None
+        if self.valid_resource_stats and key not in self.valid_resource_stats:
+            logger.warning("유효하지 않은 자원 스탯 키: %s", key)
+            return None
+        try:
+            amount = int(change.get("change", 0))
+        except (TypeError, ValueError):
+            return None
+        if amount == 0:
+            return None
+        clamped = max(
+            -self.max_resource_stat_change,
+            min(self.max_resource_stat_change, amount),
+        )
+        if clamped != amount:
+            logger.info("자원 스탯 변화량 제한: %s %s → %s", key, amount, clamped)
+        out: dict[str, Any] = {
+            "key": key,
+            "change": clamped,
+            "reason": str(change.get("reason", "")).strip(),
+        }
+        if "show_card" in change:
+            out["show_card"] = bool(change["show_card"])
+        return out
 
     def _validate_memory(self, memory: dict[str, Any]) -> dict[str, Any] | None:
         """기억 검증"""

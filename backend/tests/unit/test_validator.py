@@ -68,6 +68,25 @@ class TestStateChangeValidator:
         assert result["relationship_changes"][0]["change"] == 10  # 50 → 10
         assert result["relationship_changes"][1]["change"] == -10  # -30 → -10
 
+    def test_resource_stat_change_valid(self, validator: StateChangeValidator) -> None:
+        validator.set_valid_resource_stats(["rap", "producing"])
+        changes = {
+            "resource_stat_changes": [
+                {"key": "rap", "change": 4, "reason": "연습"},
+                {"key": "invalid", "change": 2},
+            ],
+        }
+        result = validator.validate(changes)
+        assert len(result["resource_stat_changes"]) == 1
+        assert result["resource_stat_changes"][0]["key"] == "rap"
+        assert result["resource_stat_changes"][0]["change"] == 4
+
+    def test_resource_stat_change_clamped(self, validator: StateChangeValidator) -> None:
+        validator.set_valid_resource_stats(["skill"])
+        changes = {"resource_stat_changes": [{"key": "skill", "change": 99}]}
+        result = validator.validate(changes)
+        assert result["resource_stat_changes"][0]["change"] == 5
+
     def test_empty_memory_rejected(self, validator: StateChangeValidator) -> None:
         """빈 기억 거부"""
         changes = {

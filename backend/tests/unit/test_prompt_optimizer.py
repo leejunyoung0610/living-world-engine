@@ -146,7 +146,8 @@ def test_build_system_blocks_split_for_cache():
     assert "OnlyHere" not in static
     assert "## Tool (update_game_state)" in static
     assert "## 응답 규칙" in static
-    assert "블록 합계 최대 10개" in static
+    assert "블록 합계 최대 5개" in static
+    assert "resource_stat_changes" in static
     assert "이번 턴 출력 제한" in dynamic
 
 

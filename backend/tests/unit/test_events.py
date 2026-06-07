@@ -367,6 +367,60 @@ class TestTimeWindow:
         assert [e["id"] for e in em.check_events(_snap_with(turn=5))] == ["night_event"]
 
 
+class TestCompoundRelationship:
+    """동일 NPC에 관계 조건 2개 (compound AND)."""
+
+    def test_two_relationship_stats_same_npc(self) -> None:
+        em = EventManager()
+        npc_id = "npc_ahyeon"
+        em.load_events([{
+            "id": "deep_bond",
+            "condition": {
+                "type": "compound",
+                "op": "and",
+                "conditions": [
+                    {
+                        "type": "relationship_threshold",
+                        "npc_id": npc_id,
+                        "stat": "affection",
+                        "op": ">=",
+                        "value": 50,
+                    },
+                    {
+                        "type": "relationship_threshold",
+                        "npc_id": npc_id,
+                        "stat": "trust",
+                        "op": ">=",
+                        "value": 40,
+                    },
+                ],
+            },
+            "cooldown": 999,
+            "once": True,
+        }])
+        snap = _snap_with(
+            player={
+                "stats": {},
+                "flags": {},
+                "relationships": {
+                    npc_id: {"affection": 55, "trust": 45},
+                },
+            },
+        )
+        assert [e["id"] for e in em.check_events(snap)] == ["deep_bond"]
+
+        snap_fail = _snap_with(
+            player={
+                "stats": {},
+                "flags": {},
+                "relationships": {
+                    npc_id: {"affection": 55, "trust": 30},
+                },
+            },
+        )
+        assert em.check_events(snap_fail) == []
+
+
 class TestCompound:
     def test_and_all_must_match(self) -> None:
         em = EventManager()

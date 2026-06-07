@@ -1,6 +1,7 @@
 import {
   COMPARE_OPS,
   defaultSimpleEventRow,
+  milestoneCompoundRelationshipSample,
   milestoneRelationshipSample,
   type CompareOp,
   type EventConditionKind,
@@ -32,13 +33,17 @@ export function WorldEventsEditor({ events, onChange, npcs, resourceStats }: Pro
     onChange([...events, defaultSimpleEventRow()]);
   }
 
-  function addSample() {
+  function addSample(kind: "relationship" | "compound_relationship" = "relationship") {
     const npc = npcs[0];
     if (!npc) {
       onChange([...events, defaultSimpleEventRow()]);
       return;
     }
-    onChange([...events, milestoneRelationshipSample(npc.id, npc.name)]);
+    const row =
+      kind === "compound_relationship"
+        ? milestoneCompoundRelationshipSample(npc.id, npc.name)
+        : milestoneRelationshipSample(npc.id, npc.name);
+    onChange([...events, row]);
   }
 
   return (
@@ -53,10 +58,17 @@ export function WorldEventsEditor({ events, onChange, npcs, resourceStats }: Pro
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={addSample}
+            onClick={() => addSample("relationship")}
             className="rounded-md border border-amber-800/60 bg-amber-950/30 px-2 py-1 text-xs text-amber-100 hover:bg-amber-950/50"
           >
             + 관계 샘플
+          </button>
+          <button
+            type="button"
+            onClick={() => addSample("compound_relationship")}
+            className="rounded-md border border-amber-800/60 bg-amber-950/30 px-2 py-1 text-xs text-amber-100 hover:bg-amber-950/50"
+          >
+            + 복합 관계 샘플
           </button>
           <button
             type="button"
@@ -127,16 +139,19 @@ export function WorldEventsEditor({ events, onChange, npcs, resourceStats }: Pro
                   className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white"
                 >
                   <option value="relationship">NPC 관계 수치</option>
+                  <option value="compound_relationship">NPC 관계 2개 (AND)</option>
                   <option value="resource_stat">플레이어 스탯</option>
-                  <option value="compound_and">복합 (AND)</option>
+                  <option value="compound_and">복합 (관계+스탯 AND)</option>
                 </select>
 
-                {(row.conditionKind === "relationship" || row.conditionKind === "compound_and") && (
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {(row.conditionKind === "relationship" ||
+                  row.conditionKind === "compound_relationship" ||
+                  row.conditionKind === "compound_and") && (
+                  <div className="mt-2 space-y-2">
                     <select
                       value={row.npcId}
                       onChange={(e) => onChange(updateRow(events, i, { npcId: e.target.value }))}
-                      className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white"
+                      className="w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white"
                     >
                       <option value="">NPC 선택 *</option>
                       {npcs.map((n) => (
@@ -145,43 +160,86 @@ export function WorldEventsEditor({ events, onChange, npcs, resourceStats }: Pro
                         </option>
                       ))}
                     </select>
-                    <select
-                      value={row.relationshipStat}
-                      onChange={(e) =>
-                        onChange(updateRow(events, i, { relationshipStat: e.target.value as RelationshipStatSlug }))
-                      }
-                      className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white"
-                    >
-                      {RELATIONSHIP_STAT_CATALOG.map((e) => (
-                        <option key={e.slug} value={e.slug}>
-                          {e.label} ({e.slug})
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={row.relationshipOp}
-                      onChange={(e) =>
-                        onChange(updateRow(events, i, { relationshipOp: e.target.value as CompareOp }))
-                      }
-                      className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white"
-                    >
-                      {COMPARE_OPS.map((op) => (
-                        <option key={op} value={op}>
-                          {op}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={row.relationshipValue}
-                      onChange={(e) =>
-                        onChange(updateRow(events, i, { relationshipValue: Number(e.target.value) || 0 }))
-                      }
-                      className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white"
-                      placeholder="임계값"
-                    />
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      <select
+                        value={row.relationshipStat}
+                        onChange={(e) =>
+                          onChange(updateRow(events, i, { relationshipStat: e.target.value as RelationshipStatSlug }))
+                        }
+                        className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white"
+                      >
+                        {RELATIONSHIP_STAT_CATALOG.map((e) => (
+                          <option key={e.slug} value={e.slug}>
+                            {e.label} ({e.slug})
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={row.relationshipOp}
+                        onChange={(e) =>
+                          onChange(updateRow(events, i, { relationshipOp: e.target.value as CompareOp }))
+                        }
+                        className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white"
+                      >
+                        {COMPARE_OPS.map((op) => (
+                          <option key={op} value={op}>
+                            {op}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={row.relationshipValue}
+                        onChange={(e) =>
+                          onChange(updateRow(events, i, { relationshipValue: Number(e.target.value) || 0 }))
+                        }
+                        className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white"
+                        placeholder="임계값 1"
+                      />
+                    </div>
+                    {row.conditionKind === "compound_relationship" && (
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        <select
+                          value={row.relationshipStat2}
+                          onChange={(e) =>
+                            onChange(updateRow(events, i, { relationshipStat2: e.target.value as RelationshipStatSlug }))
+                          }
+                          className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white"
+                        >
+                          {RELATIONSHIP_STAT_CATALOG.map((e) => (
+                            <option key={e.slug} value={e.slug}>
+                              {e.label} ({e.slug})
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={row.relationshipOp2}
+                          onChange={(e) =>
+                            onChange(updateRow(events, i, { relationshipOp2: e.target.value as CompareOp }))
+                          }
+                          className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white"
+                        >
+                          {COMPARE_OPS.map((op) => (
+                            <option key={op} value={op}>
+                              {op}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={row.relationshipValue2}
+                          onChange={(e) =>
+                            onChange(updateRow(events, i, { relationshipValue2: Number(e.target.value) || 0 }))
+                          }
+                          className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white"
+                          placeholder="임계값 2"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 

@@ -3,7 +3,11 @@
 import { RELATIONSHIP_STAT_CATALOG, type RelationshipStatSlug } from "../constants/relationshipStats";
 import { slugifyWorldId } from "./worldEditorSimple";
 
-export type EventConditionKind = "relationship" | "resource_stat" | "compound_and";
+export type EventConditionKind =
+  | "relationship"
+  | "compound_relationship"
+  | "resource_stat"
+  | "compound_and";
 
 export type CompareOp = ">=" | ">" | "<=" | "<" | "==";
 
@@ -22,6 +26,9 @@ export type SimpleEventRow = {
   relationshipStat: RelationshipStatSlug | "";
   relationshipOp: CompareOp;
   relationshipValue: number;
+  relationshipStat2: RelationshipStatSlug | "";
+  relationshipOp2: CompareOp;
+  relationshipValue2: number;
   resourceStat: string;
   resourceOp: CompareOp;
   resourceValue: number;
@@ -49,6 +56,9 @@ export function defaultSimpleEventRow(): SimpleEventRow {
     relationshipStat: "affection",
     relationshipOp: ">=",
     relationshipValue: 40,
+    relationshipStat2: "trust",
+    relationshipOp2: ">=",
+    relationshipValue2: 30,
     resourceStat: "",
     resourceOp: ">=",
     resourceValue: 20,
@@ -61,6 +71,26 @@ export function defaultSimpleEventRow(): SimpleEventRow {
     once: true,
     cooldown: 999,
     priority: 5,
+  };
+}
+
+export function milestoneCompoundRelationshipSample(npcId: string, npcName: string): SimpleEventRow {
+  const base = defaultSimpleEventRow();
+  return {
+    ...base,
+    id: "",
+    name: `${npcName}과 깊은 신뢰`,
+    description: `${npcName}에게 마음을 열고, 서로를 믿게 되었다.`,
+    narrativeHint: `${npcName}과 호감·신뢰가 모두 높아졌다. 주변에서 눈치챌 수 있다.`,
+    conditionKind: "compound_relationship",
+    npcId,
+    relationshipStat: "affection",
+    relationshipValue: 50,
+    relationshipStat2: "trust",
+    relationshipValue2: 40,
+    effectKey1: "skill",
+    effectDelta1: 5,
+    priority: 8,
   };
 }
 
@@ -122,6 +152,9 @@ function tryParseCondition(
   | "relationshipStat"
   | "relationshipOp"
   | "relationshipValue"
+  | "relationshipStat2"
+  | "relationshipOp2"
+  | "relationshipValue2"
   | "resourceStat"
   | "resourceOp"
   | "resourceValue"
@@ -140,6 +173,9 @@ function tryParseCondition(
       relationshipStat: relSlug,
       relationshipOp: parseOp(cond.op),
       relationshipValue: Number(cond.value) || 0,
+      relationshipStat2: "",
+      relationshipOp2: ">=",
+      relationshipValue2: 0,
       resourceStat: "",
       resourceOp: ">=",
       resourceValue: 0,
@@ -154,6 +190,9 @@ function tryParseCondition(
       relationshipStat: "",
       relationshipOp: ">=",
       relationshipValue: 0,
+      relationshipStat2: "",
+      relationshipOp2: ">=",
+      relationshipValue2: 0,
       resourceStat: typeof cond.stat === "string" ? cond.stat : "",
       resourceOp: parseOp(cond.op),
       resourceValue: Number(cond.value) || 0,
@@ -163,6 +202,33 @@ function tryParseCondition(
   }
   if (type === "compound" && String(cond.op).toLowerCase() === "and" && Array.isArray(cond.conditions)) {
     const subs = cond.conditions.map((c) => asRecord(c)).filter(Boolean) as Record<string, unknown>[];
+    const rels = subs.filter((c) => c.type === "relationship_threshold");
+    if (rels.length >= 2) {
+      const npcIds = rels
+        .map((r) => (typeof r.npc_id === "string" ? r.npc_id : ""))
+        .filter(Boolean);
+      const sameNpc = npcIds.length >= 2 && new Set(npcIds).size === 1;
+      const npcId = sameNpc ? npcIds[0] : typeof rels[0].npc_id === "string" ? rels[0].npc_id : "";
+      const parseRelStat = (stat: unknown): RelationshipStatSlug => {
+        const s = String(stat ?? "affection");
+        return RELATIONSHIP_STAT_CATALOG.some((e) => e.slug === s) ? (s as RelationshipStatSlug) : "affection";
+      };
+      return {
+        conditionKind: "compound_relationship",
+        npcId,
+        relationshipStat: parseRelStat(rels[0].stat),
+        relationshipOp: parseOp(rels[0].op),
+        relationshipValue: Number(rels[0].value) || 0,
+        relationshipStat2: parseRelStat(rels[1].stat),
+        relationshipOp2: parseOp(rels[1].op),
+        relationshipValue2: Number(rels[1].value) || 0,
+        resourceStat: "",
+        resourceOp: ">=",
+        resourceValue: 0,
+        compoundResourceStat: "",
+        compoundResourceValue: 0,
+      };
+    }
     const res = subs.filter((c) => c.type === "resource_stat_threshold");
     if (res.length >= 2) {
       return {
@@ -171,6 +237,9 @@ function tryParseCondition(
         relationshipStat: "",
         relationshipOp: ">=",
         relationshipValue: 0,
+        relationshipStat2: "",
+        relationshipOp2: ">=",
+        relationshipValue2: 0,
         resourceStat: typeof res[0].stat === "string" ? res[0].stat : "",
         resourceOp: parseOp(res[0].op),
         resourceValue: Number(res[0].value) || 0,
@@ -191,6 +260,9 @@ function tryParseCondition(
         relationshipStat: relSlug,
         relationshipOp: parseOp(rel.op),
         relationshipValue: Number(rel.value) || 0,
+        relationshipStat2: "",
+        relationshipOp2: ">=",
+        relationshipValue2: 0,
         resourceStat: typeof r1.stat === "string" ? r1.stat : "",
         resourceOp: parseOp(r1.op),
         resourceValue: Number(r1.value) || 0,
@@ -242,6 +314,32 @@ export function parseEventsFromJson(raw: unknown): {
 }
 
 function buildCondition(row: SimpleEventRow): Record<string, unknown> {
+  if (row.conditionKind === "compound_relationship") {
+    const npc = row.npcId.trim();
+    const subs: Record<string, unknown>[] = [];
+    if (row.relationshipStat) {
+      const c: Record<string, unknown> = {
+        type: "relationship_threshold",
+        stat: row.relationshipStat,
+        op: row.relationshipOp,
+        value: row.relationshipValue,
+      };
+      if (npc) c.npc_id = npc;
+      subs.push(c);
+    }
+    if (row.relationshipStat2) {
+      const c: Record<string, unknown> = {
+        type: "relationship_threshold",
+        stat: row.relationshipStat2,
+        op: row.relationshipOp2,
+        value: row.relationshipValue2,
+      };
+      if (npc) c.npc_id = npc;
+      subs.push(c);
+    }
+    if (subs.length === 1) return subs[0];
+    return { type: "compound", op: "and", conditions: subs };
+  }
   if (row.conditionKind === "relationship") {
     const c: Record<string, unknown> = {
       type: "relationship_threshold",
