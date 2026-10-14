@@ -2,6 +2,7 @@
 StateChangeValidator 유닛 테스트
 """
 
+import pytest
 
 from backend.src.engine.validator import StateChangeValidator
 
@@ -194,3 +195,129 @@ class TestStateChangeValidator:
         result = v.validate(changes)
         assert len(result["relationship_changes"]) == 1
         assert result["relationship_changes"][0]["change"] == 2
+
+
+class TestValidatorTypeGuards:
+    """LLM 툴 입력이 스키마와 다른 타입일 때 — 예외 없이 강제 변환하거나 해당 항목만 버린다."""
+
+    @staticmethod
+    def _memory(importance: object, **extra: object) -> dict:
+        return {"new_memories": [{"content": "중요한 사건", "emotion": "joy", "importance": importance, **extra}]}
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("7", 7),  # 기존: min(10, "7") → TypeError 로 턴 전체가 500
+            (" 8 ", 8),
+            ("9.6", 9),
+            (7.9, 7),
+            ("15", 10),
+            ("-3", 1),
+        ],
+    )
+    def test_numeric_importance_is_coerced(
+        self, validator: StateChangeValidator, raw: object, expected: int
+    ) -> None:
+        result = validator.validate(self._memory(raw))
+        assert result["new_memories"][0]["importance"] == expected
+
+    @pytest.mark.parametrize("raw", ["높음", "", None, True, [7], {"v": 7}, float("nan")])
+    def test_non_numeric_importance_falls_back_to_default(
+        self, validator: StateChangeValidator, raw: object
+    ) -> None:
+        result = validator.validate(self._memory(raw))
+        assert result["new_memories"][0]["importance"] == 5
+
+    def test_memory_without_importance_defaults_to_5(self, validator: StateChangeValidator) -> None:
+        result = validator.validate({"new_memories": [{"content": "중요도 없음", "emotion": "joy"}]})
+        assert result["new_memories"][0]["importance"] == 5
+
+    def test_malformed_memory_items_are_dropped(self, validator: StateChangeValidator) -> None:
+        changes = {
+            "new_memories": [
+                "그냥 문자열",
+                ["리스트"],
+                {"content": 12345, "emotion": "joy", "importance": 5},
+                {"content": "정상 기억", "emotion": ["joy"], "importance": 5},
+            ]
+        }
+        result = validator.validate(changes)
+        assert result["new_memories"] == [
+            {"content": "정상 기억", "emotion": "neutral", "importance": 5}
+        ]
+
+    @pytest.mark.parametrize("raw", ["기억", {"content": "x"}, 3, None])
+    def test_non_list_arrays_are_ignored(self, validator: StateChangeValidator, raw: object) -> None:
+        result = validator.validate(
+            {"new_memories": raw, "resource_stat_changes": raw, "relationship_changes": raw}
+        )
+        assert result == {
+            "new_memories": [],
+            "resource_stat_changes": [],
+            "relationship_changes": [],
+        }
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [("3", 3), ("-2", -2), (2.9, 2), ("99", 5)],
+    )
+    def test_resource_change_numeric_coercion(
+        self, validator: StateChangeValidator, raw: object, expected: int
+    ) -> None:
+        validator.set_valid_resource_stats(["skill"])
+        result = validator.validate({"resource_stat_changes": [{"key": "skill", "change": raw}]})
+        assert result["resource_stat_changes"][0]["change"] == expected
+
+    @pytest.mark.parametrize("raw", ["많이", True, None, [1], float("inf"), float("nan")])
+    def test_resource_change_non_numeric_rejected(
+        self, validator: StateChangeValidator, raw: object
+    ) -> None:
+        validator.set_valid_resource_stats(["skill"])
+        result = validator.validate({"resource_stat_changes": [{"key": "skill", "change": raw}]})
+        assert result["resource_stat_changes"] == []
+
+    def test_resource_items_with_bad_shape_dropped(self, validator: StateChangeValidator) -> None:
+        changes = {
+            "resource_stat_changes": [
+                "skill",
+                {"key": ["skill"], "change": 2},
+                {"key": "skill", "change": 2, "show_card": "false"},
+            ]
+        }
+        result = validator.validate(changes)
+        assert result["resource_stat_changes"] == [
+            {"key": "skill", "change": 2, "reason": "", "show_card": False}
+        ]
+
+    def test_relationship_items_with_bad_shape_dropped(self, validator: StateChangeValidator) -> None:
+        changes = {
+            "relationship_changes": [
+                "엘레나 호감 +2",
+                {"character": "엘레나", "stat": "affection", "change": "2", "reason": "도움을 줌"},
+            ]
+        }
+        result = validator.validate(changes)
+        assert result["relationship_changes"] == [
+            {"character": "엘레나", "stat": "affection", "change": 2, "reason": "도움을 줌"}
+        ]
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            {"stat": ["affection"]},  # unhashable — set 조회에서 TypeError 나던 경우
+            {"character": ["엘레나"]},
+            {"change": "많이"},
+            {"change": True},
+            {"reason": {"text": "도움을 줌"}},
+        ],
+    )
+    def test_relationship_bad_field_types_rejected(
+        self, validator: StateChangeValidator, bad: dict
+    ) -> None:
+        item = {"character": "엘레나", "stat": "affection", "change": 2, "reason": "도움을 줌", **bad}
+        result = validator.validate({"relationship_changes": [item]})
+        assert result["relationship_changes"] == []
+
+    @pytest.mark.parametrize("raw", [None, "변경", ["a"], 3])
+    def test_non_dict_changes_return_empty(self, validator: StateChangeValidator, raw: object) -> None:
+        assert validator.validate(raw) == {}  # type: ignore[arg-type]

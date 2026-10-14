@@ -23,6 +23,43 @@ from .story_facts import (
 MAX_RELATIONSHIP_CHANGES_PER_TURN = 2
 MAX_RELATIONSHIP_CHANGE_SUM_ABS = 5
 MIN_RELATIONSHIP_REASON_LEN = 4
+DEFAULT_MEMORY_IMPORTANCE = 5
+VALID_EMOTIONS = frozenset({"joy", "sadness", "anger", "fear", "surprise", "trust", "neutral"})
+
+
+def _coerce_int(value: Any) -> int | None:
+    """LLM 툴 입력의 수치를 정수로. int·유한 float·숫자 문자열(\"7\", \"-2.0\")만 허용.
+
+    float 는 기존 ``int()`` 와 같이 0 방향으로 버림. bool·None·리스트 등은 None (거부).
+    """
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return None
+    if isinstance(value, (float, str)):
+        try:
+            return int(float(value))
+        except (ValueError, OverflowError):  # 'abc', nan, inf
+            return None
+    return None
+
+
+def _text(value: Any) -> str:
+    """문자열 필드 — 문자열이 아니면 빈 문자열(검증 실패로 이어짐)."""
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _as_list(raw: Any, field: str) -> list[Any]:
+    """배열 필드 — 리스트가 아니면 경고 후 빈 리스트 (문자열을 글자 단위로 순회하는 사고 방지)."""
+    if isinstance(raw, list):
+        return raw
+    if raw is not None:
+        logger.warning("%s 형식 오류 — 배열 아님(%s), 무시", field, type(raw).__name__)
+    return []
 
 
 class StateChangeValidator:
@@ -44,8 +81,11 @@ class StateChangeValidator:
         self.valid_resource_stats = {str(k).strip() for k in keys if str(k).strip()}
 
     def validate(self, changes: dict[str, Any]) -> dict[str, Any]:
-        """검증 후 안전한 변경만 반환"""
+        """검증 후 안전한 변경만 반환 — 형식이 틀린 항목은 버리고 예외를 던지지 않는다."""
         validated: dict[str, Any] = {}
+        if not isinstance(changes, dict):
+            logger.warning("state_changes 형식 오류 — 객체 아님(%s), 무시", type(changes).__name__)
+            return validated
 
         if "relationship_changes" in changes:
             validated["relationship_changes"] = self._validate_relationship_changes(
@@ -54,14 +94,14 @@ class StateChangeValidator:
 
         if "resource_stat_changes" in changes:
             validated["resource_stat_changes"] = []
-            for rc in changes["resource_stat_changes"]:
+            for rc in _as_list(changes["resource_stat_changes"], "resource_stat_changes"):
                 validated_rc = self._validate_resource_stat_change(rc)
                 if validated_rc is not None:
                     validated["resource_stat_changes"].append(validated_rc)
 
         if "new_memories" in changes:
             validated["new_memories"] = []
-            for mem in changes["new_memories"]:
+            for mem in _as_list(changes["new_memories"], "new_memories"):
                 validated_mem = self._validate_memory(mem)
                 if validated_mem is not None:
                     validated["new_memories"].append(validated_mem)
@@ -107,8 +147,7 @@ class StateChangeValidator:
 
     def _validate_relationship_changes(self, raw: Any) -> list[dict[str, Any]]:
         """관계 변경 목록 — 건수·합계 캡 적용."""
-        if not isinstance(raw, list):
-            return []
+        raw = _as_list(raw, "relationship_changes")
         out: list[dict[str, Any]] = []
         for rc in raw[:MAX_RELATIONSHIP_CHANGES_PER_TURN]:
             validated_rc = self._validate_relationship_change(rc)
@@ -126,14 +165,16 @@ class StateChangeValidator:
             )
         return out
 
-    def _validate_relationship_change(self, change: dict[str, Any]) -> dict[str, Any] | None:
+    def _validate_relationship_change(self, change: Any) -> dict[str, Any] | None:
         """관계 변경 검증 — 개연성 ``reason`` 필수."""
-        character = change.get("character", "")
-        stat = change.get("stat", "")
-        amount = change.get("change", 0)
-        reason = str(change.get("reason", "")).strip()
+        if not isinstance(change, dict):
+            logger.warning("관계 변화 형식 오류 — 객체 아님: %r", change)
+            return None
+        character = _text(change.get("character"))
+        stat = _text(change.get("stat"))
+        reason = _text(change.get("reason"))
 
-        if self.valid_characters and character not in self.valid_characters:
+        if not character or (self.valid_characters and character not in self.valid_characters):
             logger.warning(f"존재하지 않는 캐릭터: {character}")
             return None
 
@@ -141,9 +182,9 @@ class StateChangeValidator:
             logger.warning(f"유효하지 않은 관계 스탯: {stat}")
             return None
 
-        try:
-            amount = int(amount)
-        except (TypeError, ValueError):
+        amount = _coerce_int(change.get("change", 0))
+        if amount is None:
+            logger.warning("관계 변화량 형식 오류: %r", change.get("change"))
             return None
 
         if amount == 0:
@@ -164,16 +205,19 @@ class StateChangeValidator:
             "reason": reason,
         }
 
-    def _validate_resource_stat_change(self, change: dict[str, Any]) -> dict[str, Any] | None:
-        key = str(change.get("key", "")).strip()
+    def _validate_resource_stat_change(self, change: Any) -> dict[str, Any] | None:
+        if not isinstance(change, dict):
+            logger.warning("자원 스탯 변화 형식 오류 — 객체 아님: %r", change)
+            return None
+        key = _text(change.get("key"))
         if not key:
             return None
         if self.valid_resource_stats and key not in self.valid_resource_stats:
             logger.warning("유효하지 않은 자원 스탯 키: %s", key)
             return None
-        try:
-            amount = int(change.get("change", 0))
-        except (TypeError, ValueError):
+        amount = _coerce_int(change.get("change", 0))
+        if amount is None:
+            logger.warning("자원 스탯 변화량 형식 오류: %s %r", key, change.get("change"))
             return None
         if amount == 0:
             return None
@@ -186,10 +230,13 @@ class StateChangeValidator:
         out: dict[str, Any] = {
             "key": key,
             "change": clamped,
-            "reason": str(change.get("reason", "")).strip(),
+            "reason": _text(change.get("reason")),
         }
         if "show_card" in change:
-            out["show_card"] = bool(change["show_card"])
+            show = change["show_card"]
+            if isinstance(show, str):  # "false" 문자열이 True 로 바뀌지 않게
+                show = show.strip().lower() in {"true", "1", "yes"}
+            out["show_card"] = bool(show)
         return out
 
     def _validate_npc_memory_updates(self, raw: Any) -> list[dict[str, Any]]:
@@ -212,8 +259,7 @@ class StateChangeValidator:
                 continue
             seen_chars.add(character)
             emotion = str(upd.get("emotion", "neutral")).strip() or "neutral"
-            valid_emotions = {"joy", "sadness", "anger", "fear", "surprise", "trust", "neutral"}
-            if emotion not in valid_emotions:
+            if emotion not in VALID_EMOTIONS:
                 emotion = "neutral"
             out.append({
                 "character": character,
@@ -222,19 +268,27 @@ class StateChangeValidator:
             })
         return out
 
-    def _validate_memory(self, memory: dict[str, Any]) -> dict[str, Any] | None:
-        """기억 검증"""
-        content = memory.get("content", "")
-        if not content or len(content) < 2:
+    def _validate_memory(self, memory: Any) -> dict[str, Any] | None:
+        """기억 검증 — content 는 문자열 필수, importance 는 정수 1~10 으로 정규화."""
+        if not isinstance(memory, dict):
+            logger.warning("기억 형식 오류 — 객체 아님: %r", memory)
+            return None
+        content = _text(memory.get("content"))
+        if len(content) < 2:
             logger.warning("빈 기억 무시")
             return None
 
-        importance = memory.get("importance", 5)
+        raw_importance = memory.get("importance", DEFAULT_MEMORY_IMPORTANCE)
+        importance = _coerce_int(raw_importance)
+        if importance is None:
+            logger.warning(
+                "기억 중요도 형식 오류(%r) → 기본값 %d", raw_importance, DEFAULT_MEMORY_IMPORTANCE
+            )
+            importance = DEFAULT_MEMORY_IMPORTANCE
         importance = max(1, min(10, importance))  # 1-10 범위 제한
 
-        valid_emotions = {"joy", "sadness", "anger", "fear", "surprise", "trust", "neutral"}
-        emotion = memory.get("emotion", "neutral")
-        if emotion not in valid_emotions:
+        emotion = _text(memory.get("emotion")) or "neutral"
+        if emotion not in VALID_EMOTIONS:
             emotion = "neutral"
 
         return {
