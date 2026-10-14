@@ -104,28 +104,56 @@ def test_haiku_pricing_when_model_contains_haiku():
     assert cost == pytest.approx(6.0, abs=0.001)
 
 
-def test_standard_input_billable_cache_read_subset():
-    """2차 호출: cache_read 가 input_tokens 안에 포함된 경우 표준 입력만 분리."""
-    assert UsageTracker.standard_input_billable(2016, 0, 1979) == 37
+# Anthropic usage: input_tokens / cache_creation_input_tokens / cache_read_input_tokens 는
+# 서로 겹치지 않는다 (총 입력 = 세 값의 합). input_tokens 는 이미 캐시 토큰을 제외한 값.
 
 
-def test_standard_input_billable_cache_read_disjoint():
-    """2차 호출: cache_read > input_tokens 이면 전부 표준 입력 (비중첩)."""
-    assert UsageTracker.standard_input_billable(1783, 0, 2022) == 1783
+def test_cache_read_tokens_billed_separately_from_input():
+    """캐시 히트: input_tokens 전부 표준 단가 + cache_read 는 읽기 단가 (차감 없음)."""
+    tracker = UsageTracker()
+    cost = tracker.log_call(
+        input_tokens=50,
+        output_tokens=0,
+        cache_read_tokens=100_000,
+    )
+    expected = (50 * 3.00 + 100_000 * 0.30) / 1_000_000
+    assert cost == pytest.approx(expected, rel=1e-9)
 
 
-def test_standard_input_billable_cache_creation_subset():
-    """1차 호출: cache_creation 이 input_tokens 에 포함."""
-    assert UsageTracker.standard_input_billable(2562, 2022, 0) == 540
+def test_input_smaller_than_cache_read_is_not_zeroed():
+    """구 휴리스틱은 input 에서 cache_read 를 빼 표준 입력을 0/과소로 만들 수 있었다."""
+    tracker = UsageTracker()
+    cost = tracker.log_call(input_tokens=2016, output_tokens=0, cache_read_tokens=1979)
+    # 2016 토큰 모두 표준 단가 — (2016 - 1979) = 37 토큰만 과금하던 버그 회귀 방지
+    assert cost == pytest.approx((2016 * 3.00 + 1979 * 0.30) / 1_000_000, rel=1e-9)
 
 
-def test_standard_input_billable_creation_disjoint_small_input():
-    """캐시 생성 토큰이 input_tokens 보다 크면(비중첩) 표준 입력은 input 전체."""
-    assert UsageTracker.standard_input_billable(1784, 1979, 0) == 1784
+def test_cache_creation_tokens_billed_at_write_price_only_once():
+    """캐시 생성: cache_creation 은 쓰기 단가, input_tokens 는 표준 단가로 각각 1회."""
+    tracker = UsageTracker()
+    cost = tracker.log_call(
+        input_tokens=2562,
+        output_tokens=100,
+        cache_creation_tokens=2022,
+    )
+    expected = (2562 * 3.00 + 100 * 15.00 + 2022 * 3.75) / 1_000_000
+    assert cost == pytest.approx(expected, rel=1e-9)
 
 
-def test_log_turn_anthropic_no_double_charge_turn8_pattern():
-    """툴 2-pass + 프롬프트 캐시 패턴에서 수동 검산과 일치 (Turn 8 로그)."""
+def test_haiku_cache_prices():
+    tracker = UsageTracker(llm_model="claude-haiku-4-5-20251001")
+    cost = tracker.log_call(
+        input_tokens=1_000_000,
+        output_tokens=0,
+        cache_creation_tokens=1_000_000,
+        cache_read_tokens=1_000_000,
+    )
+    # $1 + $1.25 + $0.10
+    assert cost == pytest.approx(2.35, rel=1e-9)
+
+
+def test_log_turn_anthropic_two_pass_sums_each_segment():
+    """툴 2-pass + 프롬프트 캐시: 세그먼트마다 네 필드를 각 단가로 합산."""
     tracker = UsageTracker()
     cost = tracker.log_turn_anthropic(
         [
@@ -143,11 +171,32 @@ def test_log_turn_anthropic_no_double_charge_turn8_pattern():
             },
         ]
     )
-    # 입력측: 1784*3 + 1979*3.75 + 37*3 + 1979*0.3 (per M) + 출력 747*15/M
-    expected_in = (
-        1784 * 3.0 + 1979 * 3.75 + 37 * 3.0 + 1979 * 0.30
+    expected = (
+        1784 * 3.00 + 1979 * 3.75  # 1차: 표준 입력 + 캐시 쓰기
+        + 2016 * 3.00 + 1979 * 0.30  # 2차: 표준 입력 + 캐시 읽기
+        + 747 * 15.00  # 출력
     ) / 1_000_000
-    expected_out = 747 * 15.0 / 1_000_000
-    assert cost == pytest.approx(expected_in + expected_out, abs=1e-5)
-    # 구버그(합산 input 전부 표준 단가)였다면 약 0.03062
-    assert cost < 0.027
+    assert cost == pytest.approx(expected, rel=1e-9)
+    assert tracker.total_calls == 1  # 턴당 1행
+    assert tracker.total_input_tokens == 1784 + 2016
+    assert tracker.total_cache_creation == 1979
+    assert tracker.total_cache_read == 1979
+    assert tracker.get_turn_history()[0]["cost"] == pytest.approx(round(expected, 6))
+
+
+def test_log_turn_matches_sum_of_log_calls():
+    segments = [
+        {"input_tokens": 300, "output_tokens": 20, "cache_creation_tokens": 0, "cache_read_tokens": 4000},
+        {"input_tokens": 120, "output_tokens": 400, "cache_creation_tokens": 500, "cache_read_tokens": 4000},
+    ]
+    per_call = UsageTracker()
+    for seg in segments:
+        per_call.log_call(
+            seg["input_tokens"],
+            seg["output_tokens"],
+            seg["cache_creation_tokens"],
+            seg["cache_read_tokens"],
+        )
+    per_turn = UsageTracker()
+    per_turn.log_turn_anthropic(segments)
+    assert per_turn.total_cost == pytest.approx(per_call.total_cost, rel=1e-12)

@@ -47,28 +47,27 @@ class UsageTracker:
         self.total_cost = 0.0
         self.turn_costs: List[Dict] = []
 
-    @staticmethod
-    def standard_input_billable(
+    def call_cost(
+        self,
         input_tokens: int,
-        cache_creation_tokens: int,
-        cache_read_tokens: int,
-    ) -> int:
-        """한 번의 Messages API 응답에 대해 표준 입력 단가가 적용되는 토큰 수 근사.
+        output_tokens: int,
+        cache_creation_tokens: int = 0,
+        cache_read_tokens: int = 0,
+    ) -> float:
+        """Messages API 응답 1건의 비용 (USD).
 
-        Anthropic은 input_tokens / cache_creation / cache_read 를 각각 다른 단가로 청구한다.
-        기존 구현은 (특히 2-pass 툴 플로우에서) input_tokens 합에 전부 표준 단가를 곱해
-        캐시 히트 토큰을 이중 과금하는 버그가 있었다.
-
-        휴리스틱 (로그·수동 검산과 일치):
-        - cache_read > input_tokens: 신규 메시지와 캐시 블록이 비중첩(2차 호출 패턴)
-        - 그 외 cache_creation > 0 이고 input_tokens >= cache_creation: 생성분은 쓰기 단가만
-        - 그 외: cache_read 만큼은 읽기 단가로 별도 과금 → 표준 입력에서 제외
+        Anthropic ``usage`` 의 세 입력 필드는 서로 겹치지 않는다:
+        ``input_tokens`` 는 캐시에서 읽지도, 캐시에 쓰지도 않은 토큰(마지막 cache breakpoint
+        이후)만 센다. 총 입력 = input_tokens + cache_creation_input_tokens
+        + cache_read_input_tokens. 따라서 각 필드에 해당 단가를 그대로 곱해 더한다
+        (input_tokens 에서 캐시 토큰을 빼면 표준 입력이 과소 집계된다).
         """
-        if cache_read_tokens > input_tokens:
-            return input_tokens
-        if cache_creation_tokens > 0 and input_tokens >= cache_creation_tokens:
-            return max(0, input_tokens - cache_creation_tokens)
-        return max(0, input_tokens - cache_read_tokens)
+        return (
+            input_tokens * self._input_price
+            + output_tokens * self._output_price
+            + cache_creation_tokens * self._cache_creation_price
+            + cache_read_tokens * self._cache_read_price
+        ) / 1_000_000
 
     def log_call(
         self,
@@ -77,15 +76,10 @@ class UsageTracker:
         cache_creation_tokens: int = 0,
         cache_read_tokens: int = 0,
     ) -> float:
-        """단일 API 응답 1건 기준 비용 (캐시 필드와 input_tokens 중복 과금 방지)."""
-        std_in = self.standard_input_billable(
-            input_tokens, cache_creation_tokens, cache_read_tokens
+        """단일 API 응답 1건 기록 후 비용 반환."""
+        call_cost = self.call_cost(
+            input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens
         )
-        input_cost = (std_in / 1_000_000) * self._input_price
-        output_cost = (output_tokens / 1_000_000) * self._output_price
-        cache_create_cost = (cache_creation_tokens / 1_000_000) * self._cache_creation_price
-        cache_read_cost = (cache_read_tokens / 1_000_000) * self._cache_read_price
-        call_cost = input_cost + output_cost + cache_create_cost + cache_read_cost
 
         self.total_calls += 1
         self.total_input_tokens += input_tokens
@@ -111,7 +105,8 @@ class UsageTracker:
     ) -> float:
         """한 게임 턴에 Messages 호출이 1~N번이어도 요청별 과금 후 합산 (턴당 기록 1행).
 
-        툴 2-pass 시 segments 길이 2. 각 세그먼트에 대해 캐시 토큰 이중 과금을 피한다.
+        툴 2-pass 시 segments 길이 2. 각 세그먼트는 응답 1건의 ``usage`` 그대로
+        (input / output / cache_creation / cache_read, 서로 비중첩).
         """
         turn_cost = 0.0
         turn_in = turn_out = turn_cc = turn_cr = 0
@@ -120,11 +115,7 @@ class UsageTracker:
             out = int(seg.get("output_tokens", 0))
             cc = int(seg.get("cache_creation_tokens", 0))
             cr = int(seg.get("cache_read_tokens", 0))
-            std = self.standard_input_billable(inp, cc, cr)
-            turn_cost += (std / 1_000_000) * self._input_price
-            turn_cost += (out / 1_000_000) * self._output_price
-            turn_cost += (cc / 1_000_000) * self._cache_creation_price
-            turn_cost += (cr / 1_000_000) * self._cache_read_price
+            turn_cost += self.call_cost(inp, out, cc, cr)
             turn_in += inp
             turn_out += out
             turn_cc += cc
@@ -185,8 +176,8 @@ class UsageTracker:
         print(f"  Created: {stats['total_cache_creation']:,} tokens")
         print(f"  Read:    {stats['total_cache_read']:,} tokens")
         if stats["total_cache_read"] > 0:
-            without_cache = (stats["total_cache_read"] / 1_000_000) * self.SONNET_INPUT_PRICE
-            with_cache = (stats["total_cache_read"] / 1_000_000) * self.SONNET_CACHE_READ_PRICE
+            without_cache = (stats["total_cache_read"] / 1_000_000) * self._input_price
+            with_cache = (stats["total_cache_read"] / 1_000_000) * self._cache_read_price
             saved = without_cache - with_cache
             print(f"  Saved:   ${saved:.6f} (90% discount)")
         print("=" * 60 + "\n")

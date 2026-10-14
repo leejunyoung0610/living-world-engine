@@ -119,7 +119,7 @@
 ### Usage / 비용 (`backend/src/utils/usage_tracker.py`)
 
 - 턴마다 세그먼트별 `input` / `output` / `cache_creation` / `cache_read` 기록.
-- `standard_input_billable()`: 캐시 토큰과 표준 입력의 **이중 과금을 피하는** 휴리스틱.
+- `call_cost()`: Anthropic `usage` 의 `input_tokens`·`cache_creation_input_tokens`·`cache_read_input_tokens` 는 **서로 겹치지 않으므로**(총 입력 = 세 값의 합) 각 필드에 해당 단가를 그대로 곱해 합산. (이전 `standard_input_billable()` 휴리스틱은 `input_tokens` 에서 캐시 토큰을 빼 표준 입력을 과소 집계했음 — 2026-10 수정.)
 
 ### 검증·다음 작업 (문서화만)
 
