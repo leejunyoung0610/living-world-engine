@@ -7,6 +7,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     POETRY_VIRTUALENVS_CREATE=false \
     POETRY_NO_INTERACTION=1
 
+# X-Forwarded-* 를 신뢰할 프록시 IP/CIDR (콤마 구분) — uvicorn 이 이 env 를 직접 읽는다.
+# 기본 127.0.0.1 = 같은 호스트의 프록시만 신뢰. 런타임에 `-e FORWARDED_ALLOW_IPS=...` 로 덮어쓴다.
+# `*` 는 API 포트가 외부에 노출되면 누구나 X-Forwarded-For 로 IP 를 위조해
+# 레이트 리밋(클라이언트 IP 기준)을 우회할 수 있으므로 쓰지 말 것.
+ENV FORWARDED_ALLOW_IPS=127.0.0.1
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -26,4 +32,4 @@ RUN chmod +x /docker-api-entrypoint.sh
 
 EXPOSE 8000
 ENTRYPOINT ["/docker-api-entrypoint.sh"]
-CMD ["uvicorn", "backend.src.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
+CMD ["uvicorn", "backend.src.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
