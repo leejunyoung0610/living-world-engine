@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
@@ -39,7 +40,7 @@ def test_record_platform_cost_accumulates(db_session, monkeypatch: pytest.Monkey
     row = db_session.scalars(
         select(PlatformCostDaily).where(PlatformCostDaily.usage_date == utc_usage_date()),
     ).one()
-    assert abs(row.cost_usd - 0.03) < 1e-9
+    assert row.cost_usd == Decimal("0.03")
 
 
 def test_webhook_once_when_over_threshold(db_session, monkeypatch: pytest.MonkeyPatch) -> None:

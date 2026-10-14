@@ -27,7 +27,7 @@
 | BYOK | **제거됨** (마이그레이션 `0009`). **`BYOK_MASTER_KEY` 불필요** |
 | 비용 알림 env | **`PLATFORM_DAILY_COST_ALERT_THRESHOLD_USD`** (예: `2.0`). `PLATFORM_DAILY_COST_THRESHOLD` 아님 |
 | NPC 초상 월 한도 | 기본 **`IMAGE_GEN_NPC_PER_USER_MONTHLY=60`** (`.env.example` / `config.py`) |
-| Alembic head | **`0015_npc_avatar_quotas`** |
+| Alembic head | **`0016_money_columns_numeric`** (금액 컬럼 Float → Numeric(12,6)) |
 
 ---
 
@@ -181,6 +181,7 @@ poetry run python backend/scripts/check_beta_env.py --strict # 베타 프로덕�
 | 0013 | `0013_image_cover_quotas.py` | image_cover_quotas |
 | 0014 | `0014_image_gen_cost_daily.py` | image_gen_cost_daily |
 | 0015 | `0015_npc_avatar_quotas.py` | image_avatar_quotas |
+| 0016 | `0016_money_columns_numeric.py` | 금액 컬럼(`cost_usd`) Float → Numeric(12,6) |
 
 ### 4. 외부 서비스 계정
 

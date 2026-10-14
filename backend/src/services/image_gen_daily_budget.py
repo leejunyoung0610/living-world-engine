@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db.models.image_gen_cost_daily import ImageGenCostDaily
+from ..db.types import to_money
 from ..utils.config import Settings
 
 logger = logging.getLogger(__name__)
@@ -79,7 +80,7 @@ def record_cover_generation_usage(db: Session, settings: Settings) -> None:
     if row is None:
         row = ImageGenCostDaily(
             usage_date=today,
-            cost_usd=0.0,
+            cost_usd=to_money(0),
             cover_generation_count=0,
             npc_avatar_generation_count=0,
             alert_sent=False,
@@ -89,7 +90,7 @@ def record_cover_generation_usage(db: Session, settings: Settings) -> None:
 
     row.cover_generation_count = int(row.cover_generation_count) + 1
     if est > 0:
-        row.cost_usd = float(row.cost_usd) + est
+        row.cost_usd = to_money(row.cost_usd) + to_money(est)
     db.flush()
 
     _maybe_fire_daily_image_budget_alert(db, row, today, settings)
@@ -105,7 +106,7 @@ def record_npc_avatar_generation_usage(db: Session, settings: Settings) -> None:
     if row is None:
         row = ImageGenCostDaily(
             usage_date=today,
-            cost_usd=0.0,
+            cost_usd=to_money(0),
             cover_generation_count=0,
             npc_avatar_generation_count=0,
             alert_sent=False,
@@ -115,7 +116,7 @@ def record_npc_avatar_generation_usage(db: Session, settings: Settings) -> None:
 
     row.npc_avatar_generation_count = int(row.npc_avatar_generation_count) + 1
     if est > 0:
-        row.cost_usd = float(row.cost_usd) + est
+        row.cost_usd = to_money(row.cost_usd) + to_money(est)
     db.flush()
 
     _maybe_fire_daily_image_budget_alert(db, row, today, settings)

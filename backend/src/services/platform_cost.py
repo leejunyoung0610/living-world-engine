@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db.models import PlatformCostDaily
+from ..db.types import to_money
 from ..utils.config import Settings
 
 logger = logging.getLogger(__name__)
@@ -33,9 +34,9 @@ def record_platform_cost_delta(db: Session, delta_usd: float, settings: Settings
         select(PlatformCostDaily).where(PlatformCostDaily.usage_date == today),
     ).first()
     if row is None:
-        row = PlatformCostDaily(usage_date=today, cost_usd=0.0, alert_sent=False)
+        row = PlatformCostDaily(usage_date=today, cost_usd=to_money(0), alert_sent=False)
         db.add(row)
-    row.cost_usd = float(row.cost_usd) + float(delta_usd)
+    row.cost_usd = to_money(row.cost_usd) + to_money(delta_usd)
     db.flush()
 
     if (
