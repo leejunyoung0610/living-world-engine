@@ -123,7 +123,7 @@
 
 ### 검증·다음 작업 (문서화만)
 
-- [ ] 동일 세션에서 Single-Pass 성공률·평균 턴 비용 **실측** (README의 참고치는 측정 조건 의존).
+- [ ] 동일 세션에서 Single-Pass 성공률·평균 턴 비용 **실측** (README에는 측정 데이터가 없어 비용 수치를 싣지 않음).
 - [ ] Phase 3: `llm_max_tokens` A/B (예: 640 / 768 / 1024) 품질·비용.
 - [ ] 필요 시 `MAX_CONTEXT_TOKENS`, `KEEP_RECENT_TURNS`, `NPC_RECENT_TURNS`, Layer3 `limit` / `min_importance` 미세 조정.
 
@@ -535,7 +535,7 @@ Week 4: ░░░░░░░░░░  0%
 
 | 영역 | ai_s (기존) | 새 engine | 왜 바꿨나 |
 |------|-------------|-----------|-----------|
-| **전체 구조** | 3-Layer (Narrative / Interpretation / World) + Orchestrator, ~75파일 | 단일 GameEngine 루프, ~35파일 | 레이어 간 충돌이 디버깅 불가능 수준이었음 |
+| **전체 구조** | 3-Layer (Narrative / Interpretation / World) + Orchestrator | 단일 GameEngine 루프 | 레이어 간 충돌이 디버깅 불가능 수준이었음 |
 | **NPC 행동** | FSM 상태머신 (npc_behavior.py + behavior_arbitrator.py) | LLM에게 위임 (Tool Use) | FSM이 플레이어 행동을 반영 못해 항상 "challenge"로 고착 |
 | **상태 변경** | LLM 텍스트 → 태그 파싱 (`<NPC_EMOTION>`, `<RELATION>`) | LLM이 Tool Use로 구조화된 JSON 직접 반환 | 태그 파싱 실패율이 높았고 디버깅 어려움 |
 | **상태 적용** | StateReducer (다중 소스 diff 병합, 우선순위 충돌) | 단일 파이프라인: LLM → Validator → State | Reducer에서 LLM 결과가 NPC behavior에 덮어씌워지는 버그 |
@@ -628,7 +628,7 @@ Week 4: ░░░░░░░░░░  0%
 
 | | ai_s | 새 engine |
 |---|---|---|
-| **테스트 수** | 6개 파일 (유틸 위주) | **53개** (핵심 로직 전부) |
+| **테스트 수** (2026-02 작성 시점) | 6개 파일 (유틸 위주) | **53개** (핵심 로직) |
 | **LLM 테스트** | 없음 (실제 API 의존) | **Mock 기반 15개** (API 없이 검증) |
 | **커버리지** | 측정 안 함 | **pytest-cov 설정 완료** |
 | **방식** | 코드 먼저 → 테스트 나중 | **테스트와 코드 동시 작성 (TDD)** |

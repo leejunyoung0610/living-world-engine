@@ -8,6 +8,8 @@
 | 전략 | **Ready but Gated** — 동작은 완성도에 가깝게, 노출·비용은 플래그로 제한 |
 | 구현 실행 문서 | **[`BETA_DEV_EXECUTION.md`](BETA_DEV_EXECUTION.md)** — Epic·완료 조건(DoD)·코드 위치 (개발자·에이전트용) |
 
+> **현황 (2026-10):** BYOK(사용자 API 키)는 구현하지 않았다. 서버 `ANTHROPIC_API_KEY` 하나 + 일일 턴 쿼터로 대체했고, 0007에서 추가했던 키 컬럼은 Alembic `0009` 에서 제거했다. 아래 BYOK·키 암호화(Fernet 등) 항목은 당시 계획이다.
+
 기획·정책의 정본은 이 문서이며, **착수할 구체 작업**은 `BETA_DEV_EXECUTION.md`를 따른다. 엔진·최적화 **코드 정본**은 저장소와 [`DEVELOPMENT.md`](../DEVELOPMENT.md)의 「2026-03-30 코드 기준」절을 따른다.
 
 ---

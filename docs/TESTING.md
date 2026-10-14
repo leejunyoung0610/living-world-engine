@@ -9,20 +9,20 @@
 ```
         ╱   Smoke API    ╲      ← 가입→월드→플레이→턴 (TestClient, Stub) ✅
        ╱───────────────╲
-      ╱  E2E (엔진)      ╲      ← 장시간 플로우 — `e2e`, 실 키 ✅
+      ╱  E2E (엔진)      ╲      ← 장시간 플로우 — `e2e`, 실 키 (2개) ✅
        ╱─────────╲          
       ╱ Integration╲        ← GameEngine + 실제 Claude API (5개) ✅
      ╱───────────────╲      
-    ╱   Unit Tests    ╲     ← 각 모듈 독립 검증 (80개) ✅
+    ╱   Unit Tests    ╲     ← 각 모듈 독립 검증 (383개) ✅
    ╱───────────────────╲    
 ```
 
 | 레벨 | 파일 수 | 테스트 수 | API 필요 | 실행 시간 | 상태 |
 |------|---------|-----------|----------|-----------|------|
 | **Smoke (API)** | `smoke/` | 1 | ❌ (Stub) | ~0.3초 | ✅ CI 포함 |
-| **Unit** | `unit/` | 다수 | ❌ (Mock/Stub) | ~10초 | ✅ |
+| **Unit** | `unit/` | 383 (PostgreSQL 동시성 2개는 `LWE_TEST_POSTGRES_URL` 설정 시만, 기본 skip) | ❌ (Mock/Stub) | ~50초 | ✅ CI 포함 |
 | **Integration** | `integration/` | 5개 | ✅ (~$0.05/회) | ~60초 | ⬜ CI 제외 |
-| **E2E** | `e2e/` | — | ✅ | ~2분 | ⬜ CI 제외 |
+| **E2E** | `e2e/` | 2 | ✅ | ~2분 | ⬜ CI 제외 |
 
 ### 실행 명령어 요약
 
@@ -103,7 +103,7 @@ LWE_TEST_POSTGRES_URL=postgresql://postgres@127.0.0.1:5432/living_world_test \
 | `test_valid_change` | 정상 변경 통과 |
 | `test_invalid_character_rejected` | 없는 캐릭터 거부 |
 | `test_invalid_stat_rejected` | 유효하지 않은 스탯 거부 |
-| `test_change_clamping` | ±10 범위 클램핑 |
+| `test_change_clamping` | 1건당 ±3 범위 클램핑 |
 | `test_empty_memory_rejected` | 빈 기억 거부 |
 | `test_importance_clamping` | 중요도 범위 제한 |
 | `test_invalid_emotion_defaults_to_neutral` | 잘못된 감정 → neutral |

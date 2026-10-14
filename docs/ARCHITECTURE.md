@@ -27,7 +27,7 @@ graph TB
         I[텍스트 응답 추출]
         J[StateChangeValidator]
         K[WorldState 적용]
-        L[LoopDetector 체크]
+        L[LoopDetector 체크 — 현재 비활성화]
         M[EventManager 체크]
     end
 
@@ -74,7 +74,7 @@ graph TB
     ↓
 ⑥ WorldState 적용 (관계 업데이트, 기억 추가)
     ↓
-⑦ 루프 감지 (정체? 반복?) → 필요 시 이벤트 주입
+⑦ 루프 감지 (정체? 반복?) → 필요 시 이벤트 주입 — ※ 현재 비활성화 (아래 LoopDetector 참고)
     ↓
 응답 반환
 ```
@@ -224,8 +224,10 @@ content: ""             →   ❌ 거부 (drop)
   ✅ 정상 진행
 ```
 
-**감지 시 대응:** EventManager가 강제 이벤트를 주입하여 서사 전환.
+**감지 시 대응 (설계):** EventManager가 강제 이벤트를 주입하여 서사 전환.
 예) "결투장에서 갑자기 종이 울린다. 공식 결투가 선포되었다."
+
+> **현재 상태:** 감지·심각도(0~10) 계산은 구현·단위 테스트돼 있지만, 정상 대화를 루프로 판정하는 오탐 이력 뒤 2026-03에 `game_loop.py` 에서 호출을 비활성화했다(`loop_detected` 는 항상 `False`). 「severity 7+ → 강제 이벤트 주입」도 함께 꺼져 있다.
 
 ---
 
@@ -339,7 +341,7 @@ Player Input
 │         ↓                      │
 │   ⑤ WorldState.apply()        │
 │         ↓                      │
-│   ⑥ LoopDetector.check()     │
+│   ⑥ LoopDetector.check() off  │
 │         ↓                      │
 │   ⑦ EventManager.check()     │
 │                                │
