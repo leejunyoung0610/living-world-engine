@@ -626,8 +626,8 @@ def play_start(
     return JSONResponse(status_code=status.HTTP_201_CREATED, content=payload)
 
 
-@limiter.limit("90/minute")
 @router.post("/{session_id}/turn", response_model=TurnResponse)
+@limiter.limit("90/minute")
 def play_turn(
     request: Request,
     session_id: uuid.UUID,
@@ -695,8 +695,8 @@ def _sse_event(event: str, payload: dict[str, Any]) -> str:
     return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
-@limiter.limit("90/minute")
 @router.post("/{session_id}/turn/stream")
+@limiter.limit("90/minute")
 def play_turn_stream(
     request: Request,
     session_id: uuid.UUID,
@@ -776,8 +776,8 @@ def play_turn_stream(
     return StreamingResponse(_generate(), media_type="text/event-stream", headers=headers)
 
 
-@limiter.limit("90/minute")
 @router.post("/{session_id}/turn/regenerate/stream")
+@limiter.limit("90/minute")
 def play_regenerate_stream(
     request: Request,
     session_id: uuid.UUID,

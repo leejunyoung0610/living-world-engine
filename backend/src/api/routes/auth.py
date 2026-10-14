@@ -65,8 +65,8 @@ def issue_access_token(email: str) -> str:
     return _create_access_token(email)
 
 
-@limiter.limit("12/minute")
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
+@limiter.limit("12/minute")
 def signup(request: Request, body: SignupBody, db: Session = Depends(get_db)) -> dict[str, str]:
     """`invite_code`: `require_invite_code_for_signup` 가 켜져 있을 때만 DB 검증."""
     settings = get_settings()
@@ -127,8 +127,8 @@ def signup(request: Request, body: SignupBody, db: Session = Depends(get_db)) ->
     return {"message": "created", "email": email}
 
 
-@limiter.limit("30/minute")
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit("30/minute")
 def login(request: Request, body: LoginBody, db: Session = Depends(get_db)) -> TokenResponse:
     email = body.email.lower()
     user = db.scalars(select(User).where(User.email == email)).first()

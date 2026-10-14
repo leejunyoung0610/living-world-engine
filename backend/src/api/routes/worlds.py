@@ -684,8 +684,8 @@ def toggle_world_like(
     return WorldLikeState(liked=liked, like_count=int(w.like_count or 0))
 
 
-@limiter.limit("10/minute")
 @router.post("/{world_id}/generate-cover", response_model=GenerateCoverResponse)
+@limiter.limit("10/minute")
 def generate_world_cover_ai(
     request: Request,
     world_id: uuid.UUID,
@@ -743,11 +743,11 @@ def generate_world_cover_ai(
     )
 
 
-@limiter.limit("30/minute")
 @router.post(
     "/{world_id}/npcs/{npc_id}/generate-portrait",
     response_model=GenerateNpcPortraitResponse,
 )
+@limiter.limit("30/minute")
 def generate_npc_portrait_ai(
     request: Request,
     world_id: uuid.UUID,
