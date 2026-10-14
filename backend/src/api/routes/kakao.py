@@ -60,7 +60,7 @@ def _resolve_redirect_uri(settings: Settings, request: Request) -> str:
     """``KAKAO_REDIRECT_URI`` 가 비어있으면 요청 호스트에서 자동 도출.
 
     카카오 콘솔에 등록된 URI 중 *현재 요청과 동일한 호스트* 가 자동 선택되므로,
-    동일 빌드를 ``localhost:8080``, ``172.30.x.y:8080``, 운영 도메인에 모두 사용 가능.
+    동일 빌드를 ``localhost:8080``, ``<LAN_IP>:8080``, 운영 도메인에 모두 사용 가능.
     """
     if settings.kakao_redirect_uri:
         return settings.kakao_redirect_uri

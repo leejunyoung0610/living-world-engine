@@ -42,7 +42,7 @@ curl -s http://localhost:8000/api/worlds/meta/image-storage | jq
 ### 로컬 개발
 
 - R2 없이도 Replicate로 **테스트 생성**은 가능합니다. 다만 URL은 곧 만료됩니다.
-- 실제 UGC 데이터는 `docker-compose.yml`의 `DATABASE_URL`이 가리키는 Postgres를 사용하는지 확인하세요 (`host.docker.internal` = Mac 로컬 DB).
+- 실제 UGC 데이터가 어느 Postgres 에 있는지 확인하세요. `docker-compose.yml` 은 기본으로 내장 `db` 서비스를 쓰고, 호스트 DB 를 쓰려면 `.env` 에 `DOCKER_DATABASE_URL=postgresql://…@host.docker.internal:5432/living_world` 를 지정합니다.
 
 ## 코드 경로
 

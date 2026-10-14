@@ -146,6 +146,6 @@ Connection: keep-alive
 
 ## 9. 변경 로그
 
-- 2026-05-10 — PR-1 완료. 옵션 A 채택. 점진 화자 분할 추가 (사용자 요청). 휴대폰 (`http://172.16.100.133:8080`) 에서 NPC 별 박스 흐름 확인.
+- 2026-05-10 — PR-1 완료. 옵션 A 채택. 점진 화자 분할 추가 (사용자 요청). 휴대폰 (같은 LAN, `http://<LAN_IP>:8080`) 에서 NPC 별 박스 흐름 확인.
 - 2026-05-12 — **PR-3 (일부)** 재생성 `POST` 에 선택 `message` 본문 + Play UI 「대사 수정」 모달/시트.
 - 2026-05-10 — **PR-2** `regenerate_checkpoint` + `POST .../turn/regenerate/stream` + Play UI 「다시 생성」.
