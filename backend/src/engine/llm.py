@@ -3,8 +3,6 @@ ClaudeClient - Anthropic Claude API 통합
 
 LangChain 없이 Claude API를 직접 사용합니다.
 Tool Use: 기본 2단계 호출 + Single-Pass(1차에 텍스트 있으면 2차 생략).
-
-TODO: Week 1 Day 5-7에 구현 완성
 """
 
 from __future__ import annotations

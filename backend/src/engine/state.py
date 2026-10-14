@@ -3,8 +3,6 @@ WorldState - 게임 세계 상태 관리
 
 모든 게임 상태를 관리하는 핵심 클래스.
 캐릭터 관계, 플레이어 스탯, 세계 변수, 퀘스트 등을 추적합니다.
-
-TODO: Week 1 Day 3-4에 구현
 """
 
 from __future__ import annotations

@@ -3,8 +3,6 @@ StateChangeValidator - LLM 상태 변경 검증
 
 LLM이 제안한 상태 변경을 검증하고 안전한 범위 내로 제한합니다.
 게임 밸런스를 유지하는 핵심 모듈입니다.
-
-TODO: Week 1 Day 3-4에 구현 완성
 """
 
 from __future__ import annotations

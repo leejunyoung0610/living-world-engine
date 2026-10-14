@@ -8,8 +8,8 @@ Haiku API 연결 스모크 테스트 (기본은 항상 Haiku — .env 의 LLM_MO
 
 ❌ command not found: python → poetry run python … 또는 python3 사용
 
-권장:
-  cd /Users/leejy/Desktop/engine && poetry run python backend/haiku_test.py
+권장 (프로젝트 루트에서 — 스크립트가 자기 위치 기준으로 루트 .env 를 찾음):
+  poetry run python backend/haiku_test.py
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ except ImportError:
 from dotenv import load_dotenv
 from anthropic import Anthropic
 
-# engine/.env 로드 (이 파일이 backend/ 에 있으므로 상위가 루트)
+# 프로젝트 루트 .env 로드 (이 파일이 backend/ 에 있으므로 상위가 루트)
 _ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(_ROOT / ".env")
 
@@ -62,7 +62,7 @@ def main() -> int:
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
-        print("❌ ANTHROPIC_API_KEY 없음 — engine/.env 를 확인하세요.")
+        print("❌ ANTHROPIC_API_KEY 없음 — 프로젝트 루트 .env 를 확인하세요.")
         return 1
 
     if args.from_env:

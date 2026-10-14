@@ -2,8 +2,6 @@
 KeywordMemorySearch - 키워드 기반 메모리 검색 시스템
 
 벡터 DB 없이 키워드 매칭 + 중요도 + 최신도로 관련 기억을 검색합니다.
-
-TODO: Week 1 Day 3-4에 구현 완성
 """
 
 from __future__ import annotations

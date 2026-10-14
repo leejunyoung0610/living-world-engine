@@ -2,8 +2,6 @@
 GameEngine - 메인 게임 루프
 
 모든 엔진 컴포넌트를 연결하는 메인 루프입니다.
-
-TODO: Week 2 Day 13-14에 구현 완성
 """
 
 from __future__ import annotations
