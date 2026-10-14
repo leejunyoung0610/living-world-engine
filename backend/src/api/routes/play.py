@@ -649,7 +649,10 @@ def play_turn(
 
     _ensure_platform_llm_key(bundle.engine)
 
-    turn_quota.check_platform_turn_quota_or_raise(db, user, settings)
+    # 한도 검사 + 1턴 차감을 원자적으로 (실패 시 아래에서 되돌림).
+    # 예약이 commit 하면 ORM `user` 가 만료되므로 id 를 먼저 꺼내 둔다.
+    user_id = user.id
+    reserved = turn_quota.reserve_platform_turn(db, user_id, settings)
 
     ut = getattr(bundle.engine, "usage_tracker", None)
     cost_before = float(ut.total_cost) if ut is not None else 0.0
@@ -661,6 +664,7 @@ def play_turn(
     try:
         result = bundle.engine.process_turn(body.message.strip())
     except Exception as exc:
+        turn_quota.release_platform_turn(db, user_id, reserved)
         logger.exception("play turn failed")
         detail = "LLM 또는 엔진 처리 중 오류가 났습니다. API 키·네트워크를 확인하세요."
         if get_settings().debug:
@@ -670,12 +674,11 @@ def play_turn(
             detail=detail,
         ) from exc
 
-    turn_quota.record_platform_turn(db, user, settings)
     if ut is not None:
         delta = float(ut.total_cost) - cost_before
         platform_cost.record_platform_cost_delta(db, delta, settings)
 
-    _persist_session(db, session_id, user.id, bundle.world_id, bundle.engine, bundle=bundle)
+    _persist_session(db, session_id, user_id, bundle.world_id, bundle.engine, bundle=bundle)
 
     safe_events = format_events_for_client(bundle.engine, result.get("events_triggered") or [])
 
@@ -717,7 +720,9 @@ def play_turn_stream(
         )
 
     _ensure_platform_llm_key(bundle.engine)
-    turn_quota.check_platform_turn_quota_or_raise(db, user, settings)
+    # 제너레이터는 요청 세션이 닫힌 뒤 실행된다 — ORM `user` 대신 id 를 캡처.
+    user_id = user.id
+    reserved = turn_quota.reserve_platform_turn(db, user_id, settings)
 
     ut = getattr(bundle.engine, "usage_tracker", None)
     cost_before = float(ut.total_cost) if ut is not None else 0.0
@@ -728,6 +733,7 @@ def play_turn_stream(
 
     def _generate() -> Any:
         final_result: dict[str, Any] | None = None
+        persisted = False
         try:
             for ev in bundle.engine.process_turn_stream(msg):
                 if ev.get("type") == "delta":
@@ -738,14 +744,15 @@ def play_turn_stream(
                     final_result = ev.get("result")
 
             if final_result is None:
+                turn_quota.release_platform_turn(db, user_id, reserved)
                 yield _sse_event("error", {"detail": "엔진이 응답을 반환하지 못했습니다."})
                 return
 
-            turn_quota.record_platform_turn(db, user, settings)
             if ut is not None:
                 delta = float(ut.total_cost) - cost_before
                 platform_cost.record_platform_cost_delta(db, delta, settings)
-            _persist_session(db, session_id, user.id, bundle.world_id, bundle.engine, bundle=bundle)
+            _persist_session(db, session_id, user_id, bundle.world_id, bundle.engine, bundle=bundle)
+            persisted = True
 
             response_text = str(final_result.get("response", ""))
             segs = _segments_for_assistant(bundle.engine, response_text)
@@ -762,6 +769,8 @@ def play_turn_stream(
             }
             yield _sse_event("done", done_payload)
         except Exception as exc:
+            if not persisted:
+                turn_quota.release_platform_turn(db, user_id, reserved)
             logger.exception("play turn stream failed")
             detail = "스트리밍 처리 중 오류가 났습니다. 네트워크/API 키를 확인하세요."
             if get_settings().debug:
@@ -837,7 +846,9 @@ def play_regenerate_stream(
     apply_play_payload(bundle.engine, cp)
     sync_engine_after_restore(bundle.engine)
 
-    turn_quota.check_platform_turn_quota_or_raise(db, user, settings)
+    # 제너레이터는 요청 세션이 닫힌 뒤 실행된다 — ORM `user` 대신 id 를 캡처.
+    user_id = user.id
+    reserved = turn_quota.reserve_platform_turn(db, user_id, settings)
 
     ut = getattr(bundle.engine, "usage_tracker", None)
     cost_before = float(ut.total_cost) if ut is not None else 0.0
@@ -848,6 +859,7 @@ def play_regenerate_stream(
 
     def _generate() -> Any:
         final_result: dict[str, Any] | None = None
+        persisted = False
         try:
             for ev in bundle.engine.process_turn_stream(effective_msg):
                 if ev.get("type") == "delta":
@@ -858,14 +870,15 @@ def play_regenerate_stream(
                     final_result = ev.get("result")
 
             if final_result is None:
+                turn_quota.release_platform_turn(db, user_id, reserved)
                 yield _sse_event("error", {"detail": "엔진이 응답을 반환하지 못했습니다."})
                 return
 
-            turn_quota.record_platform_turn(db, user, settings)
             if ut is not None:
                 delta = float(ut.total_cost) - cost_before
                 platform_cost.record_platform_cost_delta(db, delta, settings)
-            _persist_session(db, session_id, user.id, bundle.world_id, bundle.engine, bundle=bundle)
+            _persist_session(db, session_id, user_id, bundle.world_id, bundle.engine, bundle=bundle)
+            persisted = True
 
             response_text = str(final_result.get("response", ""))
             segs = _segments_for_assistant(bundle.engine, response_text)
@@ -882,6 +895,8 @@ def play_regenerate_stream(
             }
             yield _sse_event("done", done_payload)
         except Exception as exc:
+            if not persisted:
+                turn_quota.release_platform_turn(db, user_id, reserved)
             logger.exception("play regenerate stream failed")
             detail = "재생성 스트리밍 중 오류가 났습니다. 네트워크/API 키를 확인하세요."
             if get_settings().debug:

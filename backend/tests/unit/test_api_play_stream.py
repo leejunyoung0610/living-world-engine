@@ -173,3 +173,30 @@ def test_stream_other_user_cannot_access(client: TestClient) -> None:
         json={"message": "안녕"},
     )
     assert r.status_code == 404
+
+
+def test_stream_failure_releases_quota_reservation(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """스트림 중 엔진 오류(error 이벤트)로 끝난 턴은 예약한 쿼터를 되돌린다."""
+    monkeypatch.setenv("ENFORCE_PLATFORM_TURN_QUOTA", "true")
+    monkeypatch.setenv("PLATFORM_DAILY_TURN_LIMIT", "1")
+    token = _signup_token(client, "quota_stream@example.com")
+    wid = _create_world(client, token)
+    sid = _start_session(client, token, wid)
+    h = {"Authorization": f"Bearer {token}"}
+
+    def boom(self: StubGameEngine, msg: str):
+        yield {"type": "delta", "text": "부분"}
+        raise RuntimeError("upstream LLM down")
+
+    with monkeypatch.context() as m:
+        m.setattr(StubGameEngine, "process_turn_stream", boom)
+        r = client.post(f"/api/play/{sid}/turn/stream", headers=h, json={"message": "a"})
+    assert r.status_code == 200
+    assert _parse_sse(r.text)[-1]["event"] == "error"
+
+    r = client.post(f"/api/play/{sid}/turn/stream", headers=h, json={"message": "b"})
+    assert _parse_sse(r.text)[-1]["event"] == "done"
+    r = client.post(f"/api/play/{sid}/turn/stream", headers=h, json={"message": "c"})
+    assert r.status_code == 429

@@ -7,11 +7,13 @@ import logging
 import urllib.error
 import urllib.request
 from datetime import date, datetime, timezone
+from typing import Any
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from ..db.atomic import NO_SYNC, insert_ignore
 from ..db.models.image_gen_cost_daily import ImageGenCostDaily
 from ..db.types import to_money
 from ..utils.config import Settings
@@ -54,10 +56,10 @@ def _assert_daily_budget_allows(
         return
 
     today = utc_usage_date()
-    row = db.scalars(
-        select(ImageGenCostDaily).where(ImageGenCostDaily.usage_date == today),
-    ).first()
-    prev = float(row.cost_usd) if row is not None else 0.0
+    prev_cost = db.scalar(
+        select(ImageGenCostDaily.cost_usd).where(ImageGenCostDaily.usage_date == today),
+    )
+    prev = float(prev_cost) if prev_cost is not None else 0.0
     lim = float(budget)
 
     if prev + est > lim + 1e-9:
@@ -72,82 +74,92 @@ def _assert_daily_budget_allows(
 
 def record_cover_generation_usage(db: Session, settings: Settings) -> None:
     """커버 1건 성공 후 호출."""
-    est = float(settings.image_gen_cover_cost_estimate_usd)
-    today = utc_usage_date()
-    row = db.scalars(
-        select(ImageGenCostDaily).where(ImageGenCostDaily.usage_date == today),
-    ).first()
-    if row is None:
-        row = ImageGenCostDaily(
-            usage_date=today,
-            cost_usd=to_money(0),
-            cover_generation_count=0,
-            npc_avatar_generation_count=0,
-            alert_sent=False,
-        )
-        db.add(row)
-        db.flush()
-
-    row.cover_generation_count = int(row.cover_generation_count) + 1
-    if est > 0:
-        row.cost_usd = to_money(row.cost_usd) + to_money(est)
-    db.flush()
-
-    _maybe_fire_daily_image_budget_alert(db, row, today, settings)
+    _record_image_generation(
+        db,
+        settings,
+        ImageGenCostDaily.cover_generation_count,
+        float(settings.image_gen_cover_cost_estimate_usd),
+    )
 
 
 def record_npc_avatar_generation_usage(db: Session, settings: Settings) -> None:
     """NPC 초상 1건 성공 후 호출."""
-    est = float(settings.image_npc_avatar_cost_estimate_usd)
+    _record_image_generation(
+        db,
+        settings,
+        ImageGenCostDaily.npc_avatar_generation_count,
+        float(settings.image_npc_avatar_cost_estimate_usd),
+    )
+
+
+def _record_image_generation(
+    db: Session,
+    settings: Settings,
+    count_column: Any,
+    est_usd: float,
+) -> None:
+    """오늘(UTC) 행에 건수 +1·추정 비용 가산 — DB 안에서 원자적으로 (``col = col + :delta``)."""
     today = utc_usage_date()
-    row = db.scalars(
-        select(ImageGenCostDaily).where(ImageGenCostDaily.usage_date == today),
-    ).first()
-    if row is None:
-        row = ImageGenCostDaily(
-            usage_date=today,
-            cost_usd=to_money(0),
-            cover_generation_count=0,
-            npc_avatar_generation_count=0,
-            alert_sent=False,
-        )
-        db.add(row)
-        db.flush()
+    insert_ignore(
+        db,
+        ImageGenCostDaily,
+        {
+            "usage_date": today,
+            "cost_usd": to_money(0),
+            "cover_generation_count": 0,
+            "npc_avatar_generation_count": 0,
+            "alert_sent": False,
+        },
+    )
+    values: dict[Any, Any] = {count_column: count_column + 1}
+    if est_usd > 0:
+        values[ImageGenCostDaily.cost_usd] = ImageGenCostDaily.cost_usd + to_money(est_usd)
+    db.execute(
+        update(ImageGenCostDaily)
+        .where(ImageGenCostDaily.usage_date == today)
+        .values(values)
+        .execution_options(**NO_SYNC)
+    )
 
-    row.npc_avatar_generation_count = int(row.npc_avatar_generation_count) + 1
-    if est > 0:
-        row.cost_usd = to_money(row.cost_usd) + to_money(est)
-    db.flush()
-
-    _maybe_fire_daily_image_budget_alert(db, row, today, settings)
+    _maybe_fire_daily_image_budget_alert(db, today, settings)
 
 
 def _maybe_fire_daily_image_budget_alert(
     db: Session,
-    row: ImageGenCostDaily,
     today: date,
     settings: Settings,
 ) -> None:
     budget_thr = settings.image_gen_daily_budget_usd
     webhook = settings.platform_cost_alert_webhook_url.strip()
-
-    cost_now = float(row.cost_usd)
-    if (
-        budget_thr is None
-        or float(budget_thr) <= 0
-        or cost_now < float(budget_thr)
-        or row.alert_sent
-        or not webhook
-    ):
+    if budget_thr is None or float(budget_thr) <= 0 or not webhook:
         return
 
-    cov = int(row.cover_generation_count)
-    npc_n = int(row.npc_avatar_generation_count)
+    # 임계 도달 + 미발송일 때만 한 요청이 알림 권리를 얻는다 (조건부 UPDATE).
+    claimed = db.execute(
+        update(ImageGenCostDaily)
+        .where(
+            ImageGenCostDaily.usage_date == today,
+            ImageGenCostDaily.alert_sent.is_(False),
+            ImageGenCostDaily.cost_usd >= to_money(budget_thr),
+        )
+        .values(alert_sent=True)
+        .execution_options(**NO_SYNC)
+    )
+    if claimed.rowcount != 1:
+        return
+
+    cost_now, cov, npc_n = db.execute(
+        select(
+            ImageGenCostDaily.cost_usd,
+            ImageGenCostDaily.cover_generation_count,
+            ImageGenCostDaily.npc_avatar_generation_count,
+        ).where(ImageGenCostDaily.usage_date == today)
+    ).one()
     payload = {
         "text": (
             "[Living World Engine] 이미지 생성 일일 추정 비용이 예산 임계에 도달했습니다. "
-            f"UTC {today.isoformat()} 추정 합계 ${cost_now:.4f} USD · "
-            f"커버 {cov}건 · NPC 초상 {npc_n}건 · 예산 ${float(budget_thr):.2f} USD."
+            f"UTC {today.isoformat()} 추정 합계 ${float(cost_now):.4f} USD · "
+            f"커버 {int(cov)}건 · NPC 초상 {int(npc_n)}건 · 예산 ${float(budget_thr):.2f} USD."
         )
     }
     try:
@@ -160,5 +172,3 @@ def _maybe_fire_daily_image_budget_alert(
         urllib.request.urlopen(req, timeout=12)
     except (urllib.error.URLError, OSError) as e:
         logger.warning("image gen cost webhook failed: %s", e)
-    row.alert_sent = True
-    db.flush()

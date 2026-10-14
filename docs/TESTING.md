@@ -41,6 +41,10 @@ poetry run pytest -m integration --no-cov
 
 # 전체 (유닛 + 통합 + 스모크 + e2e)
 poetry run pytest --no-cov
+
+# 동시성(턴 쿼터·비용 집계 원자성) 테스트를 PostgreSQL 에서도 — 임시 스키마를 만들고 지운다
+LWE_TEST_POSTGRES_URL=postgresql://postgres@127.0.0.1:5432/living_world_test \
+  poetry run pytest backend/tests/unit/test_atomic_counters.py --no-cov -q
 ```
 
 ---

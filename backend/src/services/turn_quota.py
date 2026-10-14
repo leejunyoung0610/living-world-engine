@@ -1,20 +1,30 @@
-"""플랫폼 키 일일 턴 쿼터 (Epic D) — UTC 달력일 기준."""
+"""플랫폼 키 일일 턴 쿼터 (Epic D) — UTC 달력일 기준.
+
+한도 검사와 차감은 조건부 UPDATE 한 문장으로 원자적으로 처리한다::
+
+    UPDATE user_daily_turn_usage SET turn_count = turn_count + 1
+    WHERE user_id = :u AND usage_date = :d AND turn_count < :limit
+
+영향 행이 0이면 이미 한도다. (예전처럼 SELECT 로 검사하고 LLM 호출 뒤 따로 +1 하면,
+동시에 들어온 요청들이 같은 잔여분을 보고 모두 통과해 한도를 넘길 수 있었다.)
+"""
 
 from __future__ import annotations
 
+import logging
+import uuid
 from datetime import date, datetime, timezone
-from typing import Protocol
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import update
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from ..db.atomic import NO_SYNC, insert_ignore
 from ..db.models import UserDailyTurnUsage
 from ..utils.config import Settings
 
-
-class _QuotaUser(Protocol):
-    id: object
+logger = logging.getLogger(__name__)
 
 
 def utc_usage_date() -> date:
@@ -32,21 +42,40 @@ def platform_quota_enforced(settings: Settings) -> bool:
     return True
 
 
-def check_platform_turn_quota_or_raise(db: Session, user: _QuotaUser, settings: Settings) -> None:
-    """`POST .../turn` 호출 전 — 한도에 이미 도달했으면 429."""
+def reserve_platform_turn(db: Session, user_id: uuid.UUID, settings: Settings) -> date | None:
+    """LLM 호출 **전** — 한도 안이면 오늘 사용량을 원자적으로 +1 하고 그 UTC 날짜를 반환.
+
+    - 이미 한도면 429 (아무것도 바꾸지 않음).
+    - 쿼터 미적용이면 ``None`` (예약 없음).
+    - 예약은 즉시 commit 한다: LLM 호출(수 초) 동안 행 잠금·트랜잭션을 잡지 않기 위해서.
+      턴이 실패하면 반환값을 ``release_platform_turn`` 에 넘겨 되돌린다.
+      스트리밍 중 클라이언트가 끊긴 경우는 LLM 비용이 이미 발생했으므로 사용으로 남긴다.
+    - ORM ``User`` 대신 id 를 받는다: commit 이 세션 객체를 만료시키므로, 세션이 닫힌 뒤
+      실행되는 스트리밍 제너레이터에서 ``user.id`` 를 다시 읽으면 DetachedInstanceError.
+    """
     if not platform_quota_enforced(settings):
-        return
+        return None
     limit = settings.platform_daily_turn_limit
     assert limit is not None
     today = utc_usage_date()
-    row = db.scalars(
-        select(UserDailyTurnUsage).where(
-            UserDailyTurnUsage.user_id == user.id,
+
+    insert_ignore(
+        db,
+        UserDailyTurnUsage,
+        {"user_id": user_id, "usage_date": today, "turn_count": 0},
+    )
+    result = db.execute(
+        update(UserDailyTurnUsage)
+        .where(
+            UserDailyTurnUsage.user_id == user_id,
             UserDailyTurnUsage.usage_date == today,
+            UserDailyTurnUsage.turn_count < limit,
         )
-    ).first()
-    used = int(row.turn_count) if row is not None else 0
-    if used >= limit:
+        .values(turn_count=UserDailyTurnUsage.turn_count + 1)
+        .execution_options(**NO_SYNC)
+    )
+    if result.rowcount != 1:
+        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=(
@@ -54,21 +83,32 @@ def check_platform_turn_quota_or_raise(db: Session, user: _QuotaUser, settings: 
                 "내일 UTC 기준으로 다시 시도하세요."
             ),
         )
+    db.commit()
+    return today
 
 
-def record_platform_turn(db: Session, user: _QuotaUser, settings: Settings) -> None:
-    """턴이 성공한 뒤 집계. `_persist_session` 의 `commit` 과 같은 트랜잭션에 포함되도록 flush 만 사용."""
-    if not platform_quota_enforced(settings):
+def release_platform_turn(db: Session, user_id: uuid.UUID, reserved_date: date | None) -> None:
+    """실패한 턴의 예약을 되돌린다 (원자적 -1, 0 미만 방지). 실패 경로 전용.
+
+    세션의 미커밋 변경(실패한 턴의 부분 기록)은 버리고, 차감 취소만 commit 한다.
+    ``reserved_date`` 는 예약 시점 날짜 — 자정을 넘겨 실패해도 그날 행을 되돌린다.
+    """
+    if reserved_date is None:
         return
-    today = utc_usage_date()
-    row = db.scalars(
-        select(UserDailyTurnUsage).where(
-            UserDailyTurnUsage.user_id == user.id,
-            UserDailyTurnUsage.usage_date == today,
+    try:
+        db.rollback()
+        db.execute(
+            update(UserDailyTurnUsage)
+            .where(
+                UserDailyTurnUsage.user_id == user_id,
+                UserDailyTurnUsage.usage_date == reserved_date,
+                UserDailyTurnUsage.turn_count > 0,
+            )
+            .values(turn_count=UserDailyTurnUsage.turn_count - 1)
+            .execution_options(**NO_SYNC)
         )
-    ).first()
-    if row is None:
-        row = UserDailyTurnUsage(user_id=user.id, usage_date=today, turn_count=0)
-        db.add(row)
-    row.turn_count = int(row.turn_count) + 1
-    db.flush()
+        db.commit()
+    except SQLAlchemyError:
+        # 되돌리기 실패가 원래 오류(LLM 실패 등) 응답을 가리지 않도록 기록만 한다.
+        logger.exception("platform turn quota release failed")
+        db.rollback()

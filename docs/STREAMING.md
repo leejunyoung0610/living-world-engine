@@ -26,7 +26,7 @@
    │
    ▼
 POST /api/play/{id}/turn/stream                      ← play.py
-   │ (사전: 인증·세션·긴급셧다운·LLM 키·턴 쿼터 사전 체크)
+   │ (사전: 인증·세션·긴급셧다운·LLM 키·턴 쿼터 원자적 예약 — turn_quota.reserve_platform_turn)
    │
    ▼
 GameEngine.process_turn_stream(msg)                  ← game_loop.py
@@ -45,10 +45,10 @@ GameEngine._finalize_turn_after_llm()
    │ conversation_history 갱신
    ▼
 SSE 종료 시점에:
-   ├─ turn_quota.record_platform_turn (쿼터 차감)
    ├─ platform_cost.record_platform_cost_delta
    ├─ _persist_session (DB 영속화)
    └─ event: done {turn, day, response, response_segments, events_triggered}
+   (엔진 오류·결과 없음 → turn_quota.release_platform_turn 으로 예약 취소 후 event: error)
 ```
 
 ---

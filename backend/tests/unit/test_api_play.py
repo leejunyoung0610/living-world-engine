@@ -517,6 +517,33 @@ def test_play_turn_platform_quota_429(client: TestClient, monkeypatch: pytest.Mo
     assert "한도" in r.json()["detail"]
 
 
+def test_play_turn_failure_does_not_consume_quota(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """LLM/엔진 실패(502)로 끝난 턴은 예약했던 쿼터를 되돌린다."""
+    monkeypatch.setenv("ENFORCE_PLATFORM_TURN_QUOTA", "true")
+    monkeypatch.setenv("PLATFORM_DAILY_TURN_LIMIT", "1")
+
+    token = _signup_token(client, "quota-fail@example.com")
+    wid = _create_world(client, token)
+    h = {"Authorization": f"Bearer {token}"}
+    sid = client.post(
+        "/api/play/start", headers=h, json={"world_id": wid, "player": PLAYER_START}
+    ).json()["session_id"]
+
+    def boom(self: StubGameEngine, msg: str) -> dict:
+        raise RuntimeError("upstream LLM down")
+
+    with monkeypatch.context() as m:
+        m.setattr(StubGameEngine, "process_turn", boom)
+        r = client.post(f"/api/play/{sid}/turn", headers=h, json={"message": "a"})
+    assert r.status_code == 502
+
+    assert client.post(f"/api/play/{sid}/turn", headers=h, json={"message": "b"}).status_code == 200
+    r = client.post(f"/api/play/{sid}/turn", headers=h, json={"message": "c"})
+    assert r.status_code == 429
+
+
 def test_play_delete_session(client: TestClient) -> None:
     token = _signup_token(client)
     wid = _create_world(client, token)

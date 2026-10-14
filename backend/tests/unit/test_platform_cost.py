@@ -58,3 +58,32 @@ def test_webhook_once_when_over_threshold(db_session, monkeypatch: pytest.Monkey
     with patch("urllib.request.urlopen") as m2:
         record_platform_cost_delta(db_session, 0.1, s)
     assert m2.call_count == 0
+
+
+def test_cost_accumulates_without_float_drift(db_session, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Numeric(12,6) + DB 내 가산 — 0.1 을 세 번 더하면 정확히 0.3 (float 이면 0.30000000000000004)."""
+    monkeypatch.delenv("PLATFORM_DAILY_COST_ALERT_THRESHOLD_USD", raising=False)
+    s = Settings()
+    for _ in range(3):
+        record_platform_cost_delta(db_session, 0.1, s)
+    db_session.commit()
+    db_session.expire_all()
+    total = db_session.scalar(
+        select(PlatformCostDaily.cost_usd).where(PlatformCostDaily.usage_date == utc_usage_date())
+    )
+    assert total == Decimal("0.3")
+
+
+def test_no_webhook_without_url_even_over_threshold(
+    db_session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """임계 초과여도 웹훅 URL 이 없으면 알림 플래그를 소모하지 않는다 (나중에 URL 설정 시 1회 발송)."""
+    monkeypatch.setenv("PLATFORM_DAILY_COST_ALERT_THRESHOLD_USD", "0.01")
+    monkeypatch.delenv("PLATFORM_COST_ALERT_WEBHOOK_URL", raising=False)
+    with patch("urllib.request.urlopen") as m_open:
+        record_platform_cost_delta(db_session, 0.05, Settings())
+    assert m_open.call_count == 0
+    row = db_session.scalars(
+        select(PlatformCostDaily).where(PlatformCostDaily.usage_date == utc_usage_date()),
+    ).one()
+    assert row.alert_sent is False
